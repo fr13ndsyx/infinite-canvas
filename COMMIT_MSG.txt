@@ -1,7 +1,0 @@
-refactor: 分离前后端目录结构为 Go/ 和 next/
-
-- 后端代码移动到 Go/ 目录
-- 前端代码从 web/ 移动到 next/ 目录
-- 数据库文件统一放到根目录 data/
-- 调整 Dockerfile、docker-compose、.dockerignore 适配新路径
-- Go/.env 配置数据库路径为 ../data/infinite-canvas.db
