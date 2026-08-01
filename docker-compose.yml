@@ -7,7 +7,7 @@ services:
     pull_policy: always
     container_name: infinite-canvas
     env_file:
-      - .env
+      - Go/.env
     volumes:
       - ./data:/app/data
     ports:
