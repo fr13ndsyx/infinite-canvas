@@ -1,0 +1,252 @@
+"use client";
+
+import { DeleteOutlined, EditOutlined, ExportOutlined, PlusOutlined, SyncOutlined } from "@ant-design/icons";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
+import { Button, Form, Input, InputNumber, Modal, Space, Switch, Tag, Tooltip, Typography } from "antd";
+import dayjs from "dayjs";
+import { useEffect, useState } from "react";
+
+import type { PromptSource, PromptSourceInput, PromptSourceUpdate } from "@/services/api/admin-prompt-sources";
+import { useAdminPromptSources } from "./use-admin-prompt-sources";
+
+type SourceFormValues = PromptSourceInput & { sortOrder: number };
+
+const defaultFormValues: SourceFormValues = {
+    source: "",
+    name: "",
+    description: "",
+    githubUrl: "",
+    remote: false,
+    enabled: true,
+    sortOrder: 0,
+};
+
+function formatTime(value: string) {
+    return value ? dayjs(value).format("YYYY-MM-DD HH:mm:ss") : "-";
+}
+
+export default function AdminPromptSourcesPage() {
+    const { sources, isLoading, isSyncing, createSource, updateSource, deleteSource, syncSource, syncAllSources, refresh } = useAdminPromptSources();
+    const [form] = Form.useForm<SourceFormValues>();
+    const [editingSource, setEditingSource] = useState<PromptSource | null>(null);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [deletingSource, setDeletingSource] = useState<PromptSource | null>(null);
+    const isEditing = Boolean(editingSource?.source);
+
+    useEffect(() => {
+        if (!isFormOpen) return;
+        if (editingSource) {
+            form.setFieldsValue({
+                source: editingSource.source,
+                name: editingSource.name,
+                description: editingSource.description,
+                githubUrl: editingSource.githubUrl,
+                remote: editingSource.remote,
+                enabled: editingSource.enabled,
+                sortOrder: editingSource.sortOrder,
+            });
+        } else {
+            form.setFieldsValue(defaultFormValues);
+        }
+    }, [editingSource, form, isFormOpen]);
+
+    const openCreate = () => {
+        setEditingSource(null);
+        setIsFormOpen(true);
+    };
+
+    const openEdit = (item: PromptSource) => {
+        setEditingSource(item);
+        setIsFormOpen(true);
+    };
+
+    const submitForm = async () => {
+        const value = await form.validateFields();
+        if (isEditing && editingSource) {
+            const payload: PromptSourceUpdate = {
+                name: value.name,
+                description: value.description,
+                enabled: value.enabled,
+                sortOrder: value.sortOrder,
+            };
+            await updateSource(editingSource.source, payload);
+        } else {
+            await createSource(value);
+        }
+        setIsFormOpen(false);
+    };
+
+    const toggleEnabled = async (item: PromptSource, enabled: boolean) => {
+        await updateSource(item.source, {
+            name: item.name,
+            description: item.description,
+            enabled,
+            sortOrder: item.sortOrder,
+        });
+    };
+
+    const columns: ProColumns<PromptSource>[] = [
+        {
+            title: "来源 ID",
+            dataIndex: "source",
+            width: 220,
+            render: (_, item) => <Typography.Text code>{item.source}</Typography.Text>,
+        },
+        {
+            title: "显示名称",
+            dataIndex: "name",
+            width: 200,
+            render: (_, item) => <Typography.Text strong>{item.name}</Typography.Text>,
+        },
+        {
+            title: "类型",
+            dataIndex: "remote",
+            width: 80,
+            render: (_, item) => (item.remote ? <Tag color="blue">远程</Tag> : <Tag>本地</Tag>),
+        },
+        {
+            title: "GitHub",
+            dataIndex: "githubUrl",
+            width: 80,
+            render: (_, item) =>
+                item.githubUrl ? (
+                    <Tooltip title={item.githubUrl}>
+                        <Button type="link" icon={<ExportOutlined />} href={item.githubUrl} target="_blank" />
+                    </Tooltip>
+                ) : (
+                    <Typography.Text type="secondary">-</Typography.Text>
+                ),
+        },
+        {
+            title: "状态",
+            dataIndex: "enabled",
+            width: 90,
+            render: (_, item) => <Switch checked={item.enabled} size="small" onChange={(checked) => void toggleEnabled(item, checked)} />,
+        },
+        {
+            title: "排序",
+            dataIndex: "sortOrder",
+            width: 70,
+            align: "right",
+        },
+        {
+            title: "最后同步",
+            dataIndex: "lastSyncedAt",
+            width: 180,
+            render: (_, item) => <Typography.Text type="secondary">{formatTime(item.lastSyncedAt)}</Typography.Text>,
+        },
+        {
+            title: "操作",
+            key: "actions",
+            width: 160,
+            align: "right",
+            render: (_, item) => (
+                <Space size={4}>
+                    {item.remote ? (
+                        <Tooltip title="同步">
+                            <Button type="text" size="small" icon={<SyncOutlined />} loading={isSyncing} onClick={() => void syncSource(item.source)} />
+                        </Tooltip>
+                    ) : null}
+                    <Tooltip title="编辑">
+                        <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEdit(item)} />
+                    </Tooltip>
+                    <Tooltip title="删除">
+                        <Button danger type="text" size="small" icon={<DeleteOutlined />} onClick={() => setDeletingSource(item)} />
+                    </Tooltip>
+                </Space>
+            ),
+        },
+    ];
+
+    return (
+        <main style={{ padding: 24 }}>
+            <ProTable<PromptSource>
+                rowKey="source"
+                columns={columns}
+                dataSource={sources}
+                loading={isLoading}
+                search={false}
+                defaultSize="middle"
+                tableLayout="fixed"
+                cardProps={{ variant: "borderless" }}
+                headerTitle={
+                    <Space>
+                        <Typography.Text strong>提示词来源</Typography.Text>
+                        <Tag>{sources.length} 个</Tag>
+                    </Space>
+                }
+                options={{ density: true, setting: true, reload: () => void refresh() }}
+                pagination={false}
+                toolBarRender={() => [
+                    <Button key="sync-all" icon={<SyncOutlined />} loading={isSyncing} onClick={() => void syncAllSources()}>
+                        同步所有
+                    </Button>,
+                    <Button key="add" type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                        新增来源
+                    </Button>,
+                ]}
+            />
+
+            <Modal
+                title={isEditing ? "编辑来源" : "新增来源"}
+                open={isFormOpen}
+                width={620}
+                onCancel={() => setIsFormOpen(false)}
+                onOk={() => void submitForm()}
+                okText="保存"
+                cancelText="取消"
+                destroyOnHidden
+            >
+                <Form form={form} layout="vertical" requiredMark={false}>
+                    <Form.Item name="source" label="来源 ID" rules={[{ required: true, message: "请输入来源 ID" }]}>
+                        <Input placeholder="如 my-custom-prompts" disabled={isEditing} />
+                    </Form.Item>
+                    <Form.Item name="name" label="显示名称" rules={[{ required: true, message: "请输入显示名称" }]}>
+                        <Input placeholder="如 我的自定义提示词" />
+                    </Form.Item>
+                    <Form.Item name="description" label="描述">
+                        <Input.TextArea rows={2} placeholder="来源描述" />
+                    </Form.Item>
+                    {!isEditing ? (
+                        <>
+                            <Form.Item name="githubUrl" label="GitHub 仓库地址">
+                                <Input placeholder="远程来源必填，本地来源留空" />
+                            </Form.Item>
+                            <Form.Item name="remote" label="远程同步" valuePropName="checked">
+                                <Switch checkedChildren="远程" unCheckedChildren="本地" />
+                            </Form.Item>
+                            <Form.Item name="enabled" label="启用" valuePropName="checked">
+                                <Switch />
+                            </Form.Item>
+                        </>
+                    ) : (
+                        <Form.Item name="enabled" label="启用" valuePropName="checked">
+                            <Switch />
+                        </Form.Item>
+                    )}
+                    <Form.Item name="sortOrder" label="排序权重（越小越靠前）">
+                        <InputNumber min={0} style={{ width: "100%" }} />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            <Modal
+                title="删除来源"
+                open={Boolean(deletingSource)}
+                onCancel={() => setDeletingSource(null)}
+                onOk={async () => {
+                    if (!deletingSource) return;
+                    await deleteSource(deletingSource.source);
+                    setDeletingSource(null);
+                }}
+                okText="删除"
+                okButtonProps={{ danger: true }}
+                cancelText="取消"
+            >
+                确定删除来源「{deletingSource?.name}」吗？
+                <br />
+                <Typography.Text type="secondary">该来源下的提示词将保留在数据库中，但用户端不再展示。</Typography.Text>
+            </Modal>
+        </main>
+    );
+}

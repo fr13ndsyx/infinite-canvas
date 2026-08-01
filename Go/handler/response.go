@@ -55,6 +55,7 @@ func parseQuery(r *http.Request) model.Query {
 		Keyword:  q.Get("keyword"),
 		Tags:     q["tag"],
 		Category: q.Get("category"),
+		Source:   q.Get("source"),
 		Type:     q.Get("type"),
 		Page:     page,
 		PageSize: pageSize,

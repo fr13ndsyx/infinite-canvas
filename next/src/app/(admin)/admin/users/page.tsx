@@ -85,12 +85,6 @@ export default function AdminUsersPage() {
             render: (_, item) => <Typography.Text>{item.credits}</Typography.Text>,
         },
         {
-            title: "Linux.do",
-            dataIndex: "linuxDoId",
-            width: 140,
-            render: (_, item) => <Typography.Text type="secondary">{item.linuxDoId || "-"}</Typography.Text>,
-        },
-        {
             title: "最近登录",
             dataIndex: "lastLoginAt",
             width: 180,

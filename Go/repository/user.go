@@ -165,15 +165,6 @@ func DeleteUser(id string) error {
 	return db.Delete(&model.User{}, "id = ?", id).Error
 }
 
-// GetUserByLinuxDoID 根据 Linux.do ID 查询用户。
-func GetUserByLinuxDoID(id string) (model.User, bool, error) {
-	db, err := DB()
-	if err != nil {
-		return model.User{}, false, err
-	}
-	return findUser(db, "linux_do_id = ?", id)
-}
-
 // findUser 查询单个用户，并将未命中转换为 ok=false。
 func findUser(db *gorm.DB, query string, args ...any) (model.User, bool, error) {
 	user := model.User{}

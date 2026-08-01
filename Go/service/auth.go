@@ -1,15 +1,10 @@
 package service
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -26,10 +21,6 @@ type TokenClaims struct {
 	Username string         `json:"username"`
 	Role     model.UserRole `json:"role"`
 	jwt.RegisteredClaims
-}
-
-type userExtra struct {
-	LinuxDo any `json:"linuxDo,omitempty"`
 }
 
 func EnsureDefaultAdmin() error {
@@ -121,87 +112,6 @@ func Login(username string, password string) (model.AuthSession, error) {
 	return newSession(user)
 }
 
-func LinuxDoAuthorizeURL(r *http.Request, redirect string) (string, error) {
-	settings, err := repository.GetSettings()
-	if err != nil {
-		return "", err
-	}
-	settings = normalizeSettings(settings)
-	linuxDo := settings.Private.Auth.LinuxDo
-	if !settings.Public.Auth.LinuxDo.Enabled {
-		return "", safeMessageError{message: "Linux.do 登录未开启"}
-	}
-	if strings.TrimSpace(linuxDo.ClientID) == "" || strings.TrimSpace(linuxDo.ClientSecret) == "" {
-		return "", safeMessageError{message: "Linux.do 登录未配置"}
-	}
-	values := url.Values{}
-	values.Set("client_id", linuxDo.ClientID)
-	values.Set("redirect_uri", linuxDoRedirectURI(r))
-	values.Set("response_type", "code")
-	values.Set("scope", "read")
-	values.Set("state", base64.RawURLEncoding.EncodeToString([]byte(redirect)))
-	return config.Cfg.LinuxDoAuthorizeURL + "?" + values.Encode(), nil
-}
-
-func LoginWithLinuxDo(r *http.Request, code string, state string) (model.AuthSession, string, error) {
-	redirect := decodeState(state)
-	settings, err := repository.GetSettings()
-	if err != nil {
-		return model.AuthSession{}, redirect, err
-	}
-	settings = normalizeSettings(settings)
-	linuxDo := settings.Private.Auth.LinuxDo
-	if !settings.Public.Auth.LinuxDo.Enabled {
-		return model.AuthSession{}, redirect, safeMessageError{message: "Linux.do 登录未开启"}
-	}
-	token, err := linuxDoAccessToken(r, code, linuxDo)
-	if err != nil {
-		return model.AuthSession{}, redirect, err
-	}
-	profile, err := linuxDoProfile(token)
-	if err != nil {
-		return model.AuthSession{}, redirect, err
-	}
-	linuxDoID := fmt.Sprint(profile.ID)
-	if strings.TrimSpace(linuxDoID) == "" || linuxDoID == "0" {
-		return model.AuthSession{}, redirect, safeMessageError{message: "Linux.do 用户信息无效"}
-	}
-	user, ok, err := repository.GetUserByLinuxDoID(linuxDoID)
-	if err != nil {
-		return model.AuthSession{}, redirect, err
-	}
-	if !ok {
-		if settings.Public.Auth.AllowRegister != nil && !*settings.Public.Auth.AllowRegister {
-			return model.AuthSession{}, redirect, safeMessageError{message: "当前未开放注册"}
-		}
-		user = model.User{
-			ID:          newID("user"),
-			Username:    linuxDoUsername(profile.Username, linuxDoID),
-			DisplayName: strings.TrimSpace(profile.Name),
-			AvatarURL:   linuxDoAvatar(profile.AvatarTemplate),
-			Role:        model.UserRoleUser,
-			AffCode:     newAffCode(),
-			LinuxDoID:   linuxDoID,
-			Status:      model.UserStatusActive,
-			CreatedAt:   now(),
-		}
-	} else if user.Status == model.UserStatusBan {
-		return model.AuthSession{}, redirect, safeMessageError{message: "账号已被禁用"}
-	}
-	user.DisplayName = firstNonEmpty(profile.Name, user.DisplayName)
-	user.AvatarURL = firstNonEmpty(linuxDoAvatar(profile.AvatarTemplate), user.AvatarURL)
-	user.LastLoginAt = now()
-	user.UpdatedAt = now()
-	extra, _ := json.Marshal(userExtra{LinuxDo: profile})
-	user.Extra = string(extra)
-	user, err = repository.SaveUser(user)
-	if err != nil {
-		return model.AuthSession{}, redirect, err
-	}
-	session, err := newSession(user)
-	return session, redirect, err
-}
-
 func ParseToken(tokenText string) (TokenClaims, error) {
 	claims := TokenClaims{}
 	token, err := jwt.ParseWithClaims(tokenText, &claims, func(token *jwt.Token) (any, error) {
@@ -280,9 +190,6 @@ func SaveUser(user model.User, password string) (model.User, error) {
 		}
 		if user.AffCode == "" {
 			user.AffCode = newAffCode()
-		}
-		if user.LinuxDoID == "" {
-			user.LinuxDoID = saved.LinuxDoID
 		}
 		user.LastLoginAt = saved.LastLoginAt
 	}
@@ -457,109 +364,6 @@ func normalizeUserDefaults(user *model.User) {
 	if user.AffCode == "" {
 		user.AffCode = newAffCode()
 	}
-}
-
-type linuxDoTokenResponse struct {
-	AccessToken string `json:"access_token"`
-}
-
-type linuxDoUserResponse struct {
-	ID             int64  `json:"id"`
-	Username       string `json:"username"`
-	Name           string `json:"name"`
-	AvatarTemplate string `json:"avatar_template"`
-}
-
-func linuxDoAccessToken(r *http.Request, code string, setting model.PrivateLinuxDoAuthSetting) (string, error) {
-	values := url.Values{}
-	values.Set("client_id", setting.ClientID)
-	values.Set("client_secret", setting.ClientSecret)
-	values.Set("grant_type", "authorization_code")
-	values.Set("code", code)
-	values.Set("redirect_uri", linuxDoRedirectURI(r))
-	req, _ := http.NewRequest(http.MethodPost, config.Cfg.LinuxDoTokenURL, strings.NewReader(values.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	var payload linuxDoTokenResponse
-	if err := doLinuxDoJSON(req, &payload); err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(payload.AccessToken) == "" {
-		return "", safeMessageError{message: "Linux.do 登录失败"}
-	}
-	return payload.AccessToken, nil
-}
-
-func linuxDoRedirectURI(r *http.Request) string {
-	return RequestOrigin(r) + "/api/auth/linux-do/callback"
-}
-
-func linuxDoProfile(token string) (linuxDoUserResponse, error) {
-	req, _ := http.NewRequest(http.MethodGet, config.Cfg.LinuxDoUserInfoURL, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	var payload linuxDoUserResponse
-	err := doLinuxDoJSON(req, &payload)
-	return payload, err
-}
-
-func doLinuxDoJSON(req *http.Request, payload any) error {
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return safeMessageError{message: "Linux.do 登录失败"}
-	}
-	return json.NewDecoder(bytes.NewReader(body)).Decode(payload)
-}
-
-func linuxDoUsername(username string, id string) string {
-	base := strings.TrimSpace(username)
-	if base == "" {
-		base = "linuxdo-" + id
-	}
-	if _, ok, err := repository.GetUserByUsername(base); err != nil || !ok {
-		return base
-	}
-	return base + "-" + id
-}
-
-func linuxDoAvatar(template string) string {
-	if strings.TrimSpace(template) == "" {
-		return ""
-	}
-	if strings.HasPrefix(template, "//") {
-		template = "https:" + template
-	}
-	if strings.HasPrefix(template, "/") {
-		template = "https://linux.do" + template
-	}
-	return strings.ReplaceAll(template, "{size}", "120")
-}
-
-func decodeState(state string) string {
-	data, err := base64.RawURLEncoding.DecodeString(state)
-	if err != nil {
-		return "/"
-	}
-	return safeRedirectPath(string(data))
-}
-
-// safeRedirectPath 仅放行站内相对路径，拦截开放重定向。浏览器会忽略 URL 中的
-// Tab/换行/回车，并把 //host 或 /\host 解析为协议相对的跨站地址，因此先剥离这些
-// 控制字符，再拒绝 // 与 /\ 前缀。
-func safeRedirectPath(redirect string) string {
-	cleaned := strings.Map(func(r rune) rune {
-		if r == '\t' || r == '\n' || r == '\r' {
-			return -1
-		}
-		return r
-	}, redirect)
-	if !strings.HasPrefix(cleaned, "/") || strings.HasPrefix(cleaned, "//") || strings.HasPrefix(cleaned, "/\\") {
-		return "/"
-	}
-	return cleaned
 }
 
 func RequestOrigin(r *http.Request) string {

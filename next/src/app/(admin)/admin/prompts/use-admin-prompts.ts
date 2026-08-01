@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { App } from "antd";
 
-import { deleteAdminPrompt, deleteAdminPrompts, fetchAdminPrompts, fetchAdminPromptCategories, saveAdminPrompt, syncAdminPromptCategoriesAll, syncAdminPromptCategory, type AdminPromptCategory } from "@/services/api/admin";
+import { deleteAdminPrompt, deleteAdminPrompts, fetchAdminPrompts, saveAdminPrompt } from "@/services/api/admin";
+import { fetchAdminPromptSources } from "@/services/api/admin-prompt-sources";
 import type { Prompt } from "@/services/api/prompts";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -16,53 +17,29 @@ export function useAdminPrompts() {
     const token = useUserStore((state) => state.token);
     const clearSession = useUserStore((state) => state.clearSession);
     const [keyword, setKeyword] = useState("");
-    const [category, setCategory] = useState("");
+    const [source, setSource] = useState("");
     const [tag, setTag] = useState<string[]>([]);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(defaultPageSize);
 
-    const categoriesQuery = useQuery({
-        queryKey: ["admin", "prompt-categories", token],
-        queryFn: () => fetchAdminPromptCategories(token),
+    const sourcesQuery = useQuery({
+        queryKey: ["admin", "prompt-sources", token],
+        queryFn: () => fetchAdminPromptSources(token),
         enabled: Boolean(token),
         retry: false,
     });
 
     const promptsQuery = useQuery({
-        queryKey: ["admin", "prompts", token, keyword, category, tag, page, pageSize],
-        queryFn: () => fetchAdminPrompts(token, { keyword, category, tag, page, pageSize }),
+        queryKey: ["admin", "prompts", token, keyword, source, tag, page, pageSize],
+        queryFn: () => fetchAdminPrompts(token, { keyword, source, tag, page, pageSize }),
         enabled: Boolean(token),
         retry: false,
-    });
-
-    const syncMutation = useMutation({
-        mutationFn: (category: string) => syncAdminPromptCategory(token, category),
-        onSuccess: async (categories) => {
-            queryClient.setQueryData<AdminPromptCategory[]>(["admin", "prompt-categories", token], categories);
-            await queryClient.invalidateQueries({ queryKey: ["admin", "prompts"] });
-            message.success("远程提示词源已同步");
-        },
-        onError: (error) => {
-            message.error(error instanceof Error ? error.message : "同步失败");
-        },
-    });
-
-    const syncAllMutation = useMutation({
-        mutationFn: () => syncAdminPromptCategoriesAll(token),
-        onSuccess: async (categories) => {
-            queryClient.setQueryData<AdminPromptCategory[]>(["admin", "prompt-categories", token], categories);
-            await queryClient.invalidateQueries({ queryKey: ["admin", "prompts"] });
-            message.success("全部远程提示词源已同步");
-        },
-        onError: (error) => {
-            message.error(error instanceof Error ? error.message : "同步失败");
-        },
     });
 
     const saveMutation = useMutation({
         mutationFn: (prompt: Partial<Prompt>) => saveAdminPrompt(token, prompt),
         onSuccess: async (_, prompt) => {
-            await queryClient.invalidateQueries({ queryKey: ["admin", "prompt-categories"] });
+            await queryClient.invalidateQueries({ queryKey: ["admin", "prompt-sources"] });
             await queryClient.invalidateQueries({ queryKey: ["admin", "prompts"] });
             message.success(prompt.id ? "提示词已保存" : "提示词已新增");
         },
@@ -74,7 +51,7 @@ export function useAdminPrompts() {
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deleteAdminPrompt(token, id),
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["admin", "prompt-categories"] });
+            await queryClient.invalidateQueries({ queryKey: ["admin", "prompt-sources"] });
             await queryClient.invalidateQueries({ queryKey: ["admin", "prompts"] });
             message.success("提示词已删除");
         },
@@ -86,7 +63,7 @@ export function useAdminPrompts() {
     const batchDeleteMutation = useMutation({
         mutationFn: (ids: string[]) => deleteAdminPrompts(token, ids),
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["admin", "prompt-categories"] });
+            await queryClient.invalidateQueries({ queryKey: ["admin", "prompt-sources"] });
             await queryClient.invalidateQueries({ queryKey: ["admin", "prompts"] });
             message.success("提示词已批量删除");
         },
@@ -96,18 +73,18 @@ export function useAdminPrompts() {
     });
 
     useEffect(() => {
-        const error = categoriesQuery.error || promptsQuery.error;
+        const error = sourcesQuery.error || promptsQuery.error;
         if (!error) return;
         const errorMessage = error instanceof Error ? error.message : "读取提示词失败";
         message.error(errorMessage);
         if (errorMessage.includes("未登录") || errorMessage.includes("权限不足") || errorMessage.includes("登录状态无效")) clearSession();
-    }, [categoriesQuery.error, clearSession, message, promptsQuery.error]);
+    }, [sourcesQuery.error, clearSession, message, promptsQuery.error]);
 
-    const updateFilters = (next: Partial<{ keyword: string; category: string; tag: string[]; page: number; pageSize: number }>) => {
-        const queryState = { keyword, category, tag, page, pageSize, ...next };
-        if (next.keyword !== undefined || next.category !== undefined || next.tag !== undefined || next.pageSize !== undefined) queryState.page = 1;
+    const updateFilters = (next: Partial<{ keyword: string; source: string; tag: string[]; page: number; pageSize: number }>) => {
+        const queryState = { keyword, source, tag, page, pageSize, ...next };
+        if (next.keyword !== undefined || next.source !== undefined || next.tag !== undefined || next.pageSize !== undefined) queryState.page = 1;
         setKeyword(queryState.keyword);
-        setCategory(queryState.category);
+        setSource(queryState.source);
         setTag(queryState.tag);
         setPage(queryState.page);
         setPageSize(queryState.pageSize);
@@ -116,27 +93,24 @@ export function useAdminPrompts() {
     const data = promptsQuery.data;
 
     return {
-        categories: categoriesQuery.data || [],
+        sources: sourcesQuery.data || [],
         prompts: data?.items || [],
         tags: data?.tags || [],
         keyword,
-        category,
+        source,
         tag,
         page,
         pageSize,
         total: data?.total || 0,
-        isLoading: categoriesQuery.isFetching || promptsQuery.isFetching || saveMutation.isPending || deleteMutation.isPending || batchDeleteMutation.isPending,
-        isSyncing: syncMutation.isPending || syncAllMutation.isPending,
-        syncCategory: (category: string) => syncMutation.mutateAsync(category),
-        syncAllCategories: () => syncAllMutation.mutateAsync(),
+        isLoading: sourcesQuery.isFetching || promptsQuery.isFetching || saveMutation.isPending || deleteMutation.isPending || batchDeleteMutation.isPending,
         searchPrompts: (value = keyword) => updateFilters({ keyword: value }),
-        changeCategory: (value: string) => updateFilters({ category: value, tag: [] }),
+        changeSource: (value: string) => updateFilters({ source: value, tag: [] }),
         changeTag: (value: string[]) => updateFilters({ tag: value }),
         changePage: (value: number) => updateFilters({ page: value }),
         changePageSize: (value: number) => updateFilters({ pageSize: value }),
-        resetFilters: () => updateFilters({ keyword: "", category: "", tag: [], page: 1, pageSize: defaultPageSize }),
+        resetFilters: () => updateFilters({ keyword: "", source: "", tag: [], page: 1, pageSize: defaultPageSize }),
         refreshPrompts: async () => {
-            await categoriesQuery.refetch();
+            await sourcesQuery.refetch();
             await promptsQuery.refetch();
         },
         savePrompt: (prompt: Partial<Prompt>) => saveMutation.mutateAsync(prompt),

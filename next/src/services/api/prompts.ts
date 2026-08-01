@@ -6,7 +6,7 @@ export type Prompt = {
     coverUrl: string;
     prompt: string;
     tags: string[];
-    category: string;
+    source: string;
     githubUrl: string;
     preview: string;
     createdAt: string;
@@ -15,20 +15,25 @@ export type Prompt = {
 
 export const ALL_PROMPTS_OPTION = "全部";
 
+export type PromptSourceOption = {
+    source: string;
+    name: string;
+};
+
 export type PromptListResponse = {
     items: Prompt[];
     tags: string[];
-    categories: string[];
+    sources: PromptSourceOption[];
     total: number;
 };
 
-export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, page, pageSize }: { keyword?: string; tag?: string[]; category?: string; page?: number; pageSize?: number } = {}) {
+export async function fetchPrompts({ keyword = "", tag = [], source = ALL_PROMPTS_OPTION, page, pageSize }: { keyword?: string; tag?: string[]; source?: string; page?: number; pageSize?: number } = {}) {
     return apiGet<PromptListResponse>(
         "/api/prompts",
         compactApiParams({
             ...(keyword ? { keyword } : {}),
             ...(tag.length ? { tag } : {}),
-            ...(category !== ALL_PROMPTS_OPTION ? { category } : {}),
+            ...(source !== ALL_PROMPTS_OPTION ? { source } : {}),
             ...(page ? { page } : {}),
             ...(pageSize ? { pageSize } : {}),
         }),

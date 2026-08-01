@@ -1,15 +1,6 @@
 import { apiDelete, apiGet, apiPost, compactApiParams } from "@/services/api/request";
 import type { Prompt, PromptListResponse } from "@/services/api/prompts";
 
-export type AdminPromptCategory = {
-    category: string;
-    name: string;
-    description: string;
-    file: string;
-    githubUrl: string;
-    remote: boolean;
-};
-
 export type AdminUser = {
     id: string;
     username: string;
@@ -21,7 +12,6 @@ export type AdminUser = {
     affCode: string;
     affCount: number;
     inviterId: string;
-    linuxDoId: string;
     status: "active" | "ban";
     lastLoginAt: string;
     createdAt: string;
@@ -85,21 +75,9 @@ export async function deleteAdminCreditLog(token: string, id: string) {
     return apiDelete<boolean>(`/api/admin/credit-logs/${encodeURIComponent(id)}`, token);
 }
 
-export async function fetchAdminPromptCategories(token: string) {
-    return apiGet<AdminPromptCategory[]>("/api/admin/prompt-categories", undefined, token);
-}
-
-export async function syncAdminPromptCategory(token: string, category: string) {
-    return apiPost<AdminPromptCategory[]>("/api/admin/prompt-categories/sync", { category }, token);
-}
-
-export async function syncAdminPromptCategoriesAll(token: string) {
-    return apiPost<AdminPromptCategory[]>("/api/admin/prompt-categories/sync-all", {}, token);
-}
-
 export type AdminPromptQuery = {
     keyword?: string;
-    category?: string;
+    source?: string;
     tag?: string[];
     page?: number;
     pageSize?: number;
@@ -214,9 +192,6 @@ export type AdminPublicSettings = {
     modelChannel: AdminPublicModelChannelSettings;
     auth: {
         allowRegister: boolean;
-        linuxDo: {
-            enabled: boolean;
-        };
     };
     storage: {
         mode: string;
@@ -255,12 +230,6 @@ export type AdminPrivateSettings = {
             enabled: boolean;
             retentionDays: number;
             cron: string;
-        };
-    };
-    auth: {
-        linuxDo: {
-            clientId: string;
-            clientSecret: string;
         };
     };
     storage: {

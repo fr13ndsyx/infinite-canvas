@@ -7,6 +7,8 @@ type Query struct {
 	Keyword  string
 	Tags     []string
 	Category string
+	Source   string
+	Sources  []string
 	Type     string
 	Page     int
 	PageSize int

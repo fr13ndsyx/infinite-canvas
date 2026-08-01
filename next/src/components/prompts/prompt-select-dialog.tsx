@@ -12,12 +12,11 @@ import { usePromptList } from "./use-prompt-list";
 export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect: (prompt: string) => void }) {
     const { message } = App.useApp();
     const [keyword, setKeyword] = useState("");
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    const [selectedCategory, setSelectedCategory] = useState(ALL_PROMPTS_OPTION);
-    const { query, items, tags: promptTags, categories: promptCategories } = usePromptList({ keyword, tags: selectedTags, category: selectedCategory, enabled: open });
+    const [selectedTag, setSelectedTag] = useState<string>(ALL_PROMPTS_OPTION);
+    const [selectedSource, setSelectedSource] = useState(ALL_PROMPTS_OPTION);
+    const { query, items, tags: promptTags, sources: promptSources } = usePromptList({ keyword, tags: selectedTag === ALL_PROMPTS_OPTION ? [] : [selectedTag], source: selectedSource, enabled: open });
     const toggleTag = (tag: string) => {
-        if (tag === ALL_PROMPTS_OPTION) return setSelectedTags([]);
-        setSelectedTags((items) => (items.includes(tag) ? items.filter((item) => item !== tag) : [...items, tag]));
+        setSelectedTag(tag === ALL_PROMPTS_OPTION ? ALL_PROMPTS_OPTION : tag === selectedTag ? ALL_PROMPTS_OPTION : tag);
     };
     const selectPrompt = (prompt: string) => {
         onSelect(prompt);
@@ -40,27 +39,24 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
                     <Input size="large" prefix={<Search className="size-4 text-stone-400" />} value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="按标题查询" />
                 </div>
                 <div className="mt-5 grid gap-3">
-                    <div className="grid gap-2 sm:grid-cols-[56px_minmax(0,1fr)] sm:items-start">
-                        <div className="pt-2 text-xs font-medium text-stone-500 dark:text-stone-400">分类</div>
+                    <div className="grid gap-2 sm:grid-cols-[64px_minmax(0,1fr)] sm:items-start">
+                        <div className="pt-[5px] text-sm leading-none font-medium text-stone-500 dark:text-stone-400">来源</div>
                         <div className="flex flex-wrap gap-2">
-                            {promptCategories.map((category) => (
-                                <Tag.CheckableTag key={category} checked={selectedCategory === category} className={cn("prompt-filter-tag", selectedCategory === category && "is-active")} onChange={() => setSelectedCategory(category)}>
-                                    {category}
+                            {promptSources.map((option) => (
+                                <Tag.CheckableTag key={option.source} checked={selectedSource === option.source} className={cn("prompt-filter-tag", selectedSource === option.source && "is-active")} onChange={() => setSelectedSource(option.source)}>
+                                    {option.name}
                                 </Tag.CheckableTag>
                             ))}
                         </div>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-[56px_minmax(0,1fr)] sm:items-start">
-                        <div className="pt-2 text-xs font-medium text-stone-500 dark:text-stone-400">标签</div>
+                    <div className="grid gap-2 sm:grid-cols-[64px_minmax(0,1fr)] sm:items-start">
+                        <div className="pt-[5px] text-sm leading-none font-medium text-stone-500 dark:text-stone-400">标签</div>
                         <div className="flex flex-wrap gap-2">
-                            {promptTags.map((tag) => {
-                                const active = tag === ALL_PROMPTS_OPTION ? selectedTags.length === 0 : selectedTags.includes(tag);
-                                return (
-                                    <Tag.CheckableTag key={tag} checked={active} className={cn("prompt-filter-tag", active && "is-active")} onChange={() => toggleTag(tag)}>
-                                        {tag}
-                                    </Tag.CheckableTag>
-                                );
-                            })}
+                            {promptTags.map((tag) => (
+                                <Tag.CheckableTag key={tag} checked={selectedTag === tag} className={cn("prompt-filter-tag", selectedTag === tag && "is-active")} onChange={() => toggleTag(tag)}>
+                                    {tag}
+                                </Tag.CheckableTag>
+                            ))}
                         </div>
                     </div>
                 </div>

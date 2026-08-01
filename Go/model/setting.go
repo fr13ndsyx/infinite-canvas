@@ -77,12 +77,7 @@ type PublicStorageSetting struct {
 }
 
 type PublicAuthSetting struct {
-	AllowRegister *bool                    `json:"allowRegister"`
-	LinuxDo       PublicLinuxDoAuthSetting `json:"linuxDo"`
-}
-
-type PublicLinuxDoAuthSetting struct {
-	Enabled bool `json:"enabled"`
+	AllowRegister *bool `json:"allowRegister"`
 }
 
 // PrivateSetting 私有配置。
@@ -146,12 +141,6 @@ type PromptSyncSetting struct {
 }
 
 type PrivateAuthSetting struct {
-	LinuxDo PrivateLinuxDoAuthSetting `json:"linuxDo"`
-}
-
-type PrivateLinuxDoAuthSetting struct {
-	ClientID     string `json:"clientId"`
-	ClientSecret string `json:"clientSecret"`
 }
 
 // Setting 系统配置。

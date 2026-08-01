@@ -68,25 +68,24 @@ type davidWuGptImage2Prompt struct {
 	Image      string `json:"image"`
 }
 
-func SyncPromptCategory(category string) ([]model.PromptCategory, error) {
-	for _, item := range repository.PromptCategories() {
-		if item.Category != category {
-			continue
-		}
-		items, err := buildPromptCategory(item.Category)
-		if err != nil {
-			return nil, err
-		}
-		if err := repository.ReplacePromptCategory(item, items); err != nil {
-			return nil, err
-		}
-		return repository.ListPromptCategories()
+func SyncPromptSource(source string) ([]model.PromptSource, error) {
+	item, ok := repository.PromptSourceByCode(source)
+	if !ok {
+		return nil, errors.New("未知提示词来源")
 	}
-	return nil, errors.New("未知提示词分类")
+	items, err := buildPromptSource(item.Source)
+	if err != nil {
+		return nil, err
+	}
+	if err := repository.ReplacePromptSource(item, items); err != nil {
+		return nil, err
+	}
+	_ = repository.UpdatePromptSourceSyncedAt(item.Source)
+	return repository.ListPromptSources()
 }
 
-func buildPromptCategory(category string) ([]model.Prompt, error) {
-	switch category {
+func buildPromptSource(source string) ([]model.Prompt, error) {
+	switch source {
 	case "gpt-image-2-prompts":
 		return buildGptImage2Prompts()
 	case "awesome-gpt-image":
@@ -102,7 +101,7 @@ func buildPromptCategory(category string) ([]model.Prompt, error) {
 	case "davidwu-gpt-image2-prompts":
 		return buildDavidWuGptImage2Prompts()
 	}
-	return nil, errors.New("未知提示词分类")
+	return nil, errors.New("未知提示词来源")
 }
 
 func fetchText(baseURL, file string) (string, error) {

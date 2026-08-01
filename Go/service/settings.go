@@ -50,7 +50,6 @@ func SaveSettings(settings model.Settings) (model.Settings, error) {
 	}
 	settings = normalizeSettings(settings)
 	keepPrivateAPIKeys(&settings, normalizeSettings(saved))
-	keepPrivateAuthSecrets(&settings, normalizeSettings(saved))
 	keepPrivateStorageSecrets(&settings, normalizeSettings(saved))
 	result, err := repository.SaveSettings(settings, now())
 	if err == nil {
@@ -237,7 +236,6 @@ func hidePrivateAPIKeys(settings model.Settings) model.Settings {
 	for i := range settings.Private.Storage.Providers {
 		settings.Private.Storage.Providers[i].SecretAccessKey = ""
 	}
-	settings.Private.Auth.LinuxDo.ClientSecret = ""
 	return settings
 }
 
@@ -249,12 +247,6 @@ func keepPrivateAPIKeys(settings *model.Settings, saved model.Settings) {
 		if channel, ok := findSavedChannel(settings.Private.Channels[i], saved.Private.Channels, i); ok {
 			settings.Private.Channels[i].APIKey = channel.APIKey
 		}
-	}
-}
-
-func keepPrivateAuthSecrets(settings *model.Settings, saved model.Settings) {
-	if strings.TrimSpace(settings.Private.Auth.LinuxDo.ClientSecret) == "" {
-		settings.Private.Auth.LinuxDo.ClientSecret = saved.Private.Auth.LinuxDo.ClientSecret
 	}
 }
 

@@ -370,12 +370,12 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ theme, onInsert }: { t
     const [keyword, setKeyword] = useState("");
     const [expanded, setExpanded] = useState<Record<string, boolean>>({ system: true });
     const [detail, setDetail] = useState<Prompt | null>(null);
-    const categoryQuery = useQuery({
-        queryKey: ["canvas-side-prompt-categories"],
+    const sourceQuery = useQuery({
+        queryKey: ["canvas-side-prompt-sources"],
         queryFn: () => fetchPrompts({ page: 1, pageSize: 1 }),
         retry: false,
     });
-    const categories = useMemo(() => ["system", ...(categoryQuery.data?.categories.filter((category) => category !== "system") || [])], [categoryQuery.data?.categories]);
+    const sources = useMemo(() => sourceQuery.data?.sources || [], [sourceQuery.data?.sources]);
 
     return (
         <div className="flex h-full flex-col">
@@ -383,11 +383,11 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ theme, onInsert }: { t
                 <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder="搜索提示词" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-                {categoryQuery.isLoading ? <div className="flex justify-center pt-16"><Spin size="small" /></div> : (
+                {sourceQuery.isLoading ? <div className="flex justify-center pt-16"><Spin size="small" /></div> : (
                     <div className="space-y-2">
-                        {categories.map((category) => {
-                            const opened = Boolean(expanded[category]) || Boolean(keyword.trim());
-                            return <PromptGroup key={category} category={category} keyword={keyword} open={opened} theme={theme} onToggle={() => setExpanded((current) => ({ ...current, [category]: !current[category] }))} onView={setDetail} onInsert={onInsert} />;
+                        {sources.map((option) => {
+                            const opened = Boolean(expanded[option.source]) || Boolean(keyword.trim());
+                            return <PromptGroup key={option.source} source={option.source} label={option.name} keyword={keyword} open={opened} theme={theme} onToggle={() => setExpanded((current) => ({ ...current, [option.source]: !current[option.source] }))} onView={setDetail} onInsert={onInsert} />;
                         })}
                     </div>
                 )}
@@ -397,25 +397,24 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ theme, onInsert }: { t
     );
 });
 
-async function fetchPromptCategory(category: string) {
-    const first = await fetchPrompts({ category, page: 1, pageSize: 500 });
+async function fetchPromptSource(source: string) {
+    const first = await fetchPrompts({ source, page: 1, pageSize: 500 });
     if (first.total <= first.items.length) return first.items;
 
     const pages = await Promise.all(
         Array.from(
             { length: Math.ceil(first.total / 500) - 1 },
-            (_, index) => fetchPrompts({ category, page: index + 2, pageSize: 500 }),
+            (_, index) => fetchPrompts({ source, page: index + 2, pageSize: 500 }),
         ),
     );
 
     return [...first.items, ...pages.flatMap((page) => page.items)];
 }
 
-function PromptGroup({ category, keyword, open, theme, onToggle, onView, onInsert }: { category: string; keyword: string; open: boolean; theme: CanvasTheme; onToggle: () => void; onView: (prompt: Prompt) => void; onInsert: (payload: InsertAssetPayload) => void }) {
-    const label = category === "system" ? "系统提示词" : category;
+function PromptGroup({ source, label, keyword, open, theme, onToggle, onView, onInsert }: { source: string; label: string; keyword: string; open: boolean; theme: CanvasTheme; onToggle: () => void; onView: (prompt: Prompt) => void; onInsert: (payload: InsertAssetPayload) => void }) {
     const query = useQuery({
-        queryKey: ["canvas-side-prompt-category", category],
-        queryFn: () => fetchPromptCategory(category),
+        queryKey: ["canvas-side-prompt-source", source],
+        queryFn: () => fetchPromptSource(source),
         enabled: open,
         staleTime: PROMPT_CACHE_TIME,
         gcTime: PROMPT_CACHE_TIME,
@@ -432,7 +431,7 @@ function PromptGroup({ category, keyword, open, theme, onToggle, onView, onInser
                 <ChevronRight className={cn("size-3.5 transition-transform", open && "rotate-90")} />
                 <BookOpen className="size-3.5" />
                 <span className="min-w-0 flex-1 truncate">{label}</span>
-                {query.isSuccess && (category === "system" || open) ? <span className="opacity-50">{items.length}</span> : null}
+                {query.isSuccess && open ? <span className="opacity-50">{items.length}</span> : null}
             </button>
             {open ? (
                 <div className="space-y-1.5 px-1 pb-2 pt-1">
@@ -443,7 +442,7 @@ function PromptGroup({ category, keyword, open, theme, onToggle, onView, onInser
                     ) : items.length ? (
                         items.map((item) => <PromptRow key={item.id} item={item} theme={theme} onView={() => onView(item)} onInsert={() => onInsert({ kind: "text", content: item.prompt, title: item.title })} />)
                     ) : (
-                        <div className="py-4 text-center text-xs opacity-40">{category === "system" ? "暂无提示词" : "该分类暂无提示词"}</div>
+                        <div className="py-4 text-center text-xs opacity-40">该来源暂无提示词</div>
                     )}
                 </div>
             ) : null}

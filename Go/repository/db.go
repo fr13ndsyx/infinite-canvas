@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	mysqldriver "github.com/go-sql-driver/mysql"
@@ -20,15 +21,14 @@ import (
 	"gorm.io/gorm"
 )
 
-var promptCategories = []model.PromptCategory{
-	{Category: "system", Name: "系统", Description: "系统提示词分类"},
-	{Category: "gpt-image-2-prompts", Name: "GPT Image 2 Prompts", Description: "TigerOWO 的 GPT Image 2 案例提示词分类", GithubURL: "https://github.com/tigerowo/awesome-gpt-image-2-prompts", Remote: true},
-	{Category: "awesome-gpt-image", Name: "Awesome GPT Image", Description: "ZeroLu 的中文 GPT Image 提示词分类", GithubURL: "https://github.com/ZeroLu/awesome-gpt-image", Remote: true},
-	{Category: "awesome-gpt4o-image-prompts", Name: "Awesome GPT4o Image Prompts", Description: "ImgEdify 的 GPT-4o 图像提示词分类", GithubURL: "https://github.com/ImgEdify/Awesome-GPT4o-Image-Prompts", Remote: true},
-	{Category: "xianyu-awesome-gptimage2", Name: "Xianyu Awesome GPT Image 2", Description: "xianyu110 的 GPT Image 2 提示词分类", GithubURL: "https://github.com/xianyu110/awesome-gptimage2", Remote: true},
-	{Category: "youmind-gpt-image-2", Name: "YouMind GPT Image 2", Description: "YouMind OpenLab 的 GPT Image 2 中文提示词分类", GithubURL: "https://github.com/YouMind-OpenLab/awesome-gpt-image-2", Remote: true},
-	{Category: "youmind-nano-banana-pro", Name: "YouMind Nano Banana Pro", Description: "YouMind OpenLab 的 Nano Banana Pro 中文提示词分类", GithubURL: "https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts", Remote: true},
-	{Category: "davidwu-gpt-image2-prompts", Name: "awesome-gpt-image2-prompts", Description: "davidwuw0811-boop 整理的 GPT Image 2 提示词分类", GithubURL: "https://github.com/davidwuw0811-boop/awesome-gpt-image2-prompts", Remote: true},
+var promptSources = []model.PromptSource{
+	{Source: "gpt-image-2-prompts", Name: "GPT Image 2 Prompts", Description: "TigerOWO 的 GPT Image 2 案例提示词来源", GithubURL: "https://github.com/tigerowo/awesome-gpt-image-2-prompts", Remote: true},
+	{Source: "awesome-gpt-image", Name: "Awesome GPT Image", Description: "ZeroLu 的中文 GPT Image 提示词来源", GithubURL: "https://github.com/ZeroLu/awesome-gpt-image", Remote: true},
+	{Source: "awesome-gpt4o-image-prompts", Name: "Awesome GPT4o Image Prompts", Description: "ImgEdify 的 GPT-4o 图像提示词来源", GithubURL: "https://github.com/ImgEdify/Awesome-GPT4o-Image-Prompts", Remote: true},
+	{Source: "xianyu-awesome-gptimage2", Name: "Xianyu Awesome GPT Image 2", Description: "xianyu110 的 GPT Image 2 提示词来源", GithubURL: "https://github.com/xianyu110/awesome-gptimage2", Remote: true},
+	{Source: "youmind-gpt-image-2", Name: "YouMind GPT Image 2", Description: "YouMind OpenLab 的 GPT Image 2 中文提示词来源", GithubURL: "https://github.com/YouMind-OpenLab/awesome-gpt-image-2", Remote: true},
+	{Source: "youmind-nano-banana-pro", Name: "YouMind Nano Banana Pro", Description: "YouMind OpenLab 的 Nano Banana Pro 中文提示词来源", GithubURL: "https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts", Remote: true},
+	{Source: "davidwu-gpt-image2-prompts", Name: "awesome-gpt-image2-prompts", Description: "davidwuw0811-boop 整理的 GPT Image 2 提示词来源", GithubURL: "https://github.com/davidwuw0811-boop/awesome-gpt-image2-prompts", Remote: true},
 }
 
 var (
@@ -68,6 +68,7 @@ func DB() (*gorm.DB, error) {
 			&model.User{},
 			&model.CreditLog{},
 			&model.Prompt{},
+			&model.PromptSource{},
 			&model.Asset{},
 			&model.Setting{},
 			&model.CreativeWorkflow{},
@@ -81,8 +82,40 @@ func DB() (*gorm.DB, error) {
 			&model.CanvasAudioTask{},
 			&model.CanvasProject{},
 		)
+		if dbErr != nil {
+			return
+		}
+		dbErr = seedPromptSourcesIfEmpty(db)
 	})
 	return db, dbErr
+}
+
+// seedPromptSourcesIfEmpty 在首次启动时把硬编码的 promptSources 写入数据库。
+func seedPromptSourcesIfEmpty(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&model.PromptSource{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	now := time.Now().Format(time.RFC3339)
+	seeded := make([]model.PromptSource, 0, len(promptSources))
+	for i, item := range promptSources {
+		enabled := true
+		seeded = append(seeded, model.PromptSource{
+			Source:      item.Source,
+			Name:        item.Name,
+			Description: item.Description,
+			GithubURL:   item.GithubURL,
+			Remote:      item.Remote,
+			Enabled:     &enabled,
+			SortOrder:   i,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		})
+	}
+	return db.Create(&seeded).Error
 }
 
 func dialector(driver string, dsn string) gorm.Dialector {

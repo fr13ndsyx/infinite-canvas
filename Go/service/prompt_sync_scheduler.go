@@ -43,22 +43,19 @@ func RefreshPromptSyncScheduler() {
 	if setting.Enabled == nil || !*setting.Enabled {
 		return
 	}
-	if _, err := promptSyncCron.AddFunc(setting.Cron, SyncRemotePromptCategories); err != nil {
+	if _, err := promptSyncCron.AddFunc(setting.Cron, SyncRemotePromptSources); err != nil {
 		log.Printf("add prompt sync cron failed cron=%s err=%v", setting.Cron, err)
 	}
 }
 
-func SyncRemotePromptCategories() {
-	for _, category := range repository.PromptCategories() {
-		if !category.Remote {
+func SyncRemotePromptSources() {
+	for _, source := range repository.ListEnabledRemotePromptSources() {
+		log.Printf("scheduled prompt sync start source=%s", source.Source)
+		if _, err := SyncPromptSource(source.Source); err != nil {
+			log.Printf("scheduled prompt sync failed source=%s err=%v", source.Source, err)
 			continue
 		}
-		log.Printf("scheduled prompt sync start category=%s", category.Category)
-		if _, err := SyncPromptCategory(category.Category); err != nil {
-			log.Printf("scheduled prompt sync failed category=%s err=%v", category.Category, err)
-			continue
-		}
-		log.Printf("scheduled prompt sync done category=%s", category.Category)
+		log.Printf("scheduled prompt sync done source=%s", source.Source)
 	}
 }
 

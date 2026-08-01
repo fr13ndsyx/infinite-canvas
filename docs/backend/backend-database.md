@@ -22,6 +22,7 @@ description: 当前后端主要数据表与字段说明
 - `users`
 - `credit_logs`
 - `prompts`
+- `prompt_categories`
 - `assets`
 - `settings`
 - `video_tasks`
@@ -76,6 +77,27 @@ description: 当前后端主要数据表与字段说明
 | `updated_at` | string | 更新时间 |
 
 `github_url` 仅用于接口返回，不写入数据库。
+
+### prompt_categories
+
+提示词分类表。把原硬编码的 8 个分类来源迁移到数据库，支持管理后台可视化增删改查。首次启动时自动写入种子数据（1 个 system 本地分类 + 7 个 GitHub 远程同步源）。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `category` | string | 主键，分类 ID，如 `gpt-image-2-prompts`，创建后不可修改 |
+| `name` | string | 显示名称 |
+| `description` | string | 分类描述 |
+| `github_url` | string | GitHub 仓库地址，远程分类必填 |
+| `remote` | bool | 是否远程同步分类 |
+| `enabled` | bool | 是否启用，禁用后不同步、不在用户端展示，但提示词数据保留 |
+| `sort_order` | int | 排序权重，越小越靠前 |
+| `last_synced_at` | string | 最后同步时间 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
+
+删除分类时只删除分类记录，不级联删除 `prompts` 表中该分类下的提示词条目；禁用分类与删除分类的区别是禁用可一键切回 `enabled: true` 恢复展示。
+
+所有分类共用全局 `PROMPT_SYNC_CRON` 调度，不支持分类独立 cron。
 
 ### assets
 

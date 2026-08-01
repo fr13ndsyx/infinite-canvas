@@ -10,20 +10,50 @@ import (
 )
 
 type adminSyncRequest struct {
-	Category string `json:"category"`
+	Source string `json:"source"`
 }
 
 type adminBatchDeleteRequest struct {
 	IDs []string `json:"ids"`
 }
 
-func AdminPromptCategories(w http.ResponseWriter, r *http.Request) {
-	OK(w, service.ListPromptCategories())
+func AdminPromptSources(w http.ResponseWriter, r *http.Request) {
+	OK(w, service.ListPromptSources())
 }
 
-func AdminSyncAllPromptCategories(w http.ResponseWriter, r *http.Request) {
-	service.SyncRemotePromptCategories()
-	OK(w, service.ListPromptCategories())
+func AdminSyncAllPromptSources(w http.ResponseWriter, r *http.Request) {
+	service.SyncRemotePromptSources()
+	OK(w, service.ListPromptSources())
+}
+
+func AdminCreatePromptSource(w http.ResponseWriter, r *http.Request) {
+	var item model.PromptSource
+	_ = json.NewDecoder(r.Body).Decode(&item)
+	result, err := service.CreatePromptSource(item)
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
+func AdminUpdatePromptSource(w http.ResponseWriter, r *http.Request, source string) {
+	var item model.PromptSource
+	_ = json.NewDecoder(r.Body).Decode(&item)
+	result, err := service.UpdatePromptSource(source, item)
+	if err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, result)
+}
+
+func AdminDeletePromptSource(w http.ResponseWriter, r *http.Request, source string) {
+	if err := service.DeletePromptSource(source); err != nil {
+		FailError(w, err)
+		return
+	}
+	OK(w, true)
 }
 
 func AdminPrompts(w http.ResponseWriter, r *http.Request) {
@@ -64,16 +94,16 @@ func AdminDeletePrompts(w http.ResponseWriter, r *http.Request) {
 	OK(w, true)
 }
 
-func AdminSyncPromptCategories(w http.ResponseWriter, r *http.Request) {
+func AdminSyncPromptSources(w http.ResponseWriter, r *http.Request) {
 	var request adminSyncRequest
 	_ = json.NewDecoder(r.Body).Decode(&request)
-	log.Printf("sync prompt category start category=%s", request.Category)
-	categories, err := service.SyncPromptCategory(request.Category)
+	log.Printf("sync prompt source start source=%s", request.Source)
+	sources, err := service.SyncPromptSource(request.Source)
 	if err != nil {
-		log.Printf("sync prompt category failed category=%s err=%v", request.Category, err)
+		log.Printf("sync prompt source failed source=%s err=%v", request.Source, err)
 		FailError(w, err)
 		return
 	}
-	log.Printf("sync prompt category done category=%s", request.Category)
-	OK(w, categories)
+	log.Printf("sync prompt source done source=%s", request.Source)
+	OK(w, sources)
 }

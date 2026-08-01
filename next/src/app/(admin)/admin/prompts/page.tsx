@@ -1,8 +1,8 @@
 "use client";
 
-import { CopyOutlined, DeleteOutlined, EditOutlined, ExportOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, SyncOutlined } from "@ant-design/icons";
+import { CopyOutlined, DeleteOutlined, EditOutlined, ExportOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
-import { Button, Card, Col, Flex, Form, Image, Input, Modal, Row, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { Button, Card, Col, Flex, Form, Image, Input, Modal, Row, Select, Space, Tag, Tooltip, Typography } from "antd";
 import { useEffect, useState } from "react";
 
 import { useCopyText } from "@/hooks/use-copy-text";
@@ -11,26 +11,23 @@ import { useAdminPrompts } from "./use-admin-prompts";
 
 export default function AdminPromptsPage() {
     const {
-        categories,
+        sources,
         prompts,
         tags,
         keyword,
-        category,
+        source,
         tag,
         page,
         pageSize,
         total,
         isLoading,
-        isSyncing,
         searchPrompts,
-        changeCategory,
+        changeSource,
         changeTag,
         changePage,
         changePageSize,
         resetFilters,
         refreshPrompts,
-        syncCategory,
-        syncAllCategories,
         savePrompt: saveAdminPrompt,
         deletePrompt,
         deletePrompts,
@@ -43,10 +40,9 @@ export default function AdminPromptsPage() {
     const [deletingPrompt, setDeletingPrompt] = useState<Prompt | null>(null);
     const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>([]);
     const [isBatchDeleteOpen, setIsBatchDeleteOpen] = useState(false);
-    const [isSyncOpen, setIsSyncOpen] = useState(false);
-    const defaultCategory = categories[0]?.category || "";
-    const categoryName = (category: string) => categories.find((item) => item.category === category)?.name || category;
-    const categoryOptions = [{ label: "全部分类", value: "" }, ...categories.map((item) => ({ label: item.name, value: item.category }))];
+    const defaultSource = sources[0]?.source || "";
+    const sourceName = (source: string) => sources.find((item) => item.source === source)?.name || source;
+    const sourceOptions = [{ label: "全部来源", value: "" }, ...sources.map((item) => ({ label: item.name, value: item.source }))];
     const tagOptions = tags.map((item) => ({ label: item, value: item }));
 
     useEffect(() => {
@@ -60,7 +56,7 @@ export default function AdminPromptsPage() {
         await saveAdminPrompt({
             ...editingPrompt,
             ...value,
-            category: value.category || defaultCategory,
+            source: value.source || defaultSource,
             tags: (value.tagText || "")
                 .split(",")
                 .map((item) => item.trim())
@@ -93,10 +89,10 @@ export default function AdminPromptsPage() {
             ),
         },
         {
-            title: "分类",
-            dataIndex: "category",
+            title: "来源",
+            dataIndex: "source",
             width: 150,
-            render: (_, item) => <Typography.Text type="secondary">{categoryName(item.category)}</Typography.Text>,
+            render: (_, item) => <Typography.Text type="secondary">{sourceName(item.source)}</Typography.Text>,
         },
         {
             title: "标签",
@@ -143,8 +139,8 @@ export default function AdminPromptsPage() {
                                 </Form.Item>
                             </Col>
                             <Col flex="220px">
-                                <Form.Item label="分组">
-                                    <Select value={category} onChange={changeCategory} options={categoryOptions} />
+                                <Form.Item label="来源">
+                                    <Select value={source} onChange={changeSource} options={sourceOptions} />
                                 </Form.Item>
                             </Col>
                             <Col flex="220px">
@@ -193,13 +189,7 @@ export default function AdminPromptsPage() {
                         <Button key="batch-delete" danger icon={<DeleteOutlined />} disabled={!selectedPromptIds.length} onClick={() => setIsBatchDeleteOpen(true)}>
                             批量删除{selectedPromptIds.length ? ` ${selectedPromptIds.length}` : ""}
                         </Button>,
-                        <Button key="sync" icon={<SyncOutlined />} onClick={() => setIsSyncOpen(true)}>
-                            同步
-                        </Button>,
-                        <Button key="sync-all" icon={<SyncOutlined />} loading={isSyncing} onClick={() => void syncAllCategories()}>
-                            全部同步
-                        </Button>,
-                        <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => setEditingPrompt({ category: defaultCategory, tags: [] })}>
+                        <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => setEditingPrompt({ source: defaultSource, tags: [] })}>
                             新增
                         </Button>,
                     ]}
@@ -220,8 +210,8 @@ export default function AdminPromptsPage() {
                     <Form.Item name="title" label="标题" rules={[{ required: true, message: "请输入标题" }]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name="category" label="分类">
-                        <Select options={categories.map((item) => ({ label: item.name, value: item.category }))} />
+                    <Form.Item name="source" label="来源">
+                        <Select options={sources.map((item) => ({ label: item.name, value: item.source }))} />
                     </Form.Item>
                     <Form.Item name="coverUrl" label="封面 URL">
                         <Input />
@@ -245,7 +235,7 @@ export default function AdminPromptsPage() {
                                     {detailPrompt.title}
                                 </Typography.Title>
                                 <Space wrap>
-                                    <Tag>{categoryName(detailPrompt.category)}</Tag>
+                                    <Tag>{sourceName(detailPrompt.source)}</Tag>
                                     {(detailPrompt.tags || []).map((tag) => (
                                         <Tag key={tag}>{tag}</Tag>
                                     ))}
@@ -273,61 +263,6 @@ export default function AdminPromptsPage() {
             </Modal>
 
             <Modal
-                title="同步远程提示词源"
-                open={isSyncOpen}
-                width={640}
-                onCancel={() => !isSyncing && setIsSyncOpen(false)}
-                mask={{ closable: !isSyncing }}
-                footer={
-                    <Button disabled={isSyncing} onClick={() => setIsSyncOpen(false)}>
-                        取消
-                    </Button>
-                }
-            >
-                <Table
-                    rowKey="category"
-                    dataSource={categories.filter((item) => item.remote)}
-                    pagination={false}
-                    columns={[
-                        {
-                            title: "远程源",
-                            dataIndex: "name",
-                            render: (_, item) => (
-                                <Flex align="center" gap={8}>
-                                    {item.name}
-                                    {item.githubUrl ? (
-                                        <Typography.Link href={item.githubUrl} target="_blank">
-                                            <ExportOutlined />
-                                        </Typography.Link>
-                                    ) : null}
-                                </Flex>
-                            ),
-                        },
-                        {
-                            title: "",
-                            key: "sync",
-                            width: 96,
-                            align: "right",
-                            render: (_, item) => (
-                                <Button
-                                    type="primary"
-                                    loading={isSyncing}
-                                    onClick={async () => {
-                                        try {
-                                            await syncCategory(item.category);
-                                            setIsSyncOpen(false);
-                                        } catch {}
-                                    }}
-                                >
-                                    同步
-                                </Button>
-                            ),
-                        },
-                    ]}
-                />
-            </Modal>
-
-            <Modal
                 title="删除提示词"
                 open={Boolean(deletingPrompt)}
                 onCancel={() => setDeletingPrompt(null)}
@@ -340,11 +275,11 @@ export default function AdminPromptsPage() {
                 okButtonProps={{ danger: true }}
                 cancelText="取消"
             >
-                确定删除「{deletingPrompt?.title}」吗？删除后会从当前分类中删除。
+                确定删除「{deletingPrompt?.title}」吗？删除后会从当前来源中删除。
             </Modal>
 
             <Modal title="批量删除提示词" open={isBatchDeleteOpen} onCancel={() => setIsBatchDeleteOpen(false)} onOk={() => void batchDeletePrompts()} okText="删除" okButtonProps={{ danger: true }} cancelText="取消">
-                确定删除已选中的 {selectedPromptIds.length} 条提示词吗？删除后会从当前分类中删除。
+                确定删除已选中的 {selectedPromptIds.length} 条提示词吗？删除后会从当前来源中删除。
             </Modal>
         </main>
     );

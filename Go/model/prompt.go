@@ -7,7 +7,7 @@ type Prompt struct {
 	CoverURL  string   `json:"coverUrl"`
 	Prompt    string   `json:"prompt"`
 	Tags      []string `json:"tags" gorm:"serializer:json"`
-	Category  string   `json:"category" gorm:"index"`
+	Source    string   `json:"source" gorm:"index"`
 	GithubURL string   `json:"githubUrl" gorm:"-"`
 	Preview   string   `json:"preview"`
 	CreatedAt string   `json:"createdAt"`
@@ -16,18 +16,28 @@ type Prompt struct {
 
 // PromptList 提示词分页结果。
 type PromptList struct {
-	Items      []Prompt `json:"items"`
-	Tags       []string `json:"tags"`
-	Categories []string `json:"categories"`
-	Total      int      `json:"total"`
+	Items   []Prompt             `json:"items"`
+	Tags    []string             `json:"tags"`
+	Sources []PromptSourceOption `json:"sources"`
+	Total   int                  `json:"total"`
 }
 
-// PromptCategory 提示词分类。
-type PromptCategory struct {
-	Category    string `json:"category" gorm:"primaryKey"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	GithubURL   string `json:"githubUrl"`
-	Remote      bool   `json:"remote"`
-	UpdatedAt   string `json:"updatedAt"`
+// PromptSourceOption 提示词来源选项。
+type PromptSourceOption struct {
+	Source string `json:"source"`
+	Name   string `json:"name"`
+}
+
+// PromptSource 提示词来源。
+type PromptSource struct {
+	Source       string `json:"source" gorm:"primaryKey"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	GithubURL    string `json:"githubUrl"`
+	Remote       bool   `json:"remote"`
+	Enabled      *bool  `json:"enabled" gorm:"default:true"`
+	SortOrder    int    `json:"sortOrder" gorm:"default:0"`
+	LastSyncedAt string `json:"lastSyncedAt"`
+	CreatedAt    string `json:"createdAt"`
+	UpdatedAt    string `json:"updatedAt"`
 }

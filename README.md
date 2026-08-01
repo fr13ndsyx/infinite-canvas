@@ -141,10 +141,6 @@ https://infinite-canvas-cpco.onrender.com?apiKey={key}&baseUrl={address}
 
 </div>
 
-## 社区支持
-
-学 AI，上 L 站：[LinuxDO](https://linux.do/)
-
 ## 开源协议
 
 本项目使用 GNU Affero General Public License v3.0，见 [LICENSE](LICENSE)。
