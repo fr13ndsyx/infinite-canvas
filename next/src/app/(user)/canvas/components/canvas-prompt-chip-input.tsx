@@ -386,7 +386,7 @@ function createReferenceChip(
     wrapper.title = reference.text || reference.title;
     const text = document.createElement("span");
     text.className = "block truncate";
-    text.textContent = reference.kind === "text" ? reference.text || reference.title : reference.label;
+    text.textContent = reference.label;
     wrapper.appendChild(text);
     return wrapper;
 }
