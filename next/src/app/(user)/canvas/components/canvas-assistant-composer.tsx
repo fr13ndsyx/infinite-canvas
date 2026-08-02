@@ -88,28 +88,6 @@ export function CanvasAssistantComposer({
                         >
                             <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" style={{ color: theme.node.text }} icon={<Menu className="size-4" />} aria-label="添加素材" />
                         </Dropdown>
-                        <CanvasImageSettingsPopover
-                            config={imageConfig}
-                            placement="topLeft"
-                            showCount={false}
-                            buttonIcon={<ImageIcon className="size-3.5" />}
-                            buttonClassName="!h-8 !max-w-[116px] !justify-start !rounded-full !px-2.5"
-                            onConfigChange={(key, value) => {
-                                if (key === "quality") onAgentConfigChange({ imageQuality: value });
-                                else if (key === "size") onAgentConfigChange({ imageSize: value });
-                            }}
-                        />
-                        <CanvasVideoSettingsPopover
-                            config={videoConfig}
-                            placement="topLeft"
-                            visualOnly
-                            buttonIcon={<Video className="size-3.5" />}
-                            buttonClassName="!h-8 !max-w-[124px] !justify-start !rounded-full !px-2.5"
-                            onConfigChange={(key, value) => {
-                                if (key === "vquality") onAgentConfigChange({ videoQuality: value });
-                                else if (key === "size") onAgentConfigChange({ videoSize: value });
-                            }}
-                        />
                     </div>
                     <Button
                         type="primary"

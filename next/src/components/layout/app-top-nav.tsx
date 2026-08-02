@@ -22,7 +22,7 @@ export function AppTopNav() {
 
     const linkClassName = (active: boolean) =>
         cn(
-            "relative flex h-16 shrink-0 items-center gap-2 text-sm leading-6 transition after:absolute after:inset-x-0 after:bottom-0 after:h-px cursor-pointer",
+            "relative flex h-16 shrink-0 items-center gap-2 text-sm leading-6 transition-transform duration-200 ease-out hover:-translate-y-0.5 after:absolute after:inset-x-0 after:bottom-0 after:h-px cursor-pointer",
             active
                 ? "font-medium text-stone-950 after:bg-stone-950 dark:text-stone-100 dark:after:bg-stone-100"
                 : "text-stone-500 after:bg-transparent hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100",

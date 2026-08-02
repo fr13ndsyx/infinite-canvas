@@ -301,9 +301,9 @@ export function AppConfigModal() {
                                 {normalizeLocalChannels(config).map((channel, index) => (
                                     <div key={channel.id} className="space-y-2 rounded-md bg-stone-50 p-2 dark:bg-stone-900">
                                         <div className="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                                            <Input value={channel.name} placeholder="渠道名称" onChange={(event) => patchLocalChannel(channel.id, { name: event.target.value })} />
-                                            <Input value={channel.baseUrl} placeholder="Base URL" onChange={(event) => patchLocalChannel(channel.id, { baseUrl: event.target.value })} />
-                                            <Input.Password value={channel.apiKey} placeholder="API Key" onChange={(event) => patchLocalChannel(channel.id, { apiKey: event.target.value })} />
+                                            <Input value={channel.name} placeholder="渠道名称" autoComplete="off" onChange={(event) => patchLocalChannel(channel.id, { name: event.target.value })} />
+                                            <Input value={channel.baseUrl} placeholder="Base URL" autoComplete="off" onChange={(event) => patchLocalChannel(channel.id, { baseUrl: event.target.value })} />
+                                            <Input.Password value={channel.apiKey} placeholder="API Key" autoComplete="new-password" onChange={(event) => patchLocalChannel(channel.id, { apiKey: event.target.value })} />
                                             <div className="flex gap-2">
                                                 <Button size="small" loading={loadingModels} onClick={() => void refreshLocalChannelModels(channel)}>
                                                     拉取
@@ -337,85 +337,91 @@ export function AppConfigModal() {
                             <div className="mt-1">由系统后台渠道转发请求，当前可用 {modelChannel?.availableModels.length || 0} 个模型。</div>
                         </div>
                     )}
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        {modelGroups.map((group) => (
-                            <Form.Item key={group.modelKey} label={group.defaultLabel} className="mb-4">
-                                <ModelPicker config={modelConfig} value={modelConfig[group.modelKey]} channelId={modelConfig[group.channelKey]} onChange={(model, channelId) => { updateConfig(group.modelKey, model); if (channelId) updateConfig(group.channelKey, channelId); }} capability={group.capability} fullWidth />
-                            </Form.Item>
-                        ))}
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-4">
-                        <Form.Item label="画布默认生图张数" extra="新建画布生图和配置节点默认使用，单个节点仍可单独覆盖。" className="mb-4">
-                            <Input
-                                type="number"
-                                min={1}
-                                max={15}
-                                value={config.canvasImageCount}
-                                onChange={(event) => updateConfig("canvasImageCount", event.target.value)}
-                                onBlur={(event) => updateConfig("canvasImageCount", normalizeImageCount(event.target.value))}
-                            />
-                        </Form.Item>
-                        <Form.Item label="默认音频声音" className="mb-4">
-                            <Select value={config.audioVoice} options={audioVoiceOptions} onChange={(value) => updateConfig("audioVoice", value)} />
-                        </Form.Item>
-                        <Form.Item label="默认音频格式" className="mb-4">
-                            <Select value={config.audioFormat} options={audioFormatOptions} onChange={(value) => updateConfig("audioFormat", value)} />
-                        </Form.Item>
-                        <Form.Item label="默认音频语速" className="mb-4">
-                            <Input
-                                type="number"
-                                min={0.25}
-                                max={4}
-                                step={0.05}
-                                value={config.audioSpeed}
-                                onChange={(event) => updateConfig("audioSpeed", event.target.value)}
-                                onBlur={(event) => updateConfig("audioSpeed", normalizeAudioSpeedValue(event.target.value))}
-                            />
-                        </Form.Item>
-                    </div>
-                    <div className="mb-4 grid gap-3 md:grid-cols-3">
-                        <FeatureSwitch title="流式传输" description="开启后请求中追加 stream，支持读取中间图片事件并避免长时间无数据。" checked={Boolean(config.streamImages)} onChange={(checked) => updateConfig("streamImages", checked ? "1" : "")} />
-                        <FeatureSwitch title="返回 Base64 图片数据" description="开启后 Image API 请求会追加 response_format: b64_json。" checked={Boolean(config.responseFormatB64Json)} onChange={(checked) => updateConfig("responseFormatB64Json", checked ? "1" : "")} />
-                        <FeatureSwitch title="Codex CLI 兼容模式" description="开启后减少不兼容参数，并追加防提示词改写前缀。" checked={Boolean(config.codexCli)} onChange={(checked) => updateConfig("codexCli", checked ? "1" : "")} />
-                    </div>
-                    {canUseUserStorageProvider ? (
-                        <section className="mb-5 mt-4 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/50">
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <div className="text-sm font-medium">用户 S3/R2 存储</div>
-                                    <div className="mt-1 text-xs text-stone-500">开启后，新生成图片和媒体文件会优先保存到你的 S3 兼容对象存储。{storageUsageText ? `当前容量：${storageUsageText}` : ""}</div>
-                                </div>
-                                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                    <Button size="small" loading={measuringStorage} onClick={() => void measureStorage()}>
-                                        统计容量
-                                    </Button>
-                                    <span className="text-xs text-stone-500">自动同步</span>
-                                    <Switch size="small" checked={config.syncStorageConfig} onChange={(checked) => updateConfig("syncStorageConfig", checked)} />
-                                    <Switch checked={userStorage.enabled} onChange={(enabled) => setUserStorage((value) => ({ ...value, enabled }))} />
-                                </div>
+                    {(
+                        <>
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                {modelGroups.map((group) => (
+                                    <Form.Item key={group.modelKey} label={group.defaultLabel} className="mb-4">
+                                        <ModelPicker config={modelConfig} value={modelConfig[group.modelKey]} channelId={modelConfig[group.channelKey]} onChange={(model, channelId) => { updateConfig(group.modelKey, model); if (channelId) updateConfig(group.channelKey, channelId); }} capability={group.capability} fullWidth />
+                                    </Form.Item>
+                                ))}
                             </div>
-                            {userStorage.enabled ? (
-                                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                                    <Input value={userStorage.name} placeholder="配置名称" onChange={(event) => setUserStorage((value) => ({ ...value, name: event.target.value }))} />
-                                    <Input value={userStorage.endpoint} placeholder="Endpoint，例如 https://<account>.r2.cloudflarestorage.com" onChange={(event) => setUserStorage((value) => ({ ...value, endpoint: event.target.value }))} />
-                                    <Input value={userStorage.region} placeholder="Region，R2 通常为 auto" onChange={(event) => setUserStorage((value) => ({ ...value, region: event.target.value }))} />
-                                    <Input value={userStorage.bucket} placeholder="Bucket 名称" onChange={(event) => setUserStorage((value) => ({ ...value, bucket: event.target.value }))} />
-                                    <Input value={userStorage.accessKeyId} placeholder="Access Key ID" onChange={(event) => setUserStorage((value) => ({ ...value, accessKeyId: event.target.value }))} />
-                                    <Input.Password value={userStorage.secretAccessKey} placeholder="Secret Access Key" onChange={(event) => setUserStorage((value) => ({ ...value, secretAccessKey: event.target.value }))} />
-                                    <Input value={userStorage.publicBaseUrl} placeholder="公开访问地址，例如 https://pub-xxx.r2.dev" onChange={(event) => setUserStorage((value) => ({ ...value, publicBaseUrl: event.target.value }))} />
-                                    <Input value={userStorage.pathPrefix} placeholder="保存路径前缀，例如 images" onChange={(event) => setUserStorage((value) => ({ ...value, pathPrefix: event.target.value }))} />
-                                </div>
+                            <div className="grid gap-4 md:grid-cols-4">
+                                <Form.Item label="画布默认生图张数" extra="新建画布生图和配置节点默认使用，单个节点仍可单独覆盖。" className="mb-4">
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        max={15}
+                                        autoComplete="off"
+                                        value={config.canvasImageCount}
+                                        onChange={(event) => updateConfig("canvasImageCount", event.target.value)}
+                                        onBlur={(event) => updateConfig("canvasImageCount", normalizeImageCount(event.target.value))}
+                                    />
+                                </Form.Item>
+                                <Form.Item label="默认音频声音" className="mb-4">
+                                    <Select value={config.audioVoice} options={audioVoiceOptions} onChange={(value) => updateConfig("audioVoice", value)} />
+                                </Form.Item>
+                                <Form.Item label="默认音频格式" className="mb-4">
+                                    <Select value={config.audioFormat} options={audioFormatOptions} onChange={(value) => updateConfig("audioFormat", value)} />
+                                </Form.Item>
+                                <Form.Item label="默认音频语速" className="mb-4">
+                                    <Input
+                                        type="number"
+                                        min={0.25}
+                                        max={4}
+                                        step={0.05}
+                                        autoComplete="off"
+                                        value={config.audioSpeed}
+                                        onChange={(event) => updateConfig("audioSpeed", event.target.value)}
+                                        onBlur={(event) => updateConfig("audioSpeed", normalizeAudioSpeedValue(event.target.value))}
+                                    />
+                                </Form.Item>
+                            </div>
+                            <div className="mb-4 grid gap-3 md:grid-cols-3">
+                                <FeatureSwitch title="流式传输" description="开启后请求中追加 stream，支持读取中间图片事件并避免长时间无数据。" checked={Boolean(config.streamImages)} onChange={(checked) => updateConfig("streamImages", checked ? "1" : "")} />
+                                <FeatureSwitch title="返回 Base64 图片数据" description="开启后 Image API 请求会追加 response_format: b64_json。" checked={Boolean(config.responseFormatB64Json)} onChange={(checked) => updateConfig("responseFormatB64Json", checked ? "1" : "")} />
+                                <FeatureSwitch title="Codex CLI 兼容模式" description="开启后减少不兼容参数，并追加防提示词改写前缀。" checked={Boolean(config.codexCli)} onChange={(checked) => updateConfig("codexCli", checked ? "1" : "")} />
+                            </div>
+                            {canUseUserStorageProvider ? (
+                                <section className="mb-5 mt-4 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/50">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <div className="text-sm font-medium">用户 S3/R2 存储</div>
+                                            <div className="mt-1 text-xs text-stone-500">开启后，新生成图片和媒体文件会优先保存到你的 S3 兼容对象存储。{storageUsageText ? `当前容量：${storageUsageText}` : ""}</div>
+                                        </div>
+                                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                            <Button size="small" loading={measuringStorage} onClick={() => void measureStorage()}>
+                                                统计容量
+                                            </Button>
+                                            <span className="text-xs text-stone-500">自动同步</span>
+                                            <Switch size="small" checked={config.syncStorageConfig} onChange={(checked) => updateConfig("syncStorageConfig", checked)} />
+                                            <Switch checked={userStorage.enabled} onChange={(enabled) => setUserStorage((value) => ({ ...value, enabled }))} />
+                                        </div>
+                                    </div>
+                                    {userStorage.enabled ? (
+                                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                            <Input value={userStorage.name} placeholder="配置名称" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, name: event.target.value }))} />
+                                            <Input value={userStorage.endpoint} placeholder="Endpoint，例如 https://<account>.r2.cloudflarestorage.com" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, endpoint: event.target.value }))} />
+                                            <Input value={userStorage.region} placeholder="Region，R2 通常为 auto" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, region: event.target.value }))} />
+                                            <Input value={userStorage.bucket} placeholder="Bucket 名称" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, bucket: event.target.value }))} />
+                                            <Input value={userStorage.accessKeyId} placeholder="Access Key ID" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, accessKeyId: event.target.value }))} />
+                                            <Input.Password value={userStorage.secretAccessKey} placeholder="Secret Access Key" autoComplete="new-password" onChange={(event) => setUserStorage((value) => ({ ...value, secretAccessKey: event.target.value }))} />
+                                            <Input value={userStorage.publicBaseUrl} placeholder="公开访问地址，例如 https://pub-xxx.r2.dev" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, publicBaseUrl: event.target.value }))} />
+                                            <Input value={userStorage.pathPrefix} placeholder="保存路径前缀，例如 images" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, pathPrefix: event.target.value }))} />
+                                        </div>
+                                    ) : null}
+                                </section>
                             ) : null}
-                        </section>
-                    ) : null}
-                    <Form.Item label="默认音频指令" className="mb-4">
-                        <Input.TextArea rows={2} value={config.audioInstructions} placeholder="例如：自然、温暖、适合旁白。" onChange={(event) => updateConfig("audioInstructions", event.target.value)} />
-                    </Form.Item>
-                    {effectiveMode === "local" ? (
-                        <Form.Item label="系统提示词" className="mb-0">
-                            <Input.TextArea rows={3} value={config.systemPrompt} placeholder="例如：你是一位擅长电影感写实摄影的视觉导演。" onChange={(event) => updateConfig("systemPrompt", event.target.value)} />
-                        </Form.Item>
-                    ) : null}
+                            <Form.Item label="默认音频指令" className="mb-4">
+                                <Input.TextArea rows={2} autoComplete="off" value={config.audioInstructions} placeholder="例如：自然、温暖、适合旁白。" onChange={(event) => updateConfig("audioInstructions", event.target.value)} />
+                            </Form.Item>
+                            {effectiveMode === "local" ? (
+                                <Form.Item label="系统提示词" className="mb-0">
+                                    <Input.TextArea rows={3} autoComplete="off" value={config.systemPrompt} placeholder="例如：你是一位擅长电影感写实摄影的视觉导演。" onChange={(event) => updateConfig("systemPrompt", event.target.value)} />
+                                </Form.Item>
+                            ) : null}
+                        </>
+                    )}
                 </Form>
             </div>
         </Modal>

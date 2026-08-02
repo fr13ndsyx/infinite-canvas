@@ -1018,6 +1018,8 @@ function normalizePublicSetting(setting: Partial<AdminSettings["public"]> = {}):
             availableModels: setting.modelChannel?.availableModels || [],
             modelCosts: normalizeModelCosts(setting.modelChannel?.modelCosts || []),
             channels: setting.modelChannel?.channels || [],
+            allowCustomChannel: setting.modelChannel?.allowCustomChannel !== false,
+            allowUserRemoteChannel: setting.modelChannel?.allowUserRemoteChannel === true,
             systemPrompts: {
                 ...emptySettings.public.modelChannel.systemPrompts,
                 image: setting.modelChannel?.systemPrompts?.image || setting.modelChannel?.systemPrompt || "",
