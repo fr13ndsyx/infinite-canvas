@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
+import { App } from "antd";
 import { Cpu } from "lucide-react";
 
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { filterModelsByCapability, normalizeLocalChannels, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { filterModelsByCapability, normalizeLocalChannels, useConfigStore, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { useUserStore } from "@/stores/use-user-store";
 
 type ModelPickerProps = {
     config: AiConfig;
@@ -20,8 +22,12 @@ type ModelPickerProps = {
 };
 
 export function ModelPicker({ config, value, channelId, capability, onChange, className, fullWidth = false, placeholder = "选择模型", onMissingConfig }: ModelPickerProps) {
+    const { message } = App.useApp();
     const pickerId = useId();
     const [open, setOpen] = useState(false);
+    const publicSettings = useConfigStore((state) => state.publicSettings);
+    const user = useUserStore((state) => state.user);
+    const isGuestConfigDisabled = !user && publicSettings?.modelChannel?.allowGuestConfig === false;
     const channelOptions = useMemo(() => {
         const channels =
             config.channelMode === "remote"
@@ -36,8 +42,9 @@ export function ModelPicker({ config, value, channelId, capability, onChange, cl
         return channelOptions.find((item) => item.model === value && item.channelId === channelId) || channelOptions.find((item) => item.model === value);
     }, [channelId, channelOptions, value]);
     const options = channelOptions;
-    const current = value || "";
-    const currentValue = current && currentOption ? currentOption.key : "";
+    // 当 value 不在任一渠道的模型列表中时（currentOption 为空），显示 placeholder 而非具体模型名
+    const current = value && currentOption ? value : "";
+    const currentValue = current ? currentOption.key : "";
 
     useEffect(() => {
         if (value && currentOption?.channelId && channelId !== currentOption.channelId) onChange(value, currentOption.channelId);
@@ -57,6 +64,11 @@ export function ModelPicker({ config, value, channelId, capability, onChange, cl
             value={current ? currentValue : ""}
             onOpenChange={(nextOpen) => {
                 if (nextOpen && !options.length && config.channelMode === "local") {
+                    // 未登录且后台关闭 allowGuestConfig 时，直接提示，不触发配置弹窗
+                    if (isGuestConfigDisabled) {
+                        message.info("请登录后使用配置功能");
+                        return;
+                    }
                     onMissingConfig?.();
                     return;
                 }

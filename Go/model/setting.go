@@ -42,6 +42,7 @@ type PublicModelChannelSetting struct {
 	SystemPrompts          SystemPromptSetting      `json:"systemPrompts"`
 	AllowCustomChannel     *bool                    `json:"allowCustomChannel"`
 	AllowUserRemoteChannel *bool                    `json:"allowUserRemoteChannel"`
+	AllowGuestConfig       *bool                    `json:"allowGuestConfig"`
 }
 
 type SystemPromptSetting struct {

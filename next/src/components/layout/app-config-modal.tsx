@@ -110,6 +110,15 @@ export function AppConfigModal() {
         };
     }, [isConfigOpen]);
 
+    // 拦截未登录且后台关闭 allowGuestConfig 时的弹窗打开（覆盖模型选择器等所有入口）
+    useEffect(() => {
+        if (isConfigOpen && !user && publicSettings?.modelChannel?.allowGuestConfig === false) {
+            setConfigDialogOpen(false);
+            clearPromptContinue();
+            message.info("请登录后使用配置功能");
+        }
+    }, [isConfigOpen, user, publicSettings?.modelChannel?.allowGuestConfig, setConfigDialogOpen, clearPromptContinue, message]);
+
     const finishConfig = async () => {
         const localIncomplete = effectiveMode === "local" && normalizeLocalChannels(config).some((channel) => !channel.baseUrl.trim() || !channel.apiKey.trim());
         const modelIncomplete = !modelConfig.imageModel.trim() || !modelConfig.videoModel.trim() || !modelConfig.textModel.trim();
