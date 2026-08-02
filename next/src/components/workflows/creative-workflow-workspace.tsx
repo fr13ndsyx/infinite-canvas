@@ -202,15 +202,11 @@ const workflowModeOptions: Array<{ value: WorkflowMode; label: string }> = [
 ];
 
 export function CreativeWorkflowWorkspace({
-    embedded = false,
-    hideTaskList = false,
     onGenerationLogSaved,
     onWorkflowTaskStarted,
     onWorkflowTaskSuccess,
     onWorkflowTaskFailure,
 }: {
-    embedded?: boolean;
-    hideTaskList?: boolean;
     onGenerationLogSaved?: () => void;
     onWorkflowTaskStarted?: (task: WorkflowExternalTaskStart) => void;
     onWorkflowTaskSuccess?: (task: WorkflowExternalTaskSuccess) => void;
@@ -935,17 +931,15 @@ export function CreativeWorkflowWorkspace({
     };
 
     return (
-        <main className={`${embedded ? "h-full" : "h-full overflow-y-auto bg-stone-50 p-4 dark:bg-stone-950"} text-stone-950 dark:text-stone-50`}>
-            <div className={`${embedded ? "h-full overflow-y-auto p-4" : "mx-auto max-w-7xl"} flex flex-col gap-4`}>
-                <section
-                    className={`${embedded ? "border-b border-stone-200 pb-4 dark:border-stone-800" : "rounded-lg border border-stone-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-stone-800 dark:bg-stone-900/70"} flex flex-wrap items-center justify-between gap-3`}
-                >
+        <main className="h-full overflow-y-auto bg-stone-50 p-4 text-stone-950 dark:bg-stone-950 dark:text-stone-50">
+            <div className="mx-auto flex max-w-7xl flex-col gap-4">
+                <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-stone-800 dark:bg-stone-900/70">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-lg font-semibold">
                             <WandSparkles className="size-5" />
-                            创作工作流
+                            生图工作流
                         </div>
-                        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{embedded ? "选择模板并启动任务，结果会写入生图历史。" : "把固定提示词和参数沉淀成模板，每次只填写变量即可批量复用。"}</p>
+                        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">把固定提示词和参数沉淀成模板，每次只填写变量即可批量复用。</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Select
@@ -967,7 +961,7 @@ export function CreativeWorkflowWorkspace({
                     </div>
                 </section>
 
-                <section className={`${embedded ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"} grid gap-3`}>
+                <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {filteredWorkflows.map((workflow) => (
                         <WorkflowCard key={workflow.id} workflow={workflow} onRun={() => openRunner(workflow)} onEdit={() => setEditingWorkflow(workflow)} onCopy={() => void duplicateWorkflow(workflow)} onDelete={() => deleteWorkflow(workflow)} />
                     ))}
@@ -978,7 +972,7 @@ export function CreativeWorkflowWorkspace({
                     ) : null}
                 </section>
 
-                {!hideTaskList && workflowTasks.length ? (
+                {workflowTasks.length ? (
                     <section className="space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2 text-base font-semibold">
@@ -1003,7 +997,7 @@ export function CreativeWorkflowWorkspace({
                     </section>
                 ) : null}
 
-                {!hideTaskList && runResults.length ? (
+                {runResults.length ? (
                     <section className="space-y-3">
                         <div className="flex items-center gap-2 text-base font-semibold">
                             <Sparkles className="size-4" />

@@ -46,7 +46,10 @@ export default function AdminPromptsPage() {
     const tagOptions = tags.map((item) => ({ label: item, value: item }));
 
     useEffect(() => {
-        if (editingPrompt) form.setFieldsValue({ ...editingPrompt, tagText: editingPrompt.tags?.join(", ") || "" });
+        if (editingPrompt) {
+            form.resetFields();
+            form.setFieldsValue({ ...editingPrompt, tagText: editingPrompt.tags?.join(", ") || "" });
+        }
     }, [editingPrompt, form]);
 
     useEffect(() => setKeywordText(keyword), [keyword]);

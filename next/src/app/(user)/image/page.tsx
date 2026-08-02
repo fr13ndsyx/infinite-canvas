@@ -23,10 +23,9 @@ import {
     SlidersHorizontal,
     Trash2,
     Upload,
-    WandSparkles,
 } from "lucide-react";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { App, Button, Checkbox, Drawer, Empty, Image, Input, Modal, Segmented, Tag, Typography } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { App, Button, Checkbox, Empty, Image, Input, Modal, Segmented, Tag, Typography } from "antd";
 import localforage from "localforage";
 import { saveAs } from "file-saver";
 
@@ -35,12 +34,6 @@ import { ModelPicker } from "@/components/model-picker";
 import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { AssetPickerModal, type InsertAssetPayload } from "@/app/(user)/canvas/components/asset-picker-modal";
 import { canvasThemes } from "@/lib/canvas-theme";
-import {
-    CreativeWorkflowWorkspace,
-    type WorkflowExternalTaskFailure,
-    type WorkflowExternalTaskStart,
-    type WorkflowExternalTaskSuccess,
-} from "@/components/workflows/creative-workflow-workspace";
 import { normalizeLocalChannels, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
@@ -126,7 +119,6 @@ const CATEGORY_STORE_KEY = "infinite-canvas:image_generation_categories";
 const WORKBENCH_LAYOUT_KEY = "infinite-canvas:image-workbench-layout";
 const RESULT_VIEW_MODE_KEY = "infinite-canvas:image-result-view-mode";
 const IMAGE_TASK_POLL_INTERVAL_MS = 10000;
-const WORKFLOW_BUTTON_POSITION_KEY = "infinite-canvas:workflow-button-position";
 const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
 const categoryStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_categories" });
 export default function ImagePage() {
@@ -152,14 +144,10 @@ export default function ImagePage() {
     const [workbenchLayout, setWorkbenchLayoutState] = useState<WorkbenchLayout>("side");
     const [promptDialogOpen, setPromptDialogOpen] = useState(false);
     const [assetPickerOpen, setAssetPickerOpen] = useState(false);
-    const [workflowDrawerOpen, setWorkflowDrawerOpen] = useState(false);
     const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
     const [previewLog, setPreviewLog] = useState<GenerationLog | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [now, setNow] = useState(Date.now());
-    const [workflowButtonPosition, setWorkflowButtonPosition] = useState({ x: 0, y: 0 });
-    const workflowButtonRef = useRef<HTMLButtonElement>(null);
-    const workflowButtonDragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
     const accountHistorySyncEnabledRef = useRef(false);
     const saveLogChainRef = useRef<Promise<void>>(Promise.resolve());
     const pollingLogIdsRef = useRef(new Set<string>());
@@ -193,20 +181,9 @@ export default function ImagePage() {
             if (storedLayout === "side" || storedLayout === "bottom") setWorkbenchLayoutState(storedLayout);
             const storedViewMode = window.localStorage?.getItem(RESULT_VIEW_MODE_KEY);
             if (storedViewMode === "all" || storedViewMode === "category") setResultViewModeState(storedViewMode);
-            const storedButtonPosition = JSON.parse(window.localStorage?.getItem(WORKFLOW_BUTTON_POSITION_KEY) || "null") as { x?: number; y?: number } | null;
-            if (typeof storedButtonPosition?.x === "number" && typeof storedButtonPosition?.y === "number") setWorkflowButtonPosition(clampWorkflowButtonPosition(storedButtonPosition));
-            else setWorkflowButtonPosition(defaultWorkflowButtonPosition());
         } catch {
             // Local storage can be unavailable in restricted browser contexts.
-            setWorkflowButtonPosition(defaultWorkflowButtonPosition());
         }
-
-        // 监听窗口大小变化，拉窄窗口时自动将工作流按钮实时 clamp 限制在可视区域内，杜绝越界
-        const handleResize = () => {
-            setWorkflowButtonPosition((current) => clampWorkflowButtonPosition(current));
-        };
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
     }, []);
 
     useEffect(() => {
@@ -264,47 +241,6 @@ export default function ImagePage() {
         } catch {
             // Keep current view in memory if persistence is blocked.
         }
-    };
-
-    const persistWorkflowButtonPosition = (position: { x: number; y: number }) => {
-        const nextPosition = clampWorkflowButtonPosition(position);
-        setWorkflowButtonPosition(nextPosition);
-        try {
-            window.localStorage?.setItem(WORKFLOW_BUTTON_POSITION_KEY, JSON.stringify(nextPosition));
-        } catch {
-            // Keep the drag position in memory when localStorage is unavailable.
-        }
-    };
-
-    const handleWorkflowButtonPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        const origin = workflowButtonPosition.x || workflowButtonPosition.y ? workflowButtonPosition : defaultWorkflowButtonPosition();
-        workflowButtonDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: origin.x, originY: origin.y, moved: false };
-    };
-
-    const handleWorkflowButtonPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-        const drag = workflowButtonDragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        const dx = event.clientX - drag.startX;
-        const dy = event.clientY - drag.startY;
-        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) drag.moved = true;
-        
-        // 直接更新 DOM 样式，免去顶层 React State 的庞大整页重绘 Layout 卡顿！
-        const nextPos = clampWorkflowButtonPosition({ x: drag.originX + dx, y: drag.originY + dy });
-        if (workflowButtonRef.current) {
-            workflowButtonRef.current.style.left = `${nextPos.x}px`;
-            workflowButtonRef.current.style.top = `${nextPos.y}px`;
-        }
-    };
-
-    const handleWorkflowButtonPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
-        const drag = workflowButtonDragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        event.currentTarget.releasePointerCapture(event.pointerId);
-        const dx = event.clientX - drag.startX;
-        const dy = event.clientY - drag.startY;
-        const finalPos = clampWorkflowButtonPosition({ x: drag.originX + dx, y: drag.originY + dy });
-        persistWorkflowButtonPosition(finalPos);
     };
 
     const addReferences = async (files?: FileList | null) => {
@@ -784,7 +720,7 @@ export default function ImagePage() {
         const currentConfig = imageTaskConfig();
         if (!token) return baseLogs || logsRef.current;
         try {
-            const tasks = await listCanvasImageTasks(currentConfig, ["image-workbench", "workflow"]);
+            const tasks = await listCanvasImageTasks(currentConfig, ["image-workbench"]);
             const recoverableTasks = tasks.filter(isRecoverableImageTask);
             if (!recoverableTasks.length) return baseLogs || logsRef.current;
             const currentLogs = baseLogs || (await readStoredLogs());
@@ -967,98 +903,6 @@ export default function ImagePage() {
         void submitGenerationBatch(snapshot);
     };
 
-    const handleWorkflowTaskStarted = (task: WorkflowExternalTaskStart) => {
-        if (usesBackendImageTasks(effectiveConfig)) {
-            setResultViewMode("all");
-            setActiveResultCategoryId(null);
-            return;
-        }
-        const configSnapshot = buildGenerationLogConfig({
-            ...effectiveConfig,
-            ...task.config,
-            model: task.model,
-            imageModel: task.model,
-            apiMode: task.apiMode,
-            count: String(task.count),
-        });
-        const pendingItems: GenerationResult[] = Array.from({ length: task.count }, (_, index) => ({
-            id: createWorkflowResultId(task.taskId, index),
-            status: "pending",
-            createdAt: task.startedAt,
-            prompt: task.prompt,
-            model: task.model,
-            config: configSnapshot,
-            references: task.references || [],
-            workflowId: task.workflowId,
-            workflowName: task.workflowName,
-            workflowInputs: task.inputs,
-            workflowTaskId: task.taskId,
-        }));
-        setResultViewMode("all");
-        setActiveResultCategoryId(null);
-        setResults((value) => [...pendingItems, ...value]);
-        setNow(Date.now());
-    };
-
-    const handleWorkflowTaskSuccess = (task: WorkflowExternalTaskSuccess) => {
-        setResults((value) => {
-            const next = [...value];
-            task.images.forEach((image, index) => {
-                const resultId = createWorkflowResultId(task.taskId, index);
-                const existingIndex = next.findIndex((item) => item.id === resultId);
-                const nextImage: GeneratedImage = {
-                    id: image.id,
-                    dataUrl: image.imageUrl,
-                    storageKey: image.storageKey,
-                    durationMs: image.durationMs || task.durationMs,
-                    width: image.width,
-                    height: image.height,
-                    bytes: image.bytes,
-                    mimeType: image.mimeType,
-                };
-                if (existingIndex >= 0) {
-                    next[existingIndex] = { ...next[existingIndex], status: "success", image: nextImage, durationMs: task.durationMs };
-                } else {
-                    next.unshift({
-                        id: resultId,
-                        status: "success",
-                        createdAt: task.endedAt,
-                        prompt: image.prompt,
-                        model: effectiveConfig.imageModel || effectiveConfig.model,
-                        config: buildGenerationLogConfig(effectiveConfig),
-                        references: [],
-                        image: nextImage,
-                        durationMs: task.durationMs,
-                        workflowId: image.workflowId,
-                        workflowName: image.workflowName,
-                        workflowTaskId: task.taskId,
-                    });
-                }
-            });
-            return next;
-        });
-        setResultViewMode("all");
-        setActiveResultCategoryId(null);
-        void Promise.all([refreshLogs(), refreshCategories()]).then(() => {
-            setResults((value) => value.filter((item) => item.workflowTaskId !== task.taskId));
-        });
-    };
-
-    const handleWorkflowTaskFailure = (task: WorkflowExternalTaskFailure) => {
-        setResults((value) =>
-            value.map((item) =>
-                item.workflowTaskId === task.taskId
-                    ? {
-                          ...item,
-                          status: "failed",
-                          error: task.error,
-                          durationMs: task.durationMs,
-                      }
-                    : item,
-            ),
-        );
-    };
-
     return (
         <div className="flex h-full flex-col overflow-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
             <main className={`${workbenchLayout === "side" ? "grid grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)]" : "relative flex flex-col"} min-h-0 flex-1 gap-3 overflow-y-auto p-3 lg:overflow-hidden`}>
@@ -1181,48 +1025,6 @@ export default function ImagePage() {
                     </>
                 )}
             </main>
-            <button
-                ref={workflowButtonRef}
-                type="button"
-                className="fixed z-50 inline-flex touch-none select-none items-center gap-2 rounded-full border border-sky-300/70 bg-white/90 px-4 py-3 text-sm font-semibold text-stone-950 shadow-[0_18px_50px_rgba(14,165,233,0.28),0_8px_18px_rgba(0,0,0,0.14)] ring-1 ring-white/70 backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-white hover:shadow-[0_22px_64px_rgba(14,165,233,0.36),0_10px_22px_rgba(0,0,0,0.18)] dark:border-sky-400/40 dark:bg-stone-900/88 dark:text-stone-100 dark:ring-white/10 dark:hover:bg-stone-900"
-                style={{
-                    left: (typeof window === "undefined" ? defaultWorkflowButtonPosition() : clampWorkflowButtonPosition(workflowButtonPosition.x || workflowButtonPosition.y ? workflowButtonPosition : defaultWorkflowButtonPosition())).x,
-                    top: (typeof window === "undefined" ? defaultWorkflowButtonPosition() : clampWorkflowButtonPosition(workflowButtonPosition.x || workflowButtonPosition.y ? workflowButtonPosition : defaultWorkflowButtonPosition())).y
-                }}
-                onPointerDown={handleWorkflowButtonPointerDown}
-                onPointerMove={handleWorkflowButtonPointerMove}
-                onPointerUp={handleWorkflowButtonPointerUp}
-                onClick={() => {
-                    if (workflowButtonDragRef.current?.moved) {
-                        workflowButtonDragRef.current = null;
-                        return;
-                    }
-                    workflowButtonDragRef.current = null;
-                    setWorkflowDrawerOpen(true);
-                }}
-            >
-                <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-sky-400 shadow-[0_0_18px_rgba(56,189,248,0.9)]" />
-                <WandSparkles className="size-4 text-sky-500 dark:text-sky-300" />
-                工作流
-            </button>
-            <Drawer title="创作工作流" placement="right" size="min(1120px, 92vw)" open={workflowDrawerOpen}  onClose={() => setWorkflowDrawerOpen(false)} styles={{ body: { padding: 0 } }} destroyOnHidden={false}>
-                <CreativeWorkflowWorkspace
-                    embedded
-                    hideTaskList
-                    onWorkflowTaskStarted={handleWorkflowTaskStarted}
-                    onWorkflowTaskSuccess={handleWorkflowTaskSuccess}
-                    onWorkflowTaskFailure={handleWorkflowTaskFailure}
-                    onGenerationLogSaved={() => {
-                        void (async () => {
-                            const nextCategories = await readStoredCategories();
-                            const nextLogs = await readStoredLogs();
-                            setCategories(nextCategories);
-                            setLogs(nextLogs);
-                            await persistImageHistory(nextLogs, nextCategories);
-                        })();
-                    }}
-                />
-            </Drawer>
             <input
                 ref={fileInputRef}
                 type="file"
@@ -2212,10 +2014,6 @@ function disposableLogStorageKeys(deletedLogs: GenerationLog[], remainingLogs: G
     return [...deletedKeys].filter((key) => !retainedKeys.has(key));
 }
 
-function createWorkflowResultId(taskId: string, index: number) {
-    return `${taskId}:${index}`;
-}
-
 function updateResult(results: GenerationResult[], id: string, next: Partial<GenerationResult>) {
     return results.map((item) => (item.id === id ? { ...item, ...next } : item));
 }
@@ -2682,19 +2480,6 @@ function imageExtension(value: string) {
     if (lower.includes("jpeg") || lower.includes("jpg")) return "jpg";
     if (lower.includes("webp")) return "webp";
     return "png";
-}
-
-function defaultWorkflowButtonPosition() {
-    if (typeof window === "undefined") return { x: 24, y: 320 };
-    return { x: Math.max(16, window.innerWidth - 132), y: Math.max(96, Math.round(window.innerHeight / 2)) };
-}
-
-function clampWorkflowButtonPosition(position: { x?: number; y?: number }) {
-    if (typeof window === "undefined") return { x: Number(position.x) || 24, y: Number(position.y) || 320 };
-    return {
-        x: Math.min(Math.max(12, Number(position.x) || 12), Math.max(12, window.innerWidth - 120)),
-        y: Math.min(Math.max(72, Number(position.y) || 72), Math.max(72, window.innerHeight - 64)),
-    };
 }
 
 function buildLog({

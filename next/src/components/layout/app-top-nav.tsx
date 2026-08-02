@@ -3,8 +3,10 @@
 import { Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronDown } from "lucide-react";
+import { Dropdown } from "antd";
 
-import { navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
+import { navigationSlugs, navigationTools, type NavigationSlug } from "@/constant/navigation-tools";
 import { AppConfigModal } from "@/components/layout/app-config-modal";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
@@ -16,7 +18,15 @@ export function AppTopNav() {
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const hideHeader = /^\/canvas\/[^/]+/.test(pathname);
     const slug = pathname.split("/").filter(Boolean)[0];
-    const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
+    const activeToolSlug = navigationSlugs.includes(slug as NavigationSlug) ? (slug as NavigationSlug) : undefined;
+
+    const linkClassName = (active: boolean) =>
+        cn(
+            "relative flex h-16 shrink-0 items-center gap-2 text-sm leading-6 transition after:absolute after:inset-x-0 after:bottom-0 after:h-px cursor-pointer",
+            active
+                ? "font-medium text-stone-950 after:bg-stone-950 dark:text-stone-100 dark:after:bg-stone-100"
+                : "text-stone-500 after:bg-transparent hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100",
+        );
 
     return (
         <>
@@ -47,22 +57,50 @@ export function AppTopNav() {
 
                             <nav className="hide-scrollbar ml-8 hidden h-16 min-w-0 items-center gap-7 overflow-x-auto md:flex">
                                 {navigationTools.map((tool) => {
+                                    if (tool.kind === "link") {
+                                        const Icon = tool.icon;
+                                        const active = tool.slug === activeToolSlug;
+                                        return (
+                                            <Link key={tool.slug} href={`/${tool.slug}`} className={linkClassName(active)}>
+                                                <Icon className="size-4" />
+                                                <span className="truncate">{tool.label}</span>
+                                            </Link>
+                                        );
+                                    }
+
+                                    // dropdown：children 只有 1 项 → 渲染为 Link 直跳
+                                    if (tool.children.length === 1) {
+                                        const only = tool.children[0];
+                                        const Icon = only.icon;
+                                        const active = only.slug === activeToolSlug;
+                                        return (
+                                            <Link key={tool.slug} href={`/${only.slug}`} className={linkClassName(active)}>
+                                                <Icon className="size-4" />
+                                                <span className="truncate">{tool.label}</span>
+                                            </Link>
+                                        );
+                                    }
+
+                                    // dropdown：children ≥2 项 → 渲染为 antd Dropdown
                                     const Icon = tool.icon;
-                                    const active = tool.slug === activeToolSlug;
+                                    const active = pathname.startsWith(`/${tool.slug}`);
                                     return (
-                                        <Link
+                                        <Dropdown
                                             key={tool.slug}
-                                            href={`/${tool.slug}`}
-                                            className={cn(
-                                                "relative flex h-16 shrink-0 items-center gap-2 text-sm leading-6 transition after:absolute after:inset-x-0 after:bottom-0 after:h-px",
-                                                active
-                                                    ? "font-medium text-stone-950 after:bg-stone-950 dark:text-stone-100 dark:after:bg-stone-100"
-                                                    : "text-stone-500 after:bg-transparent hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100",
-                                            )}
+                                            menu={{
+                                                items: tool.children.map((child) => ({
+                                                    key: child.slug,
+                                                    label: <Link href={`/${child.slug}`}>{child.label}</Link>,
+                                                })),
+                                            }}
+                                            trigger={["hover"]}
                                         >
-                                            <Icon className="size-4" />
-                                            <span className="truncate">{tool.label}</span>
-                                        </Link>
+                                            <span className={linkClassName(active)}>
+                                                <Icon className="size-4" />
+                                                <span className="truncate">{tool.label}</span>
+                                                <ChevronDown className="size-3 opacity-60" />
+                                            </span>
+                                        </Dropdown>
                                     );
                                 })}
                             </nav>

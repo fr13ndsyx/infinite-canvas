@@ -15,3 +15,18 @@ description: 当前项目后续值得处理的事项
 - 说明：`Go/handler/kie_image.go` 中的 `kieFileStreamUploadURL`（`https://kieai.redpandaai.co/api/file-stream-upload`）是第三方 AI 服务商 KIE AI 的文件上传接口
 - 触发条件：仅当用户在画布图像生成中选择 KIE 作为模型渠道，并上传参考图时才会调用
 - 不接 KIE 渠道时该代码不会执行，无副作用；如未来确定不使用 KIE，可删除相关适配逻辑（涉及 handler/service/router 多处）
+
+### 提示词封面图本地化
+
+- 状态：暂不实施，上线后视情况优化
+- 问题：提示词来源从 7 个 GitHub 仓库同步，`Prompt.CoverURL` 直接存原 URL 字符串，不下载图片。其中 xianyu-awesome-gptimage2 来源的 latest-prompts 部分使用 X/Twitter 图床链接（`pbs.twimg.com`），易因 X 防盗链、推文删除、账号封禁而失效
+- 失效风险分级：
+  - 低风险：GitHub raw 链接（6 个来源），仓库主删除才失效
+  - 高风险：X/Twitter 图床链接（xianyu latest 部分），多种原因会失效
+- 备选方案（待上线后评估）：
+  - 方案 A（推荐）：数据库 BYTEA 存储。`prompts` 表新增 `cover_data BYTEA` + `cover_mime TEXT` 字段，同步时下载封面图存入数据库；后端新增 `GET /api/prompts/:id/cover` 接口按需返回二进制流；前端 `<img src="/api/prompts/xxx/cover" onError={回退到原 coverUrl}>`。CoverURL 字段保留作为兜底/审计。备份迁移只靠 .sql，适合运营商场景。数据量约 140-420MB，PostgreSQL 可接受
+  - 方案 B：文件系统存储。下载到 `data/prompt-covers/` 目录，数据库只存路径。数据库保持精简但备份需同时拷贝文件
+  - 方案 C：代理 + 按需缓存。后端提供 `/api/proxy-image?url=xxx` 接口，首次访问时下载并缓存。不浪费带宽但首次访问若原链接已失效则无法缓存
+- 当前缓解：无（前端暂未做 onerror 降级处理）
+- 触发条件：上线后若用户反馈封面图大量失效，或运营商出于稳定性要求主动优化时再实施
+
