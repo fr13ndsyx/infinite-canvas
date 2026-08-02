@@ -268,28 +268,6 @@
         background: rgba(120, 113, 108, 0.5);
     }
 
-    .hover-scrollbar-hint {
-        position: relative;
-    }
-
-    .hover-scrollbar-hint::after {
-        background: rgba(120, 113, 108, 0.42);
-        border-radius: 999px;
-        bottom: 4px;
-        content: "";
-        height: 3px;
-        left: 12px;
-        opacity: 0;
-        pointer-events: none;
-        position: absolute;
-        right: 12px;
-        transition: opacity 0.18s ease;
-    }
-
-    .hover-scrollbar-hint:hover::after {
-        opacity: 1;
-    }
-
     .canvas-control-select.ant-select .ant-select-selector,
     .canvas-control-number.ant-input-number {
         border-color: rgba(120, 113, 108, 0.32) !important;
