@@ -1277,7 +1277,7 @@ function QuickSelect({ label, value, options, onChange }: { label: string; value
     return (
         <label className="grid gap-1 text-xs text-stone-500 dark:text-stone-400">
             {label}
-            <select className="h-11 min-w-0 rounded-xl border border-stone-200 bg-background px-3 text-sm text-stone-900 outline-none dark:border-stone-800 dark:text-stone-100" value={value} onChange={(event) => onChange(event.target.value)}>
+            <select className="h-11 min-w-0 rounded-md border border-stone-200 bg-background px-3 text-sm text-stone-900 outline-none dark:border-stone-800 dark:text-stone-100" value={value} onChange={(event) => onChange(event.target.value)}>
                 {options.map((item) => (
                     <option key={item.value} value={item.value}>
                         {item.label}
@@ -1293,7 +1293,7 @@ function QuickNumber({ label, value, min, max, disabled, onChange }: { label: st
         <label className="grid gap-1 text-xs text-stone-500 dark:text-stone-400">
             {label}
             <input
-                className="h-11 min-w-0 rounded-xl border border-stone-200 bg-background px-3 text-sm text-stone-900 outline-none disabled:opacity-50 dark:border-stone-800 dark:text-stone-100"
+                className="h-11 min-w-0 rounded-md border border-stone-200 bg-background px-3 text-sm text-stone-900 outline-none disabled:opacity-50 dark:border-stone-800 dark:text-stone-100"
                 type="number"
                 min={min}
                 max={max}

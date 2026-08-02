@@ -30,3 +30,28 @@ description: 当前项目后续值得处理的事项
 - 当前缓解：无（前端暂未做 onerror 降级处理）
 - 触发条件：上线后若用户反馈封面图大量失效，或运营商出于稳定性要求主动优化时再实施
 
+### 管理后台渠道管理拆分
+
+- 状态：待实施
+- 方案文档：[channels-page-split.md](./channels-page-split.md)
+- 目标：把"渠道配置"从系统设置页拆出来作为独立菜单项 `/admin/channels`，为后续模型能力配置腾出空间
+- 改动范围：新建 `channels/page.tsx` + 修改 `layout.tsx` + `settings/page.tsx`，后端零改动
+- 关键点：
+  - 沿用整体保存模式（不新增单渠道 CRUD API）
+  - 沿用 Channel Drawer，不改为独立编辑页
+  - 拆分后系统设置页私有 tab 仅保留同步/日志/存储三块
+- 执行顺序：先于"模型能力配置"
+
+### 生图/视频模型能力配置
+
+- 状态：待实施
+- 方案文档：[model-capabilities-refactor.md](./model-capabilities-refactor.md)
+- 目标：管理后台支持勾选每个模型支持的比例和清晰度档位，前端工作台按模型能力动态渲染选项
+- 改动范围：后端 4 文件（setting.go + service + 2 个 image handler）+ 前端 5 文件（admin.ts + 管理后台表格 + store + 2 个工作台 panel）
+- 关键点：
+  - 新增 `ModelCapability` 结构（`imageAspects` / `imageTiers` / `videoResolutions`）
+  - 空字段走保守默认（生图=全比例+仅标准档，视频=480p/720p/1080p）
+  - 切换模型时自动回退不支持的尺寸/档位
+  - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置，硬编码作 fallback
+- 依赖：建议在"渠道管理拆分"完成后实施，模型能力表格放在新的渠道管理页
+
