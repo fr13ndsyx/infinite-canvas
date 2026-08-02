@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { ConfigProvider, Switch } from "antd";
+import { ConfigProvider, Segmented, Switch } from "antd";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
@@ -15,23 +15,44 @@ const qualityOptions = [
 const DIMENSION_STEP = 16;
 
 const aspectOptions = [
-    { value: "1:1", label: "1:1", width: 1024, height: 1024, icon: "square" },
-    { value: "3:2", label: "3:2", width: 1536, height: 1024, icon: "landscape" },
-    { value: "2:3", label: "2:3", width: 1024, height: 1536, icon: "portrait" },
-    { value: "4:3", label: "4:3", width: 1024, height: 768, icon: "landscape" },
-    { value: "3:4", label: "3:4", width: 768, height: 1024, icon: "portrait" },
-    { value: "16:9", label: "16:9", width: 1920, height: 1080, icon: "landscape" },
-    { value: "9:16", label: "9:16", width: 1080, height: 1920, icon: "portrait" },
-    { value: "21:9", label: "21:9", width: 1568, height: 672, icon: "landscape" },
-    { value: "1:1-2k", label: "1:1(2k)", size: "2048x2048", width: 2048, height: 2048, icon: "square" },
-    { value: "16:9-2k", label: "16:9(2k)", size: "2048x1152", width: 2048, height: 1152, icon: "landscape" },
-    { value: "9:16-2k", label: "9:16(2k)", size: "1152x2048", width: 1152, height: 2048, icon: "portrait" },
-    { value: "21:9-2k", label: "21:9(2k)", size: "3136x1344", width: 3136, height: 1344, icon: "landscape" },
-    { value: "16:9-4k", label: "16:9(4k)", size: "3840x2160", width: 3840, height: 2160, icon: "landscape" },
-    { value: "9:16-4k", label: "9:16(4k)", size: "2160x3840", width: 2160, height: 3840, icon: "portrait" },
-    { value: "21:9-4k", label: "21:9(4k)", size: "6272x2688", width: 6272, height: 2688, icon: "landscape" },
-    { value: "auto", label: "auto", width: 0, height: 0, icon: "auto" },
+    { value: "1:1", label: "1:1", width: 1024, height: 1024, icon: "square", tier: "standard" as const },
+    { value: "3:2", label: "3:2", width: 1536, height: 1024, icon: "landscape", tier: "standard" as const },
+    { value: "2:3", label: "2:3", width: 1024, height: 1536, icon: "portrait", tier: "standard" as const },
+    { value: "4:3", label: "4:3", width: 1024, height: 768, icon: "landscape", tier: "standard" as const },
+    { value: "3:4", label: "3:4", width: 768, height: 1024, icon: "portrait", tier: "standard" as const },
+    { value: "16:9", label: "16:9", width: 1920, height: 1080, icon: "landscape", tier: "standard" as const },
+    { value: "9:16", label: "9:16", width: 1080, height: 1920, icon: "portrait", tier: "standard" as const },
+    { value: "21:9", label: "21:9", width: 1568, height: 672, icon: "landscape", tier: "standard" as const },
+    { value: "1:1-2k", label: "1:1", size: "2048x2048", width: 2048, height: 2048, icon: "square", tier: "2k" as const },
+    { value: "3:2-2k", label: "3:2", size: "2048x1360", width: 2048, height: 1360, icon: "landscape", tier: "2k" as const },
+    { value: "2:3-2k", label: "2:3", size: "1360x2048", width: 1360, height: 2048, icon: "portrait", tier: "2k" as const },
+    { value: "4:3-2k", label: "4:3", size: "2048x1536", width: 2048, height: 1536, icon: "landscape", tier: "2k" as const },
+    { value: "3:4-2k", label: "3:4", size: "1536x2048", width: 1536, height: 2048, icon: "portrait", tier: "2k" as const },
+    { value: "16:9-2k", label: "16:9", size: "2048x1152", width: 2048, height: 1152, icon: "landscape", tier: "2k" as const },
+    { value: "9:16-2k", label: "9:16", size: "1152x2048", width: 1152, height: 2048, icon: "portrait", tier: "2k" as const },
+    { value: "21:9-2k", label: "21:9", size: "3136x1344", width: 3136, height: 1344, icon: "landscape", tier: "2k" as const },
+    { value: "1:1-4k", label: "1:1", size: "4096x4096", width: 4096, height: 4096, icon: "square", tier: "4k" as const },
+    { value: "3:2-4k", label: "3:2", size: "4096x2720", width: 4096, height: 2720, icon: "landscape", tier: "4k" as const },
+    { value: "2:3-4k", label: "2:3", size: "2720x4096", width: 2720, height: 4096, icon: "portrait", tier: "4k" as const },
+    { value: "4:3-4k", label: "4:3", size: "4096x3072", width: 4096, height: 3072, icon: "landscape", tier: "4k" as const },
+    { value: "3:4-4k", label: "3:4", size: "3072x4096", width: 3072, height: 4096, icon: "portrait", tier: "4k" as const },
+    { value: "16:9-4k", label: "16:9", size: "3840x2160", width: 3840, height: 2160, icon: "landscape", tier: "4k" as const },
+    { value: "9:16-4k", label: "9:16", size: "2160x3840", width: 2160, height: 3840, icon: "portrait", tier: "4k" as const },
+    { value: "21:9-4k", label: "21:9", size: "6272x2688", width: 6272, height: 2688, icon: "landscape", tier: "4k" as const },
+    { value: "auto", label: "auto", width: 0, height: 0, icon: "auto", tier: "standard" as const },
 ];
+
+const resolutionTierOptions = [
+    { value: "standard", label: "标准" },
+    { value: "2k", label: "2K" },
+    { value: "4k", label: "4K" },
+];
+
+function tierOfAspect(value: string): "standard" | "2k" | "4k" {
+    if (value.endsWith("-2k")) return "2k";
+    if (value.endsWith("-4k")) return "4k";
+    return "standard";
+}
 
 type ImageSettingsPanelProps = {
     config: AiConfig;
@@ -47,14 +68,20 @@ type ImageSettingsPanelProps = {
 
 export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showSize = true, showCount = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 10 }: ImageSettingsPanelProps) {
     const [snapDimensionToStep, setSnapDimensionToStep] = useState(true);
+    const [resolutionTier, setResolutionTier] = useState<"standard" | "2k" | "4k">(() => tierOfAspect(config.size || "auto"));
     const quality = config.quality || "auto";
     const count = Math.max(1, Math.min(maxCount, Math.floor(Math.abs(Number(config.count)) || 1)));
     const activeSize = config.size || "auto";
     const selectedAspect = aspectOptions.find((item) => (item.size || item.value) === activeSize || item.value === activeSize);
     const dimensions = readSizeDimensions(activeSize, selectedAspect || aspectOptions[0]);
+    const visibleAspects = aspectOptions.filter((item) => item.tier === resolutionTier || item.value === "auto");
     const selectAspect = (value: string) => {
         const option = aspectOptions.find((item) => item.value === value);
         onConfigChange("size", option?.size || option?.value || "auto");
+    };
+    const changeResolutionTier = (next: "standard" | "2k" | "4k") => {
+        setResolutionTier(next);
+        if (activeSize !== "auto" && tierOfAspect(activeSize) !== next) onConfigChange("size", "auto");
     };
     const updateDimension = (key: "width" | "height", value: number | null) => {
         const next = Math.max(1, Math.floor(value || dimensions[key] || 1024));
@@ -106,13 +133,23 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                             </div>
                         </div>
                         <div className="space-y-2.5">
-                            <SettingTitle color={theme.node.muted}>宽高比</SettingTitle>
+                            <div className="flex items-center justify-between gap-3">
+                                <SettingTitle color={theme.node.muted}>比例</SettingTitle>
+                                <span onMouseDown={(event) => event.stopPropagation()}>
+                                    <Segmented
+                                        size="small"
+                                        value={resolutionTier}
+                                        onChange={(value) => changeResolutionTier(value as "standard" | "2k" | "4k")}
+                                        options={resolutionTierOptions}
+                                    />
+                                </span>
+                            </div>
                             <div className="grid grid-cols-4 gap-2.5">
-                                {aspectOptions.map((item) => (
+                                {visibleAspects.map((item) => (
                                     <button
                                         key={item.value}
                                         type="button"
-                                        className="flex h-[60px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border bg-transparent text-xs transition hover:opacity-80"
+                                        className="flex h-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border bg-transparent text-xs transition hover:opacity-80"
                                         style={{ borderColor: selectedAspect?.value === item.value ? theme.node.text : theme.node.stroke, background: "transparent", color: theme.node.text }}
                                         onMouseDown={(event) => event.stopPropagation()}
                                         onClick={() => selectAspect(item.value)}
@@ -168,7 +205,7 @@ function OptionPill({ selected, theme, onClick, children }: { selected: boolean;
     return (
         <button
             type="button"
-            className="h-8 cursor-pointer rounded-full border px-2 text-xs transition hover:opacity-80"
+            className="h-8 cursor-pointer rounded-md border px-2 text-xs transition hover:opacity-80"
             style={{ background: "transparent", borderColor: selected ? theme.node.text : theme.node.stroke, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}
@@ -186,7 +223,7 @@ function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange 
     };
 
     return (
-        <label className="flex h-9 overflow-hidden rounded-xl border text-sm" style={{ borderColor: theme.node.stroke, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
+        <label className="flex h-9 overflow-hidden rounded-md border text-sm" style={{ borderColor: theme.node.stroke, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
             <span className="grid w-9 place-items-center" style={{ color: theme.node.muted }}>
                 {prefix}
             </span>
@@ -209,7 +246,7 @@ function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange 
 
 function CountInput({ value, max, theme, onChange }: { value: number; max: number; theme: CanvasTheme; onChange: (value: number | null) => void }) {
     return (
-        <label className="col-span-2 flex h-8 overflow-hidden rounded-full border text-xs" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
+        <label className="col-span-2 flex h-8 overflow-hidden rounded-md border text-xs" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
             <input
                 type="number"
                 min={1}

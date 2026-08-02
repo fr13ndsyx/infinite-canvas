@@ -272,4 +272,75 @@ description: 当前版本已实现但仍需人工验证的变更项
 10. 拖拽/缩放画布，确认浮层始终固定在视口中心不移动
 11. 切换浅色/深色主题，确认浮层文字和图标颜色适配主题
 
+## 生图/视频工作台按钮与输入框圆角统一
+
+把生图/视频工作台里的质量、尺寸、张数、清晰度、秒数、任务数量等按钮和输入框统一改成方框带圆角（`rounded-md`），替换原胶囊形（`rounded-full`）和较大圆角（`rounded-xl`/`rounded-lg`）。
+
+### 可测试变更
+
+- 生图工作台 `ImageSettingsPanel`：
+  - 质量按钮（自动/高/中/低）和生成张数按钮（1-10 张）的 `OptionPill` 圆角 `rounded-full` → `rounded-md`
+  - W/H 尺寸输入框 `DimensionInput` 容器圆角 `rounded-xl` → `rounded-md`
+  - 自定义张数输入框 `CountInput` 圆角 `rounded-full` → `rounded-md`
+- 视频工作台 `VideoSettingsPanel`（side 布局实际使用的面板）：
+  - 清晰度按钮、秒数按钮、Seedance 分辨率按钮的 `OptionPill` 圆角 `rounded-full` → `rounded-md`
+  - 自定义清晰度输入框 `ResolutionInput` 圆角 `rounded-full` → `rounded-md`
+  - W/H 尺寸输入框 `DimensionInput` 圆角 `rounded-xl` → `rounded-md`
+  - 秒数自定义输入框 `NumberInput` 圆角 `rounded-full` → `rounded-md`
+  - Kling 模式选择按钮（720P/1080P/4K/标准/专业）圆角 `rounded-full` → `rounded-md`
+  - Kling/通用/Seedance 比例按钮圆角 `rounded-xl` → `rounded-md`
+- 视频工作台 `KlingV26WorkbenchPanel`（Kling 专用紧凑面板）：
+  - 模式/尺寸/秒数等可选按钮 `optionClass` 圆角 `rounded-full` → `rounded-md`
+  - 秒数自定义输入框、分镜时长输入框 `KlingNumberInput` 圆角 `rounded-full` → `rounded-md`
+  - 任务数量输入框 `KlingTaskCount` 外层 `rounded-xl` 与内层 input `rounded-lg` 统一改为 `rounded-md`
+- 通用底部 compact 布局（生图 page 和视频 page）：
+  - 生图 `QuickSelect`、`QuickNumber` 圆角 `rounded-xl` → `rounded-md`
+  - 视频 `QuickSelect`、`QuickNumber`、`TaskCountControl`、`optionPillClass` 圆角统一为 `rounded-md`
+- 视频工作台 `VideoSettingsPanel` 秒数自定义输入框：在输入框右侧追加 "s" 单位后缀（与清晰度输入框的 "p" 后缀对齐）
+- 视频工作台 `VideoSettingsPanel` 通用面板：把比例选择按钮从「尺寸」组拆出，单独成「比例」SettingGroup，避免与 W/H 尺寸输入框挤在一起
+- 生图工作台 `ImageSettingsPanel`：「宽高比」标题改为「比例」
+- 生图/视频工作台比例按钮统一调整尺寸，避免拥挤：
+  - 生图 `aspectOptions` 按钮：`h-[60px]` → `h-[72px]`，`gap-2` → `gap-1.5`
+  - 视频通用 `sizeOptions` 按钮：`h-[60px]` → `h-[72px]`，`gap-2` → `gap-1.5`
+  - Kling/Seedance 比例按钮：`h-[68px]` → `h-[76px]`，`gap-1` → `gap-1.5`
+- 生图工作台 `ImageSettingsPanel` 比例按钮按分辨率档位切换显示：
+  - `aspectOptions` 新增 `tier` 字段（standard/2k/4k）
+  - 「比例」标题右侧新增 Segmented 切换器（标准 / 2K / 4K），切换后只显示对应档位的比例按钮，`auto` 选项始终保留
+  - 2K/4K 按钮的 label 去掉 `(2k)`/`(4k)` 后缀（档位已由 Segmented 表达，避免重复）
+  - 切换档位时若当前选中的比例不在新档位，自动重置为 `auto`
+  - 弹窗打开时根据 `config.size` 自动定位到对应档位（如 `16:9-2k` → 默认 2K）
+  - 补全 2K/4K 档位的全部比例（按 16 倍数对齐）：
+    - 2K 新增：3:2（2048×1360）、2:3（1360×2048）、4:3（2048×1536）、3:4（1536×2048）
+    - 4K 新增：1:1（4096×4096）、3:2（4096×2720）、2:3（2720×4096）、4:3（4096×3072）、3:4（3072×4096）
+    - 三档位比例数量一致（8 个 + auto），云端模型不支持时靠报错兜底
+
+### 涉及文件
+
+- `next/src/components/image-settings-panel.tsx`：`OptionPill`、`DimensionInput`、`CountInput` 三个组件 className 圆角统一；「宽高比」改名「比例」；比例按钮高度和 gap 调整；新增 `tier` 字段和 Segmented 档位切换（标准/2K/4K）
+- `next/src/components/video-settings-panel.tsx`：`OptionPill`、`ResolutionInput`、`DimensionInput`、`NumberInput`、Kling 模式按钮、Kling/通用/Seedance 比例按钮圆角统一；`NumberInput` 追加 "s" 后缀；通用面板拆分「尺寸」和「比例」两个 SettingGroup；比例按钮高度和 gap 调整
+- `next/src/app/(user)/image/page.tsx`：底部 compact 布局用的 `QuickSelect`、`QuickNumber` 圆角统一
+- `next/src/app/(user)/video/components/kling-v26-workbench-panel.tsx`：`optionClass`、`KlingNumberInput`、`KlingTaskCount` 三个组件 className 圆角统一
+- `next/src/app/(user)/video/page.tsx`：Seedance/通用视频工作台用的 `QuickSelect`、`QuickNumber`、`TaskCountControl`、`optionPillClass` 圆角统一
+
+### 验证步骤
+
+1. 启动前端，进入生图工作台 `/image`，展开「图像设置」面板
+2. 确认质量按钮（自动/高/中/低）为方框带轻微圆角（非胶囊形）
+3. 确认 W/H 尺寸输入框为方框带轻微圆角（非大圆角）
+4. 确认生成张数按钮（1-10 张）和右侧自定义张数输入框均为方框带轻微圆角
+5. 确认生图「宽高比」标题已改为「比例」，比例按钮高度增加、内容不拥挤
+6. 确认生图「比例」标题右侧有 Segmented 档位切换器（标准 / 2K / 4K），默认根据当前 `config.size` 自动定位（例如 1:1 在「标准」，1:1(2k) 在「2K」，16:9(4k) 在「4K」）
+7. 切换 Segmented 到「2K」，确认只显示 1:1 / 16:9 / 9:16 / 21:9 四个比例按钮 + auto，按钮无 `(2k)` 后缀
+8. 切换 Segmented 到「4K」，确认只显示 16:9 / 9:16 / 21:9 三个比例按钮 + auto
+9. 切换到「2K」选中 16:9，再切换到「4K」，确认 16:9 选项不在 4K 中时自动重置为 auto
+10. 进入视频创作台 `/video`，展开各设置区
+11. 确认模式（720P/1080P/4K）、尺寸（16:9/9:16/1:1）、秒数（3s/15s 或 5s/10s）等按钮为方框带轻微圆角
+12. 确认秒数自定义输入框、分镜时长输入框为方框带轻微圆角，且秒数自定义输入框右侧带 "s" 单位
+13. 确认任务数量输入框（外层容器和内层 input）均为方框带轻微圆角
+14. 切换到 Seedance / 通用视频工作台（非 Kling 模型），确认底部 compact 布局中的清晰度、尺寸、秒数、任务数量等 select/input 均为方框带轻微圆角
+15. 进入视频工作台 side 布局的「视频设置」面板（通用模型），确认「尺寸」组只有 W/H 输入框，下方有独立的「比例」组放比例选择按钮，比例按钮不拥挤
+16. 切换到 Kling / Seedance 视频设置面板，确认比例按钮（带像素说明的三行内容）高度增加、gap 适中不拥挤
+17. 切换浅色/深色主题，确认方框边框和颜色正常显示
+
+
 

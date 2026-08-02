@@ -381,7 +381,7 @@ function OptionGrid({ options, value, onChange, columns = 2 }: { options: { valu
 
 function optionClass(active: boolean) {
     return [
-        "h-9 rounded-full border bg-transparent px-2 text-sm font-medium transition hover:opacity-80",
+        "h-9 rounded-md border bg-transparent px-2 text-sm font-medium transition hover:opacity-80",
         active ? "border-stone-950 text-stone-950 dark:border-stone-100 dark:text-stone-100" : "border-stone-200 text-stone-700 dark:border-stone-800 dark:text-stone-200",
     ].join(" ");
 }
@@ -471,7 +471,7 @@ function KlingReferenceOrderButtons({ index, total, onMove }: { index: number; t
 }
 
 function KlingNumberInput({ value, min, max, onChange }: { value: string; min: number; max: number; onChange: (value: string) => void }) {
-    return <input type="number" min={min} max={max} className="h-9 rounded-full border border-stone-200 bg-transparent px-3 text-center text-sm outline-none [appearance:textfield] dark:border-stone-800 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" value={value} onChange={(event) => onChange(event.target.value)} onBlur={(event) => onChange(clampNumberInputValue(event.target.value, min, max))} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />;
+    return <input type="number" min={min} max={max} className="h-9 rounded-md border border-stone-200 bg-transparent px-3 text-center text-sm outline-none [appearance:textfield] dark:border-stone-800 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" value={value} onChange={(event) => onChange(event.target.value)} onBlur={(event) => onChange(clampNumberInputValue(event.target.value, min, max))} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />;
 }
 
 function clampNumberInputValue(value: string, min: number, max: number) {
@@ -482,9 +482,9 @@ function clampNumberInputValue(value: string, min: number, max: number) {
 
 function KlingTaskCount({ value, onChange }: { value: number; onChange: (value: number) => void }) {
     return (
-        <label className="flex h-11 items-center gap-2 rounded-xl border border-stone-200 bg-background px-3 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
+        <label className="flex h-11 items-center gap-2 rounded-md border border-stone-200 bg-background px-3 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
             <span className="shrink-0">{TEXT.task}</span>
-            <input className="h-7 w-16 rounded-lg border border-stone-200 bg-background px-2 text-sm text-stone-900 outline-none dark:border-stone-800 dark:text-stone-100" type="number" min={1} max={6} value={value} onChange={(event) => onChange(normalizeVideoCount(event.target.value))} />
+            <input className="h-7 w-16 rounded-md border border-stone-200 bg-background px-2 text-sm text-stone-900 outline-none dark:border-stone-800 dark:text-stone-100" type="number" min={1} max={6} value={value} onChange={(event) => onChange(normalizeVideoCount(event.target.value))} />
         </label>
     );
 }
