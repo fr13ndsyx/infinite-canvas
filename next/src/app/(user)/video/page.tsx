@@ -1,7 +1,7 @@
 "use client";
 import axios from "axios";
 
-import { AlertCircle, ArrowLeft, ArrowRight, BookOpen, CheckSquare, ChevronDown, ChevronUp, ClipboardPaste, CloudUpload, Copy, Download, FolderPlus, History, LoaderCircle, Music2, PanelBottom, PanelLeft, Plus, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, BookOpen, CheckSquare, ChevronDown, ChevronUp, ClipboardPaste, CloudUpload, Copy, Download, FolderPlus, History, LoaderCircle, Music2, Plus, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { App, Button, Checkbox, Empty, Input, Modal, Switch, Tag, Typography } from "antd";
 import localforage from "localforage";
@@ -95,7 +95,6 @@ type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => 
 type WorkbenchLayout = "side" | "bottom";
 type AssetPickerTarget = "general" | "image" | "video" | "audio" | "firstFrame" | "lastFrame" | "element";
 
-const WORKBENCH_LAYOUT_KEY = "infinite-canvas:video-workbench-layout";
 const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
 const quickResolutionOptions = [
     { value: "480", label: "480p" },
@@ -142,7 +141,7 @@ export default function VideoPage() {
     const [results, setResults] = useState<GenerationResult[]>([]);
     const [logs, setLogs] = useState<GenerationLog[]>([]);
     const [running, setRunning] = useState(false);
-    const [workbenchLayout, setWorkbenchLayoutState] = useState<WorkbenchLayout>("bottom");
+    const [workbenchLayout] = useState<WorkbenchLayout>("side");
     const [bottomSettingsCollapsed, setBottomSettingsCollapsed] = useState(true);
     const [promptDialogOpen, setPromptDialogOpen] = useState(false);
     const [assetPickerOpen, setAssetPickerOpen] = useState(false);
@@ -204,12 +203,6 @@ export default function VideoPage() {
 
     useEffect(() => {
         void refreshLogs().then((items) => syncBackendVideoTasks(items));
-        try {
-            const storedLayout = window.localStorage?.getItem(WORKBENCH_LAYOUT_KEY);
-            if (storedLayout === "side" || storedLayout === "bottom") setWorkbenchLayoutState(storedLayout);
-        } catch {
-            // Keep the default layout when localStorage is unavailable.
-        }
     }, []);
 
     useEffect(() => {
@@ -228,15 +221,6 @@ export default function VideoPage() {
         if (!isUserReady || !token) return;
         void loadAccountVideoHistory(token).then((items) => syncBackendVideoTasks(items || logsRef.current));
     }, [isUserReady, token]);
-
-    const setWorkbenchLayout = (layout: WorkbenchLayout) => {
-        setWorkbenchLayoutState(layout);
-        try {
-            window.localStorage?.setItem(WORKBENCH_LAYOUT_KEY, layout);
-        } catch {
-            // Keep the in-memory layout when localStorage is unavailable.
-        }
-    };
 
     const pastePromptFromClipboard = async () => {
         try {
@@ -1028,7 +1012,6 @@ export default function VideoPage() {
                             <KlingV26WorkbenchPanel
                                 isKlingV3={klingWorkbenchVariant === "v3"}
                                 klingProvider={klingWorkbenchProvider}
-                                currentLayout={workbenchLayout}
                                 prompt={prompt}
                                 negativePrompt={negativePrompt}
                                 references={references}
@@ -1041,7 +1024,6 @@ export default function VideoPage() {
                                 onTaskCountChange={setTaskCount}
                                 updateConfig={updateVideoConfig}
                                 openConfigDialog={openConfigDialog}
-                                onLayoutChange={setWorkbenchLayout}
                                 onPromptChange={setPrompt}
                                 onNegativePromptChange={(value) => { setNegativePrompt(value); updateConfig("videoNegativePrompt", value); }}
                                 onOpenPromptLibrary={() => setPromptDialogOpen(true)}
@@ -1062,7 +1044,6 @@ export default function VideoPage() {
                         ) : (
                         <WorkbenchPanel
                             layout="side"
-                            currentLayout={workbenchLayout}
                             prompt={prompt}
                             references={references}
                             firstFrame={firstFrame}
@@ -1078,7 +1059,6 @@ export default function VideoPage() {
                             onTaskCountChange={setTaskCount}
                             updateConfig={updateVideoConfig}
                             openConfigDialog={openConfigDialog}
-                            onLayoutChange={setWorkbenchLayout}
                             onPromptChange={setPrompt}
                             onOpenPromptLibrary={() => setPromptDialogOpen(true)}
                             onOpenAssetPicker={openAssetPicker}
@@ -1156,7 +1136,6 @@ export default function VideoPage() {
                         />
                         <WorkbenchPanel
                             layout="bottom"
-                            currentLayout={workbenchLayout}
                             prompt={prompt}
                             negativePrompt={negativePrompt}
                             references={references}
@@ -1173,7 +1152,6 @@ export default function VideoPage() {
                             onTaskCountChange={setTaskCount}
                             updateConfig={updateVideoConfig}
                             openConfigDialog={openConfigDialog}
-                            onLayoutChange={setWorkbenchLayout}
                             onPromptChange={setPrompt}
                             onNegativePromptChange={(value) => { setNegativePrompt(value); updateConfig("videoNegativePrompt", value); }}
                             onOpenPromptLibrary={() => setPromptDialogOpen(true)}
@@ -1253,7 +1231,6 @@ export default function VideoPage() {
 
 function WorkbenchPanel({
     layout,
-    currentLayout,
     prompt,
     negativePrompt = "",
     references,
@@ -1270,7 +1247,6 @@ function WorkbenchPanel({
     onTaskCountChange,
     updateConfig,
     openConfigDialog,
-    onLayoutChange,
     onPromptChange,
     onNegativePromptChange,
     onOpenPromptLibrary,
@@ -1295,7 +1271,6 @@ function WorkbenchPanel({
     setBottomSettingsCollapsed,
 }: {
     layout: WorkbenchLayout;
-    currentLayout: WorkbenchLayout;
     prompt: string;
     negativePrompt?: string;
     references: ReferenceImage[];
@@ -1312,7 +1287,6 @@ function WorkbenchPanel({
     onTaskCountChange: (value: number) => void;
     updateConfig: UpdateAiConfig;
     openConfigDialog: (shouldPromptContinue?: boolean) => void;
-    onLayoutChange: (layout: WorkbenchLayout) => void;
     onPromptChange: (value: string) => void;
     onNegativePromptChange?: (value: string) => void;
     onOpenPromptLibrary: () => void;
@@ -1377,7 +1351,6 @@ function WorkbenchPanel({
                                 <Button title="提示词库" icon={<BookOpen className="size-4" />} onClick={onOpenPromptLibrary} />
                                 <Button title="我的素材" icon={<FolderPlus className="size-4" />} onClick={() => onOpenAssetPicker()} />
                                 <Button title="参数配置" className={`lg:hidden ${!bottomSettingsCollapsed ? "!border-sky-500/30 !bg-sky-500/10 !text-sky-500" : ""}`} icon={<SlidersHorizontal className="size-4" />} onClick={() => setBottomSettingsCollapsed?.(!bottomSettingsCollapsed)} />
-                                <Button title="切换到侧边工作台" icon={<PanelLeft className="size-4" />} onClick={() => onLayoutChange("side")} />
                                 <Button type="primary" className="h-9 rounded-xl px-4 font-medium lg:!hidden" icon={<Sparkles className="size-4" />} disabled={!canGenerate} onClick={onGenerate}>
                                     {pendingCount ? `${pendingCount} 生成中` : "开始创作"}
                                 </Button>
@@ -1431,7 +1404,7 @@ function WorkbenchPanel({
     return (
         <div className="flex min-h-[420px] flex-col overflow-hidden rounded-lg border border-stone-200 bg-card shadow-sm dark:border-stone-800 lg:min-h-0">
             <div className="shrink-0 p-4 pb-3">
-                <WorkbenchHeader currentLayout={currentLayout} onLayoutChange={onLayoutChange} />
+                <WorkbenchHeader />
             </div>
             <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">
                 <WorkbenchSection title="提示词">
@@ -1495,14 +1468,10 @@ function WorkbenchPanel({
     );
 }
 
-function WorkbenchHeader({ currentLayout, onLayoutChange }: { currentLayout: WorkbenchLayout; onLayoutChange: (layout: WorkbenchLayout) => void }) {
+function WorkbenchHeader() {
     return (
         <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">视频创作台</h1>
-            <div className="flex shrink-0 rounded-lg border border-stone-200 bg-stone-50 p-1 dark:border-stone-800 dark:bg-stone-900">
-                <Button size="small" type={currentLayout === "side" ? "primary" : "text"} icon={<PanelLeft className="size-3.5" />} onClick={() => onLayoutChange("side")}>侧边</Button>
-                <Button size="small" type={currentLayout === "bottom" ? "primary" : "text"} icon={<PanelBottom className="size-3.5" />} onClick={() => onLayoutChange("bottom")}>底部</Button>
-            </div>
         </div>
     );
 }
@@ -1644,10 +1613,7 @@ function ReferenceQuickActions({ imageCount, videoCount, audioCount, onPasteRefe
 
 function TaskCountControl({ value, onChange }: { value: number; onChange: (value: number) => void }) {
     return (
-        <label className="flex h-11 items-center gap-2 rounded-xl border border-stone-200 bg-background px-3 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
-            <span className="shrink-0">任务</span>
-            <input className="h-7 w-16 rounded-lg border border-stone-200 bg-background px-2 text-sm text-stone-900 outline-none dark:border-stone-800 dark:text-stone-100" type="number" min={1} max={6} value={value} onChange={(event) => onChange(normalizeVideoCount(event.target.value))} />
-        </label>
+        <input className="h-9 w-full rounded-xl border border-stone-200 bg-transparent px-3 text-sm text-stone-900 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:border-stone-800 dark:text-stone-100" type="number" min={1} max={6} value={value} onChange={(event) => onChange(normalizeVideoCount(event.target.value))} />
     );
 }
 
