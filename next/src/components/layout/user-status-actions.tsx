@@ -29,6 +29,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const user = useUserStore((state) => state.user);
     const logout = useUserStore((state) => state.clearSession);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+    const publicSettings = useConfigStore((state) => state.publicSettings);
     const canvasTheme = canvasThemes[theme];
     const userName = user?.displayName || user?.username || "";
     const credits = user?.credits ?? 0;
@@ -37,6 +38,11 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const naturalIconClass = "inline-flex size-7 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 dark:text-stone-300 dark:hover:text-white [&_svg]:size-4";
     const iconStyle: CSSProperties | undefined = variant === "canvas" ? { color: canvasTheme.node.text } : undefined;
     const avatarStyle: CSSProperties | undefined = variant === "canvas" ? { borderColor: canvasTheme.toolbar.border, color: canvasTheme.node.text, background: "transparent" } : undefined;
+    // 未登录用户：仅在 publicSettings 加载完成且后台开启 allowGuestConfig 时才显示配置按钮
+    // publicSettings 未加载时不显示，避免刷新时闪出按钮
+    const publicSettingsLoaded = publicSettings !== null;
+    const allowGuestConfig = !user ? publicSettingsLoaded && publicSettings?.modelChannel?.allowGuestConfig !== false : true;
+    const configButtonVisible = showConfig && allowGuestConfig;
     const menuItems: ItemType[] = [
         { key: "user", disabled: true, label: <span className="font-medium text-current">{userName}</span> },
         ...(user?.role === "admin" ? [{ key: "admin", icon: <Shield className="size-4" />, label: <Link href="/admin">管理后台</Link> }] : []),
@@ -47,7 +53,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
 
     return (
         <div className="inline-flex shrink-0 items-center gap-1">
-            {showConfig ? (
+            {configButtonVisible ? (
                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={() => openConfigDialog(false)} aria-label="配置" title="配置">
                     <Settings2 className="size-4" />
                 </button>

@@ -176,6 +176,10 @@ func normalizePublicSettingWithChannels(setting model.PublicSetting, channels []
 		enabled := false
 		setting.ModelChannel.AllowUserRemoteChannel = &enabled
 	}
+	if setting.ModelChannel.AllowGuestConfig == nil {
+		enabled := true
+		setting.ModelChannel.AllowGuestConfig = &enabled
+	}
 	if setting.Auth.AllowRegister == nil {
 		enabled := true
 		setting.Auth.AllowRegister = &enabled

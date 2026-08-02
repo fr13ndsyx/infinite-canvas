@@ -38,6 +38,7 @@ const emptySettings: AdminSettings = {
             systemPrompts: { image: "", video: "", text: "", workflow: "", workflowAgent: "" },
             allowCustomChannel: true,
             allowUserRemoteChannel: false,
+            allowGuestConfig: true,
         },
         auth: { allowRegister: true },
         storage: { mode: "local_indexeddb", allowUserProvider: false },
@@ -501,6 +502,11 @@ export default function AdminSettingsPage() {
                                     </Col>
                                     <Col span={24}>
                                         <Form.Item name={["public", "modelChannel", "allowUserRemoteChannel"]} label="是否允许普通用户使用云端渠道" extra="关闭后，普通用户只能使用本地直连；管理员仍可使用云端渠道" valuePropName="checked">
+                                            <Switch />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={24}>
+                                        <Form.Item name={["public", "modelChannel", "allowGuestConfig"]} label="是否允许未登录用户使用配置功能" extra="关闭后，未登录用户看不到配置入口，也无法通过模型选择器触发配置弹窗。用于引流期到变现期的切换" valuePropName="checked">
                                             <Switch />
                                         </Form.Item>
                                     </Col>
@@ -1020,6 +1026,7 @@ function normalizePublicSetting(setting: Partial<AdminSettings["public"]> = {}):
             channels: setting.modelChannel?.channels || [],
             allowCustomChannel: setting.modelChannel?.allowCustomChannel !== false,
             allowUserRemoteChannel: setting.modelChannel?.allowUserRemoteChannel === true,
+            allowGuestConfig: setting.modelChannel?.allowGuestConfig !== false,
             systemPrompts: {
                 ...emptySettings.public.modelChannel.systemPrompts,
                 image: setting.modelChannel?.systemPrompts?.image || setting.modelChannel?.systemPrompt || "",

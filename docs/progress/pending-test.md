@@ -153,4 +153,41 @@ description: 当前版本已实现但仍需人工验证的变更项
 7. 切换到移动端视图，打开导航抽屉，确认「工作流」项显示为单行 Link，可点击跳转
 8. 临时在 `navigation-tools.ts` 的 `workflows.children` 数组追加一个测试子项，确认导航自动切换为 Dropdown 下拉菜单（hover 弹出子菜单），验证完成后删除测试子项
 
+## 未登录用户配置入口开关
+
+新增 `allowGuestConfig` 公开配置字段，用于控制未登录用户是否能看到顶栏配置按钮及触发配置弹窗，便于引流期到变现期的切换。
+
+### 可测试变更
+
+- 后端 `PublicModelChannelSetting` 新增 `AllowGuestConfig *bool` 字段，`service/settings.go` 在字段为 nil 时默认置为 true（兼容旧配置）
+- 前端 `AdminPublicModelChannelSettings` 类型同步新增 `allowGuestConfig: boolean`
+- 管理后台 `/admin/settings` 公开配置卡片新增「是否允许未登录用户使用配置功能」开关，默认开启；关闭后未登录用户看不到顶栏配置入口，也无法通过模型选择器等入口触发配置弹窗
+- 顶栏 `UserStatusActions` 在未登录用户且 `allowGuestConfig === false` 时隐藏配置按钮；已登录用户不受影响
+- `AppConfigModal` 新增拦截 useEffect：未登录用户且开关关闭时，无论从哪个入口（模型选择器、画布、视频/生图工作台等）触发 `openConfigDialog`，都会立即关闭弹窗并提示「请登录后使用配置功能」
+
+### 涉及文件
+
+后端：
+- `Go/model/setting.go`：`PublicModelChannelSetting` 新增 `AllowGuestConfig` 字段
+- `Go/service/settings.go`：新增 `AllowGuestConfig` 默认值处理（nil 时设为 true）
+
+前端：
+- `next/src/services/api/admin.ts`：`AdminPublicModelChannelSettings` 新增 `allowGuestConfig` 字段
+- `next/src/app/(admin)/admin/settings/page.tsx`：`emptySettings` 默认值、开关 Form.Item、`normalizePublicSetting` 中 `allowGuestConfig` 处理
+- `next/src/components/layout/user-status-actions.tsx`：根据 `allowGuestConfig` 和登录状态控制顶栏配置按钮显示
+- `next/src/components/layout/app-config-modal.tsx`：新增 useEffect 拦截未登录且开关关闭时的弹窗打开
+
+文档：
+- `docs/backend/backend-database.md`：新增 `allowGuestConfig` 字段说明
+
+### 验证步骤
+
+1. 启动后端，访问 `GET /api/settings`，确认返回的 `modelChannel.allowGuestConfig` 为 `true`
+2. 登录管理后台 `/admin/settings`，确认公开配置卡片显示「是否允许未登录用户使用配置功能」开关且默认开启
+3. 关闭开关并保存，刷新页面确认开关仍为关闭状态
+4. 退出登录（或打开无痕窗口），确认顶栏不显示配置按钮（齿轮图标）
+5. 在未登录状态下，进入生图/视频工作台，点击模型选择器中可能触发配置弹窗的入口，确认弹窗不打开并提示「请登录后使用配置功能」
+6. 重新登录普通账号，确认顶栏配置按钮恢复显示，配置弹窗可正常打开
+7. 登录管理后台重新开启开关并保存，退出登录，确认未登录用户顶栏配置按钮恢复显示且弹窗可正常打开
+
 

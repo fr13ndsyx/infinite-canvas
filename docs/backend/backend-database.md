@@ -293,6 +293,7 @@ description: 当前后端主要数据表与字段说明
 | `systemPrompt` | string | 系统提示词 |
 | `allowCustomChannel` | bool | 是否允许登录用户自定义渠道，默认允许，关闭后登录用户只能走云端渠道或本地直连 |
 | `allowUserRemoteChannel` | bool | 是否允许普通用户使用云端渠道，默认关闭，关闭后普通用户只能使用本地直连；管理员不受此限制 |
+| `allowGuestConfig` | bool | 是否允许未登录用户使用配置功能，默认允许，关闭后未登录用户看不到顶栏配置入口，也无法通过模型选择器等入口触发配置弹窗 |
 
 `modelCosts` 每项字段：
 

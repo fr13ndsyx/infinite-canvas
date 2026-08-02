@@ -170,6 +170,7 @@ export type AdminPublicModelChannelSettings = {
     };
     allowCustomChannel: boolean;
     allowUserRemoteChannel: boolean;
+    allowGuestConfig: boolean;
 };
 
 export type AdminModelCost = {
