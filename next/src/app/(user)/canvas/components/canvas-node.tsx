@@ -589,7 +589,7 @@ function TextContent({ node, theme, isEditingContent, textareaRef, mentionRefere
 
 function ResourceLabelBadge({ reference }: { reference: CanvasResourceReference }) {
     return (
-        <span className={`pointer-events-none absolute right-2 top-2 z-30 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${reference.active ? "bg-[#2f80ff] text-white shadow-sm" : "bg-black/35 text-white/75"}`}>
+        <span className={`pointer-events-none absolute bottom-2 right-2 z-30 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${reference.active ? "bg-[#2f80ff] text-white shadow-sm" : "bg-black/35 text-white/75"}`}>
             {reference.label}
         </span>
     );
