@@ -190,4 +190,49 @@ description: 当前版本已实现但仍需人工验证的变更项
 6. 重新登录普通账号，确认顶栏配置按钮恢复显示，配置弹窗可正常打开
 7. 登录管理后台重新开启开关并保存，退出登录，确认未登录用户顶栏配置按钮恢复显示且弹窗可正常打开
 
+## 配置弹窗三 Tab 布局
+
+把原「配置与用户偏好」弹窗从「渠道模式 + 通用偏好项」两层结构改为顶部 Segmented 三 Tab 切换：本地渠道 / 平台渠道 / 偏好设置。
+
+### 可测试变更
+
+- 顶部用 Segmented 替换原「渠道模式」Form.Item，三个选项：本地渠道 / 平台渠道 / 偏好设置
+- 名称调整：原「本地直连」→「本地渠道」，原「云端渠道」→「平台渠道」（Tab 与平台渠道说明文案同步改名）
+- Tab 可见性按权限控制：
+  - admin 且同时开启 `allowCustomChannel` 和 `allowUserRemoteChannel`：三个 Tab 全可见，切换本地/平台 Tab 时同步 `channelMode`
+  - 普通用户仅本地：显示「本地渠道」+「偏好设置」
+  - 普通用户仅云端：显示「平台渠道」+「偏好设置」
+  - 「偏好设置」Tab 始终可见
+- 「本地渠道」Tab 内容：原「本地模型渠道」新增/列表块 + 「模型列表」块（自动同步开关、拉取全部渠道按钮）
+- 「平台渠道」Tab 内容：平台渠道说明文案 + 默认生图/视频/文本/音频模型 ModelPicker（从偏好设置移入）
+- 「偏好设置」Tab 内容：画布默认生图张数、音频声音/格式/语速、流式/Base64/Codex 三个开关、用户 S3/R2 存储配置、默认音频指令、系统提示词（仅本地渠道模式下显示）；不再包含默认模型选择
+- 本地渠道 Tab 不单独放默认模型选择：本地渠道拉取模型列表后自动选第一个可用模型作为默认
+- ModelPicker 选择框全局由胶囊形（rounded-full）改为矩形圆角（rounded-md），影响配置弹窗、画布、生图/视频工作台
+- 弹窗打开时默认激活当前 `effectiveMode` 对应的渠道 Tab（local→本地渠道，remote→平台渠道）
+- 未登录用户拦截逻辑保留：未登录且 `allowGuestConfig=false` 时弹窗仍被拦截，不影响
+
+### 涉及文件
+
+- `next/src/components/layout/app-config-modal.tsx`：
+  - 新增 `activeTab` state（`"local" | "remote" | "preferences"`）
+  - 新增 `visibleTabs` 计算逻辑（按权限决定可见 Tab）
+  - 新增弹窗打开时根据 `effectiveMode` 重置默认 Tab 的 useEffect
+  - 替换 Form 内容为 Tabs 结构：本地渠道/平台渠道/偏好设置
+  - 默认模型选择 ModelPicker 从偏好设置移入「平台渠道」Tab
+- `next/src/components/model-picker.tsx`：SelectTrigger 圆角由 `rounded-full` 改为 `rounded-md`（全局矩形化）
+
+### 验证步骤
+
+1. 登录管理后台（admin），同时开启 `allowCustomChannel` 和 `allowUserRemoteChannel`，打开配置弹窗，确认顶部显示三个 Tab：本地渠道 / 平台渠道 / 偏好设置
+2. 默认激活 Tab 与当前渠道模式一致（本地模式→本地渠道，云端模式→平台渠道）
+3. 切换到「本地渠道」Tab，确认显示本地模型渠道新增/列表块 + 模型列表块，可正常新增/删除/拉取渠道
+4. 切换到「平台渠道」Tab，确认显示平台渠道说明文案 + 默认生图/视频/文本/音频模型选择（ModelPicker 选择框为矩形圆角，非胶囊形）
+5. 切换到「偏好设置」Tab，确认不再显示默认模型选择，显示画布默认生图张数、音频设置、流式/Base64/Codex 开关、S3 存储、默认音频指令、系统提示词（仅本地模式时显示系统提示词）
+6. 在「平台渠道」Tab 修改默认生图模型，点击「完成」保存，重新打开弹窗确认修改生效
+7. 切换 admin 的 `allowCustomChannel` 关闭（仅保留 `allowUserRemoteChannel`），重新打开弹窗，确认只显示「平台渠道」+「偏好设置」两个 Tab
+8. 登录普通用户 tester（仅本地渠道），打开配置弹窗，确认显示「本地渠道」+「偏好设置」两个 Tab，本地渠道 Tab 拉取模型后自动选第一个作为默认
+9. 退出登录（未登录状态且 `allowGuestConfig` 开启），打开配置弹窗，确认显示「本地渠道」+「偏好设置」两个 Tab，拦截逻辑不受影响
+10. 关闭 `allowGuestConfig` 开关，未登录状态下点击配置入口，确认弹窗被拦截并提示「请登录后使用配置功能」
+11. 打开画布、生图工作台、视频创作台，确认 ModelPicker 选择框均为矩形圆角（非胶囊形）
+
 

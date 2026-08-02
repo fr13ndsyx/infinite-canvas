@@ -1,6 +1,6 @@
 "use client";
 
-import { App, Button, Form, Input, Modal, Segmented, Select, Switch } from "antd";
+import { App, Button, Form, Input, Modal, Select, Switch, Tabs } from "antd";
 import { useEffect, useState } from "react";
 
 import { ModelPicker } from "@/components/model-picker";
@@ -37,6 +37,7 @@ export function AppConfigModal() {
     const [userStorage, setUserStorage] = useState<UserStorageProvider>(() => defaultUserStorageProvider());
     const [measuringStorage, setMeasuringStorage] = useState(false);
     const [storageUsageText, setStorageUsageText] = useState("");
+    const [activeTab, setActiveTab] = useState<"local" | "remote" | "preferences">("local");
     const config = useConfigStore((state) => state.config);
     const updateConfig = useConfigStore((state) => state.updateConfig);
     const isConfigOpen = useConfigStore((state) => state.isConfigOpen);
@@ -55,6 +56,15 @@ export function AppConfigModal() {
     const localModelConfig: AiConfig = effectiveMode === "local" && config.channelMode !== "local" ? { ...config, channelMode: "local" } : config;
     const modelConfig = effectiveMode === "remote" ? effectiveConfig : localModelConfig;
     const canUseUserStorageProvider = isLoggedIn && allowUserStorageProvider;
+    // 可见 Tab：admin 且双开关可见全部三个；普通用户仅显示当前可用渠道 Tab + 偏好设置
+    const visibleTabs: Array<{ label: string; value: "local" | "remote" | "preferences" }> = [];
+    if (effectiveMode === "local" || (allowCustomChannel && canUseRemoteChannel)) {
+        visibleTabs.push({ label: "本地渠道", value: "local" });
+    }
+    if (effectiveMode === "remote" || (allowCustomChannel && canUseRemoteChannel)) {
+        visibleTabs.push({ label: "平台渠道", value: "remote" });
+    }
+    visibleTabs.push({ label: "偏好设置", value: "preferences" });
 
     useEffect(() => {
         try {
@@ -118,6 +128,14 @@ export function AppConfigModal() {
             message.info("请登录后使用配置功能");
         }
     }, [isConfigOpen, user, publicSettings?.modelChannel?.allowGuestConfig, setConfigDialogOpen, clearPromptContinue, message]);
+
+    // 弹窗打开时根据当前渠道模式重置默认 Tab（仅 isConfigOpen 由 false→true 时触发，避免与用户手动切换冲突）
+    useEffect(() => {
+        if (isConfigOpen) {
+            setActiveTab(effectiveMode === "remote" ? "remote" : "local");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isConfigOpen]);
 
     const finishConfig = async () => {
         const localIncomplete = effectiveMode === "local" && normalizeLocalChannels(config).some((channel) => !channel.baseUrl.trim() || !channel.apiKey.trim());
@@ -272,7 +290,7 @@ export function AppConfigModal() {
             width={960}
             centered
             onCancel={() => setConfigDialogOpen(false)}
-            styles={{ body: { maxHeight: "72vh", overflowY: "auto", paddingRight: 18 } }}
+            styles={{ body: { height: "35vh", overflowY: "auto", paddingRight: 18 } }}
             footer={
                 <Button type="primary" loading={savingConfig} onClick={() => void finishConfig()}>
                     完成
@@ -281,156 +299,154 @@ export function AppConfigModal() {
         >
             <div className="pt-1">
                 <Form layout="vertical" requiredMark={false}>
-                    {allowCustomChannel && canUseRemoteChannel ? (
-                        <Form.Item label="渠道模式" className="mb-5">
-                            <Segmented
-                                block
-                                size="middle"
-                                value={effectiveMode}
-                                onChange={(value) => updateConfig("channelMode", value as AiConfig["channelMode"])}
-                                options={[
-                                    { label: "本地直连", value: "local" },
-                                    { label: "云端渠道", value: "remote" },
-                                ]}
-                            />
-                        </Form.Item>
-                    ) : null}
-                    {effectiveMode === "local" ? (
-                        <>
-                            <div className="mb-5 space-y-3 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                        <div className="text-sm font-medium">本地模型渠道</div>
-                                        <div className="mt-1 text-xs text-stone-500">可为生图、视频、文本、音频分别选择不同渠道的模型。</div>
-                                    </div>
-                                    <Button size="small" onClick={addLocalChannel}>
-                                        新增渠道
-                                    </Button>
-                                </div>
-                                {normalizeLocalChannels(config).map((channel, index) => (
-                                    <div key={channel.id} className="space-y-2 rounded-md bg-stone-50 p-2 dark:bg-stone-900">
-                                        <div className="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                                            <Input value={channel.name} placeholder="渠道名称" autoComplete="off" onChange={(event) => patchLocalChannel(channel.id, { name: event.target.value })} />
-                                            <Input value={channel.baseUrl} placeholder="Base URL" autoComplete="off" onChange={(event) => patchLocalChannel(channel.id, { baseUrl: event.target.value })} />
-                                            <Input.Password value={channel.apiKey} placeholder="API Key" autoComplete="new-password" onChange={(event) => patchLocalChannel(channel.id, { apiKey: event.target.value })} />
-                                            <div className="flex gap-2">
-                                                <Button size="small" loading={loadingModels} onClick={() => void refreshLocalChannelModels(channel)}>
-                                                    拉取
+                    <Tabs
+                        activeKey={activeTab}
+                        onChange={(key) => {
+                            const next = key as "local" | "remote" | "preferences";
+                            setActiveTab(next);
+                            // admin 且双开关时，切换本地/平台 Tab 同步渠道模式
+                            if ((next === "local" || next === "remote") && allowCustomChannel && canUseRemoteChannel) {
+                                updateConfig("channelMode", next);
+                            }
+                        }}
+                        items={visibleTabs.map((tab) => ({
+                            key: tab.value,
+                            label: tab.label,
+                            children:
+                                tab.value === "local" ? (
+                                    <>
+                                        <div className="mb-5 space-y-3 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div className="text-sm font-medium">本地模型渠道</div>
+                                                    <div className="mt-1 text-xs text-stone-500">可为生图、视频、文本、音频分别选择不同渠道的模型。</div>
+                                                </div>
+                                                <Button size="small" onClick={addLocalChannel}>
+                                                    新增渠道
                                                 </Button>
-                                                <Button size="small" danger disabled={index === 0 && normalizeLocalChannels(config).length === 1} onClick={() => removeLocalChannel(channel.id)}>
-                                                    删除
+                                            </div>
+                                            {normalizeLocalChannels(config).map((channel, index) => (
+                                                <div key={channel.id} className="space-y-2 rounded-md bg-stone-50 p-2 dark:bg-stone-900">
+                                                    <div className="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                                                        <Input value={channel.name} placeholder="渠道名称" autoComplete="off" onChange={(event) => patchLocalChannel(channel.id, { name: event.target.value })} />
+                                                        <Input value={channel.baseUrl} placeholder="Base URL" autoComplete="off" onChange={(event) => patchLocalChannel(channel.id, { baseUrl: event.target.value })} />
+                                                        <Input.Password value={channel.apiKey} placeholder="API Key" autoComplete="new-password" onChange={(event) => patchLocalChannel(channel.id, { apiKey: event.target.value })} />
+                                                        <div className="flex items-stretch gap-2">
+                                                            <Button loading={loadingModels} onClick={() => void refreshLocalChannelModels(channel)}>
+                                                                拉取
+                                                            </Button>
+                                                            <Button danger disabled={index === 0 && normalizeLocalChannels(config).length === 1} onClick={() => removeLocalChannel(channel.id)}>
+                                                                删除
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-xs text-stone-500">已保存 {channel.models.length} 个模型</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-800">
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-medium">模型列表</div>
+                                                <div className="mt-1 text-xs text-stone-500">当前已保存 {config.models.length} 个模型</div>
+                                            </div>
+                                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                                <span className="text-xs text-stone-500">自动同步</span>
+                                                <Switch size="small" checked={config.syncModelConfig} onChange={(checked) => updateConfig("syncModelConfig", checked)} />
+                                                <Button size="small" loading={loadingModels} onClick={() => void refreshModels()}>
+                                                    拉取全部渠道
                                                 </Button>
                                             </div>
                                         </div>
-                                        <div className="text-xs text-stone-500">已保存 {channel.models.length} 个模型</div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-800">
-                                <div className="min-w-0">
-                                    <div className="text-sm font-medium">模型列表</div>
-                                    <div className="mt-1 text-xs text-stone-500">当前已保存 {config.models.length} 个模型</div>
-                                </div>
-                                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                    <span className="text-xs text-stone-500">自动同步</span>
-                                    <Switch size="small" checked={config.syncModelConfig} onChange={(checked) => updateConfig("syncModelConfig", checked)} />
-                                    <Button size="small" loading={loadingModels} onClick={() => void refreshModels()}>
-                                        拉取全部渠道
-                                    </Button>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="mb-5 rounded-lg border border-stone-200 p-3 text-sm text-stone-500 dark:border-stone-800">
-                            <div className="font-medium text-stone-900 dark:text-stone-100">云端渠道</div>
-                            <div className="mt-1">由系统后台渠道转发请求，当前可用 {modelChannel?.availableModels.length || 0} 个模型。</div>
-                        </div>
-                    )}
-                    {(
-                        <>
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                {modelGroups.map((group) => (
-                                    <Form.Item key={group.modelKey} label={group.defaultLabel} className="mb-4">
-                                        <ModelPicker config={modelConfig} value={modelConfig[group.modelKey]} channelId={modelConfig[group.channelKey]} onChange={(model, channelId) => { updateConfig(group.modelKey, model); if (channelId) updateConfig(group.channelKey, channelId); }} capability={group.capability} fullWidth />
-                                    </Form.Item>
-                                ))}
-                            </div>
-                            <div className="grid gap-4 md:grid-cols-4">
-                                <Form.Item label="画布默认生图张数" extra="新建画布生图和配置节点默认使用，单个节点仍可单独覆盖。" className="mb-4">
-                                    <Input
-                                        type="number"
-                                        min={1}
-                                        max={15}
-                                        autoComplete="off"
-                                        value={config.canvasImageCount}
-                                        onChange={(event) => updateConfig("canvasImageCount", event.target.value)}
-                                        onBlur={(event) => updateConfig("canvasImageCount", normalizeImageCount(event.target.value))}
-                                    />
-                                </Form.Item>
-                                <Form.Item label="默认音频声音" className="mb-4">
-                                    <Select value={config.audioVoice} options={audioVoiceOptions} onChange={(value) => updateConfig("audioVoice", value)} />
-                                </Form.Item>
-                                <Form.Item label="默认音频格式" className="mb-4">
-                                    <Select value={config.audioFormat} options={audioFormatOptions} onChange={(value) => updateConfig("audioFormat", value)} />
-                                </Form.Item>
-                                <Form.Item label="默认音频语速" className="mb-4">
-                                    <Input
-                                        type="number"
-                                        min={0.25}
-                                        max={4}
-                                        step={0.05}
-                                        autoComplete="off"
-                                        value={config.audioSpeed}
-                                        onChange={(event) => updateConfig("audioSpeed", event.target.value)}
-                                        onBlur={(event) => updateConfig("audioSpeed", normalizeAudioSpeedValue(event.target.value))}
-                                    />
-                                </Form.Item>
-                            </div>
-                            <div className="mb-4 grid gap-3 md:grid-cols-3">
-                                <FeatureSwitch title="流式传输" description="开启后请求中追加 stream，支持读取中间图片事件并避免长时间无数据。" checked={Boolean(config.streamImages)} onChange={(checked) => updateConfig("streamImages", checked ? "1" : "")} />
-                                <FeatureSwitch title="返回 Base64 图片数据" description="开启后 Image API 请求会追加 response_format: b64_json。" checked={Boolean(config.responseFormatB64Json)} onChange={(checked) => updateConfig("responseFormatB64Json", checked ? "1" : "")} />
-                                <FeatureSwitch title="Codex CLI 兼容模式" description="开启后减少不兼容参数，并追加防提示词改写前缀。" checked={Boolean(config.codexCli)} onChange={(checked) => updateConfig("codexCli", checked ? "1" : "")} />
-                            </div>
-                            {canUseUserStorageProvider ? (
-                                <section className="mb-5 mt-4 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/50">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div>
-                                            <div className="text-sm font-medium">用户 S3/R2 存储</div>
-                                            <div className="mt-1 text-xs text-stone-500">开启后，新生成图片和媒体文件会优先保存到你的 S3 兼容对象存储。{storageUsageText ? `当前容量：${storageUsageText}` : ""}</div>
+                                    </>
+                                ) : tab.value === "remote" ? (
+                                    <>
+                                        <div className="mb-5 rounded-lg border border-stone-200 p-3 text-sm text-stone-500 dark:border-stone-800">
+                                            <div className="font-medium text-stone-900 dark:text-stone-100">平台渠道</div>
+                                            <div className="mt-1">平台统一提供模型能力，用户只需要选择默认模型和各场景可选项。当前可用 {modelChannel?.availableModels.length || 0} 个模型。</div>
                                         </div>
-                                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                                            <Button size="small" loading={measuringStorage} onClick={() => void measureStorage()}>
-                                                统计容量
-                                            </Button>
-                                            <span className="text-xs text-stone-500">自动同步</span>
-                                            <Switch size="small" checked={config.syncStorageConfig} onChange={(checked) => updateConfig("syncStorageConfig", checked)} />
-                                            <Switch checked={userStorage.enabled} onChange={(enabled) => setUserStorage((value) => ({ ...value, enabled }))} />
+                                        <div className="mb-5 grid gap-4 md:grid-cols-2">
+                                            {modelGroups.map((group) => (
+                                                <Form.Item key={group.modelKey} label={group.defaultLabel} className="mb-4">
+                                                    <ModelPicker config={modelConfig} value={modelConfig[group.modelKey]} channelId={modelConfig[group.channelKey]} onChange={(model, channelId) => { updateConfig(group.modelKey, model); if (channelId) updateConfig(group.channelKey, channelId); }} capability={group.capability} fullWidth />
+                                                </Form.Item>
+                                            ))}
                                         </div>
-                                    </div>
-                                    {userStorage.enabled ? (
-                                        <div className="mt-3 grid gap-3 md:grid-cols-2">
-                                            <Input value={userStorage.name} placeholder="配置名称" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, name: event.target.value }))} />
-                                            <Input value={userStorage.endpoint} placeholder="Endpoint，例如 https://<account>.r2.cloudflarestorage.com" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, endpoint: event.target.value }))} />
-                                            <Input value={userStorage.region} placeholder="Region，R2 通常为 auto" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, region: event.target.value }))} />
-                                            <Input value={userStorage.bucket} placeholder="Bucket 名称" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, bucket: event.target.value }))} />
-                                            <Input value={userStorage.accessKeyId} placeholder="Access Key ID" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, accessKeyId: event.target.value }))} />
-                                            <Input.Password value={userStorage.secretAccessKey} placeholder="Secret Access Key" autoComplete="new-password" onChange={(event) => setUserStorage((value) => ({ ...value, secretAccessKey: event.target.value }))} />
-                                            <Input value={userStorage.publicBaseUrl} placeholder="公开访问地址，例如 https://pub-xxx.r2.dev" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, publicBaseUrl: event.target.value }))} />
-                                            <Input value={userStorage.pathPrefix} placeholder="保存路径前缀，例如 images" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, pathPrefix: event.target.value }))} />
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="grid gap-4 md:grid-cols-4">
+                                            <Form.Item label="画布默认生图张数" extra="新建画布生图和配置节点默认使用，单个节点仍可单独覆盖。" className="mb-4">
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={15}
+                                                    autoComplete="off"
+                                                    value={config.canvasImageCount}
+                                                    onChange={(event) => updateConfig("canvasImageCount", event.target.value)}
+                                                    onBlur={(event) => updateConfig("canvasImageCount", normalizeImageCount(event.target.value))}
+                                                />
+                                            </Form.Item>
+                                            <Form.Item label="默认音频声音" className="mb-4">
+                                                <Select value={config.audioVoice} options={audioVoiceOptions} onChange={(value) => updateConfig("audioVoice", value)} />
+                                            </Form.Item>
+                                            <Form.Item label="默认音频格式" className="mb-4">
+                                                <Select value={config.audioFormat} options={audioFormatOptions} onChange={(value) => updateConfig("audioFormat", value)} />
+                                            </Form.Item>
+                                            <Form.Item label="默认音频语速" className="mb-4">
+                                                <Input
+                                                    type="number"
+                                                    min={0.25}
+                                                    max={4}
+                                                    step={0.05}
+                                                    autoComplete="off"
+                                                    value={config.audioSpeed}
+                                                    onChange={(event) => updateConfig("audioSpeed", event.target.value)}
+                                                    onBlur={(event) => updateConfig("audioSpeed", normalizeAudioSpeedValue(event.target.value))}
+                                                />
+                                            </Form.Item>
                                         </div>
-                                    ) : null}
-                                </section>
-                            ) : null}
-                            <Form.Item label="默认音频指令" className="mb-4">
-                                <Input.TextArea rows={2} autoComplete="off" value={config.audioInstructions} placeholder="例如：自然、温暖、适合旁白。" onChange={(event) => updateConfig("audioInstructions", event.target.value)} />
-                            </Form.Item>
-                            {effectiveMode === "local" ? (
-                                <Form.Item label="系统提示词" className="mb-0">
-                                    <Input.TextArea rows={3} autoComplete="off" value={config.systemPrompt} placeholder="例如：你是一位擅长电影感写实摄影的视觉导演。" onChange={(event) => updateConfig("systemPrompt", event.target.value)} />
-                                </Form.Item>
-                            ) : null}
-                        </>
-                    )}
+                                        <div className="mb-4 grid gap-3 md:grid-cols-3">
+                                            <FeatureSwitch title="流式传输" description="开启后请求中追加 stream，支持读取中间图片事件并避免长时间无数据。" checked={Boolean(config.streamImages)} onChange={(checked) => updateConfig("streamImages", checked ? "1" : "")} />
+                                            <FeatureSwitch title="返回 Base64 图片数据" description="开启后 Image API 请求会追加 response_format: b64_json。" checked={Boolean(config.responseFormatB64Json)} onChange={(checked) => updateConfig("responseFormatB64Json", checked ? "1" : "")} />
+                                            <FeatureSwitch title="Codex CLI 兼容模式" description="开启后减少不兼容参数，并追加防提示词改写前缀。" checked={Boolean(config.codexCli)} onChange={(checked) => updateConfig("codexCli", checked ? "1" : "")} />
+                                        </div>
+                                        {canUseUserStorageProvider ? (
+                                            <section className="mb-5 mt-4 rounded-xl border border-stone-200 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-900/50">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <div className="text-sm font-medium">用户 S3/R2 存储</div>
+                                                        <div className="mt-1 text-xs text-stone-500">开启后，新生成图片和媒体文件会优先保存到你的 S3 兼容对象存储。{storageUsageText ? `当前容量：${storageUsageText}` : ""}</div>
+                                                    </div>
+                                                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                                        <Button size="small" loading={measuringStorage} onClick={() => void measureStorage()}>
+                                                            统计容量
+                                                        </Button>
+                                                        <span className="text-xs text-stone-500">自动同步</span>
+                                                        <Switch size="small" checked={config.syncStorageConfig} onChange={(checked) => updateConfig("syncStorageConfig", checked)} />
+                                                        <Switch checked={userStorage.enabled} onChange={(enabled) => setUserStorage((value) => ({ ...value, enabled }))} />
+                                                    </div>
+                                                </div>
+                                                {userStorage.enabled ? (
+                                                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                                        <Input value={userStorage.name} placeholder="配置名称" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, name: event.target.value }))} />
+                                                        <Input value={userStorage.endpoint} placeholder="Endpoint，例如 https://<account>.r2.cloudflarestorage.com" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, endpoint: event.target.value }))} />
+                                                        <Input value={userStorage.region} placeholder="Region，R2 通常为 auto" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, region: event.target.value }))} />
+                                                        <Input value={userStorage.bucket} placeholder="Bucket 名称" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, bucket: event.target.value }))} />
+                                                        <Input value={userStorage.accessKeyId} placeholder="Access Key ID" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, accessKeyId: event.target.value }))} />
+                                                        <Input.Password value={userStorage.secretAccessKey} placeholder="Secret Access Key" autoComplete="new-password" onChange={(event) => setUserStorage((value) => ({ ...value, secretAccessKey: event.target.value }))} />
+                                                        <Input value={userStorage.publicBaseUrl} placeholder="公开访问地址，例如 https://pub-xxx.r2.dev" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, publicBaseUrl: event.target.value }))} />
+                                                        <Input value={userStorage.pathPrefix} placeholder="保存路径前缀，例如 images" autoComplete="off" onChange={(event) => setUserStorage((value) => ({ ...value, pathPrefix: event.target.value }))} />
+                                                    </div>
+                                                ) : null}
+                                            </section>
+                                        ) : null}
+                                        <Form.Item label="默认音频指令" className="mb-4">
+                                            <Input.TextArea rows={2} autoComplete="off" value={config.audioInstructions} placeholder="例如：自然、温暖、适合旁白。" onChange={(event) => updateConfig("audioInstructions", event.target.value)} />
+                                        </Form.Item>
+                                    </>
+                                ),
+                        }))}
+                    />
                 </Form>
             </div>
         </Modal>
