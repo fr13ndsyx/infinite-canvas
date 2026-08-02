@@ -1,6 +1,6 @@
 "use client";
 
-import { AuditOutlined, FileTextOutlined, FolderOutlined, HomeOutlined, LogoutOutlined, PictureOutlined, SettingOutlined, TransactionOutlined, UserOutlined } from "@ant-design/icons";
+import { ApiOutlined, AuditOutlined, FileTextOutlined, FolderOutlined, HomeOutlined, LogoutOutlined, PictureOutlined, SettingOutlined, TransactionOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Flex, Layout, Menu, Typography, theme } from "antd";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ const adminMenus = [
     { key: "/admin/prompt-sources", icon: <FolderOutlined />, label: "提示词来源" },
     { key: "/admin/prompts", icon: <FileTextOutlined />, label: "提示词管理" },
     { key: "/admin/assets", icon: <PictureOutlined />, label: "素材库" },
+    { key: "/admin/channels", icon: <ApiOutlined />, label: "模型管理" },
     { key: "/admin/settings", icon: <SettingOutlined />, label: "系统设置" },
 ];
 
@@ -30,6 +31,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     const isReady = useUserStore((state) => state.isReady);
     const logout = useUserStore((state) => state.clearSession);
     const routeMeta = [
+        { prefix: "/admin/channels", key: "/admin/channels", title: "模型管理" },
         { prefix: "/admin/settings", key: "/admin/settings", title: "系统设置" },
         { prefix: "/admin/assets", key: "/admin/assets", title: "素材库管理" },
         { prefix: "/admin/prompt-sources", key: "/admin/prompt-sources", title: "提示词来源" },

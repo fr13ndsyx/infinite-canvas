@@ -32,7 +32,7 @@ description: 当前项目后续值得处理的事项
 
 ### 管理后台渠道管理拆分
 
-- 状态：待实施
+- 状态：已实施，待测试（详见 [pending-test.md](./pending-test.md)）
 - 方案文档：[channels-page-split.md](./channels-page-split.md)
 - 目标：把"渠道配置"从系统设置页拆出来作为独立菜单项 `/admin/channels`，为后续模型能力配置腾出空间
 - 改动范围：新建 `channels/page.tsx` + 修改 `layout.tsx` + `settings/page.tsx`，后端零改动
