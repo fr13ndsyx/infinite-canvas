@@ -1545,7 +1545,7 @@ function FrameReferenceSlot({ label, reference, compact, onUpload, onRemove }: {
 
 function ReferenceImageStrip({ references, compact = false, onRemoveReference, onMoveReference }: { references: ReferenceImage[]; compact?: boolean; onRemoveReference: (id: string) => void; onMoveReference: (index: number, offset: number) => void }) {
     return (
-        <div className={`hover-scrollbar hover-scrollbar-hint flex w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed border-stone-300 p-2 overscroll-x-contain dark:border-stone-700 ${compact ? "min-h-14" : "min-h-24 pb-3"}`}>
+        <div className={`hover-scrollbar flex w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed border-stone-300 p-2 overscroll-x-contain dark:border-stone-700 ${compact ? "min-h-14" : "min-h-24 pb-3"}`}>
             {references.map((item, index) => (
                 <div key={item.id} className={`${compact ? "size-12" : "size-20"} group relative shrink-0 overflow-hidden rounded-md border border-stone-200 dark:border-stone-800`}>
                     <img src={item.dataUrl} alt={item.name} className="size-full object-cover" />
@@ -1563,7 +1563,7 @@ function ReferenceImageStrip({ references, compact = false, onRemoveReference, o
 
 function ReferenceVideoStrip({ references, compact = false, onRemoveReference, onMoveReference }: { references: ReferenceVideo[]; compact?: boolean; onRemoveReference: (id: string) => void; onMoveReference: (index: number, offset: number) => void }) {
     return (
-        <div className={`hover-scrollbar hover-scrollbar-hint flex w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed border-stone-300 p-2 overscroll-x-contain dark:border-stone-700 ${compact ? "min-h-14" : "min-h-24 pb-3"}`}>
+        <div className={`hover-scrollbar flex w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed border-stone-300 p-2 overscroll-x-contain dark:border-stone-700 ${compact ? "min-h-14" : "min-h-24 pb-3"}`}>
             {references.map((item, index) => (
                 <div key={item.id} className={`${compact ? "h-12 w-20" : "h-20 w-32"} group relative shrink-0 overflow-hidden rounded-md border border-stone-200 bg-black dark:border-stone-800`}>
                     <video src={item.url} className="size-full object-cover" muted preload="metadata" />
@@ -1581,7 +1581,7 @@ function ReferenceVideoStrip({ references, compact = false, onRemoveReference, o
 
 function ReferenceAudioStrip({ references, compact = false, onRemoveReference, onMoveReference }: { references: ReferenceAudio[]; compact?: boolean; onRemoveReference: (id: string) => void; onMoveReference: (index: number, offset: number) => void }) {
     return (
-        <div className={`hover-scrollbar hover-scrollbar-hint flex w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed border-stone-300 p-2 overscroll-x-contain dark:border-stone-700 ${compact ? "min-h-14" : "min-h-24 pb-3"}`}>
+        <div className={`hover-scrollbar flex w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-lg border border-dashed border-stone-300 p-2 overscroll-x-contain dark:border-stone-700 ${compact ? "min-h-14" : "min-h-24 pb-3"}`}>
             {references.map((item, index) => (
                 <div key={item.id} className={`${compact ? "h-12 w-40" : "h-20 w-48"} group relative flex shrink-0 flex-col justify-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-2 dark:border-stone-800 dark:bg-stone-900`}>
                     <div className="flex min-w-0 items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
