@@ -14,6 +14,7 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
     const [keyword, setKeyword] = useState("");
     const [selectedTag, setSelectedTag] = useState<string>(ALL_PROMPTS_OPTION);
     const [selectedSource, setSelectedSource] = useState(ALL_PROMPTS_OPTION);
+    const [tagsExpanded, setTagsExpanded] = useState(false);
     const { query, items, tags: promptTags, sources: promptSources } = usePromptList({ keyword, tags: selectedTag === ALL_PROMPTS_OPTION ? [] : [selectedTag], source: selectedSource, enabled: open });
     const toggleTag = (tag: string) => {
         setSelectedTag(tag === ALL_PROMPTS_OPTION ? ALL_PROMPTS_OPTION : tag === selectedTag ? ALL_PROMPTS_OPTION : tag);
@@ -51,12 +52,19 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
                     </div>
                     <div className="grid gap-2 sm:grid-cols-[64px_minmax(0,1fr)] sm:items-start">
                         <div className="pt-[5px] text-sm leading-none font-medium text-stone-500 dark:text-stone-400">标签</div>
-                        <div className="flex flex-wrap gap-2">
-                            {promptTags.map((tag) => (
-                                <Tag.CheckableTag key={tag} checked={selectedTag === tag} className={cn("prompt-filter-tag", selectedTag === tag && "is-active")} onChange={() => toggleTag(tag)}>
-                                    {tag}
-                                </Tag.CheckableTag>
-                            ))}
+                        <div>
+                            <div className={cn("flex flex-wrap gap-2", !tagsExpanded && "max-h-[64px] overflow-hidden")}>
+                                {promptTags.map((tag) => (
+                                    <Tag.CheckableTag key={tag} checked={selectedTag === tag} className={cn("prompt-filter-tag", selectedTag === tag && "is-active")} onChange={() => toggleTag(tag)}>
+                                        {tag}
+                                    </Tag.CheckableTag>
+                                ))}
+                            </div>
+                            {promptTags.length > 10 ? (
+                                <button type="button" onClick={() => setTagsExpanded((value) => !value)} className="mt-2 text-xs text-stone-500 transition hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200">
+                                    {tagsExpanded ? "收起" : `展开全部（${promptTags.length}）`}
+                                </button>
+                            ) : null}
                         </div>
                     </div>
                 </div>

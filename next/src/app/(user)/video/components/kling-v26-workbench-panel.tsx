@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Plus, BookOpen, ClipboardPaste, FolderPlus, Music2, PanelBottom, PanelLeft, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, BookOpen, ClipboardPaste, FolderPlus, Music2, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
 import { App, Button, Input, Switch, Tag } from "antd";
 import { useEffect, useRef, type ReactNode } from "react";
 
@@ -8,7 +8,6 @@ import type { AiConfig, VideoElementItem, VideoElementReference, VideoMultiPromp
 import type { ReferenceImage } from "@/types/image";
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
-type WorkbenchLayout = "side" | "bottom";
 type AssetPickerTarget = "general" | "image" | "video" | "audio" | "firstFrame" | "lastFrame";
 
 const TEXT = {
@@ -49,8 +48,6 @@ const TEXT = {
     runningPrefix: "生成中（",
     runningSuffix: "）",
     title: "视频创作台",
-    side: "侧边",
-    bottom: "底部",
     image: "图",
     removeImage: "移除参考图",
     emptyImages: "暂无首尾帧，支持单首帧",
@@ -65,7 +62,6 @@ const TEXT = {
 export function KlingV26WorkbenchPanel({
     isKlingV3,
     klingProvider = "apimart",
-    currentLayout,
     prompt,
     negativePrompt,
     references,
@@ -78,7 +74,6 @@ export function KlingV26WorkbenchPanel({
     onTaskCountChange,
     updateConfig,
     openConfigDialog,
-    onLayoutChange,
     onPromptChange,
     onNegativePromptChange,
     onOpenPromptLibrary,
@@ -98,7 +93,6 @@ export function KlingV26WorkbenchPanel({
 }: {
     isKlingV3: boolean;
     klingProvider?: "apimart" | "kie";
-    currentLayout: WorkbenchLayout;
     prompt: string;
     negativePrompt: string;
     references: ReferenceImage[];
@@ -111,7 +105,6 @@ export function KlingV26WorkbenchPanel({
     onTaskCountChange: (value: number) => void;
     updateConfig: UpdateAiConfig;
     openConfigDialog: (shouldPromptContinue?: boolean) => void;
-    onLayoutChange: (layout: WorkbenchLayout) => void;
     onPromptChange: (value: string) => void;
     onNegativePromptChange: (value: string) => void;
     onOpenPromptLibrary: () => void;
@@ -226,7 +219,7 @@ export function KlingV26WorkbenchPanel({
     return (
         <div className="flex min-h-[420px] flex-col overflow-hidden rounded-lg border border-stone-200 bg-card shadow-sm dark:border-stone-800 lg:min-h-0">
             <div className="shrink-0 p-4 pb-3">
-                <KlingHeader currentLayout={currentLayout} onLayoutChange={onLayoutChange} />
+                <KlingHeader />
             </div>
             <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">
                 {isKlingV3 ? (
@@ -351,14 +344,10 @@ export function KlingV26WorkbenchPanel({
     );
 }
 
-function KlingHeader({ currentLayout, onLayoutChange }: { currentLayout: WorkbenchLayout; onLayoutChange: (layout: WorkbenchLayout) => void }) {
+function KlingHeader() {
     return (
         <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">{TEXT.title}</h1>
-            <div className="flex shrink-0 rounded-lg border border-stone-200 bg-stone-50 p-1 dark:border-stone-800 dark:bg-stone-900">
-                <Button size="small" type={currentLayout === "side" ? "primary" : "text"} icon={<PanelLeft className="size-3.5" />} onClick={() => onLayoutChange("side")}>{TEXT.side}</Button>
-                <Button size="small" type={currentLayout === "bottom" ? "primary" : "text"} icon={<PanelBottom className="size-3.5" />} onClick={() => onLayoutChange("bottom")}>{TEXT.bottom}</Button>
-            </div>
         </div>
     );
 }

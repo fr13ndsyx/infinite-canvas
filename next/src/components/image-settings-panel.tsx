@@ -112,7 +112,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                     <button
                                         key={item.value}
                                         type="button"
-                                        className="flex h-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border bg-transparent text-sm transition hover:opacity-80"
+                                        className="flex h-[60px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border bg-transparent text-xs transition hover:opacity-80"
                                         style={{ borderColor: selectedAspect?.value === item.value ? theme.node.text : theme.node.stroke, background: "transparent", color: theme.node.text }}
                                         onMouseDown={(event) => event.stopPropagation()}
                                         onClick={() => selectAspect(item.value)}
@@ -168,7 +168,7 @@ function OptionPill({ selected, theme, onClick, children }: { selected: boolean;
     return (
         <button
             type="button"
-            className="h-9 cursor-pointer rounded-full border px-2 text-sm transition hover:opacity-80"
+            className="h-8 cursor-pointer rounded-full border px-2 text-xs transition hover:opacity-80"
             style={{ background: "transparent", borderColor: selected ? theme.node.text : theme.node.stroke, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}
@@ -186,7 +186,7 @@ function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange 
     };
 
     return (
-        <label className="flex h-9 overflow-hidden rounded-xl text-sm" style={{ background: theme.node.fill, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
+        <label className="flex h-9 overflow-hidden rounded-xl border text-sm" style={{ borderColor: theme.node.stroke, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
             <span className="grid w-9 place-items-center" style={{ color: theme.node.muted }}>
                 {prefix}
             </span>
@@ -209,7 +209,7 @@ function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange 
 
 function CountInput({ value, max, theme, onChange }: { value: number; max: number; theme: CanvasTheme; onChange: (value: number | null) => void }) {
     return (
-        <label className="col-span-2 flex h-9 overflow-hidden rounded-full border text-sm" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
+        <label className="col-span-2 flex h-8 overflow-hidden rounded-full border text-xs" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
             <input
                 type="number"
                 min={1}
@@ -227,10 +227,10 @@ function CountInput({ value, max, theme, onChange }: { value: number; max: numbe
 function AspectIcon({ type, width, height, color }: { type: string; width: number; height: number; color: string }) {
     if (type === "auto") return null;
     const ratio = width / Math.max(1, height);
-    const boxWidth = ratio >= 1 ? 24 : Math.max(10, 24 * ratio);
-    const boxHeight = ratio >= 1 ? Math.max(10, 24 / ratio) : 24;
+    const boxWidth = ratio >= 1 ? 18 : Math.max(8, 18 * ratio);
+    const boxHeight = ratio >= 1 ? Math.max(8, 18 / ratio) : 18;
     return (
-        <span className="grid h-7 w-9 place-items-center">
+        <span className="grid h-5 w-7 place-items-center">
             <span className="border-2" style={{ width: boxWidth, height: boxHeight, borderColor: color }} />
         </span>
     );

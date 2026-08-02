@@ -14,8 +14,6 @@ import {
     History,
     ImagePlus,
     LoaderCircle,
-    PanelBottom,
-    PanelLeft,
     PenLine,
     Plus,
     RotateCcw,
@@ -116,7 +114,6 @@ type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => 
 type WorkbenchLayout = "side" | "bottom";
 const LOG_STORE_KEY = "infinite-canvas:image_generation_logs";
 const CATEGORY_STORE_KEY = "infinite-canvas:image_generation_categories";
-const WORKBENCH_LAYOUT_KEY = "infinite-canvas:image-workbench-layout";
 const RESULT_VIEW_MODE_KEY = "infinite-canvas:image-result-view-mode";
 const IMAGE_TASK_POLL_INTERVAL_MS = 10000;
 const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
@@ -141,7 +138,7 @@ export default function ImagePage() {
     const [categories, setCategories] = useState<GenerationCategory[]>([]);
     const [resultViewMode, setResultViewModeState] = useState<ResultViewMode>("all");
     const [activeResultCategoryId, setActiveResultCategoryId] = useState<string | null>(null);
-    const [workbenchLayout, setWorkbenchLayoutState] = useState<WorkbenchLayout>("side");
+    const [workbenchLayout] = useState<WorkbenchLayout>("side");
     const [promptDialogOpen, setPromptDialogOpen] = useState(false);
     const [assetPickerOpen, setAssetPickerOpen] = useState(false);
     const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
@@ -177,8 +174,6 @@ export default function ImagePage() {
     useEffect(() => {
         void refreshCategories();
         try {
-            const storedLayout = window.localStorage?.getItem(WORKBENCH_LAYOUT_KEY);
-            if (storedLayout === "side" || storedLayout === "bottom") setWorkbenchLayoutState(storedLayout);
             const storedViewMode = window.localStorage?.getItem(RESULT_VIEW_MODE_KEY);
             if (storedViewMode === "all" || storedViewMode === "category") setResultViewModeState(storedViewMode);
         } catch {
@@ -224,15 +219,6 @@ export default function ImagePage() {
         const timer = window.setInterval(() => pollPendingLogsOnce(logsRef.current), IMAGE_TASK_POLL_INTERVAL_MS);
         return () => window.clearInterval(timer);
     }, [pendingLogCount]);
-
-    const setWorkbenchLayout = (layout: WorkbenchLayout) => {
-        setWorkbenchLayoutState(layout);
-        try {
-            window.localStorage?.setItem(WORKBENCH_LAYOUT_KEY, layout);
-        } catch {
-            // Keep the in-memory layout even when persistence is unavailable.
-        }
-    };
 
     const setResultViewMode = (mode: ResultViewMode) => {
         setResultViewModeState(mode);
@@ -910,7 +896,6 @@ export default function ImagePage() {
                     <>
                         <WorkbenchPanel
                             layout="side"
-                            currentLayout={workbenchLayout}
                             prompt={prompt}
                             references={references}
                             config={effectiveConfig}
@@ -919,7 +904,6 @@ export default function ImagePage() {
                             pendingCount={pendingCount}
                             updateConfig={updateConfig}
                             openConfigDialog={openConfigDialog}
-                            onLayoutChange={setWorkbenchLayout}
                             onPromptChange={setPrompt}
                             onOpenPromptLibrary={() => setPromptDialogOpen(true)}
                             onOpenAssetPicker={() => setAssetPickerOpen(true)}
@@ -1001,7 +985,6 @@ export default function ImagePage() {
                         />
                         <WorkbenchPanel
                             layout="bottom"
-                            currentLayout={workbenchLayout}
                             prompt={prompt}
                             references={references}
                             config={effectiveConfig}
@@ -1010,7 +993,6 @@ export default function ImagePage() {
                             pendingCount={pendingCount}
                             updateConfig={updateConfig}
                             openConfigDialog={openConfigDialog}
-                            onLayoutChange={setWorkbenchLayout}
                             onPromptChange={setPrompt}
                             onOpenPromptLibrary={() => setPromptDialogOpen(true)}
                             onOpenAssetPicker={() => setAssetPickerOpen(true)}
@@ -1067,7 +1049,6 @@ const quickQualityOptions = [
 
 function WorkbenchPanel({
     layout,
-    currentLayout,
     prompt,
     references,
     config,
@@ -1076,7 +1057,6 @@ function WorkbenchPanel({
     pendingCount,
     updateConfig,
     openConfigDialog,
-    onLayoutChange,
     onPromptChange,
     onOpenPromptLibrary,
     onOpenAssetPicker,
@@ -1089,7 +1069,6 @@ function WorkbenchPanel({
     uploadingCount,
 }: {
     layout: WorkbenchLayout;
-    currentLayout: WorkbenchLayout;
     prompt: string;
     references: ReferenceImage[];
     config: AiConfig;
@@ -1098,7 +1077,6 @@ function WorkbenchPanel({
     pendingCount: number;
     updateConfig: UpdateAiConfig;
     openConfigDialog: (shouldPromptContinue?: boolean) => void;
-    onLayoutChange: (layout: WorkbenchLayout) => void;
     onPromptChange: (value: string) => void;
     onOpenPromptLibrary: () => void;
     onOpenAssetPicker: () => void;
@@ -1138,7 +1116,6 @@ function WorkbenchPanel({
                                     icon={<SlidersHorizontal className="size-4" />}
                                     onClick={() => setBottomSettingsCollapsed(!bottomSettingsCollapsed)}
                                 />
-                                <Button title="切换到侧边工作台" icon={<PanelLeft className="size-4" />} onClick={() => onLayoutChange("side")} />
                                 <Button type="primary" className="h-9 rounded-xl lg:!hidden font-medium px-4" icon={<Sparkles className="size-4" />} disabled={!canGenerate} onClick={onGenerate}>
                                     {pendingCount ? `${pendingCount} 生成中` : "开始创作"}
                                 </Button>
@@ -1194,7 +1171,7 @@ function WorkbenchPanel({
     return (
         <div className="flex min-h-[420px] flex-col overflow-hidden rounded-lg border border-stone-200 bg-card shadow-sm dark:border-stone-800 lg:min-h-0">
             <div className="shrink-0 p-4 pb-3">
-                <WorkbenchHeader currentLayout={currentLayout} onLayoutChange={onLayoutChange} />
+                <WorkbenchHeader />
             </div>
             <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">
                 <section className="overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
@@ -1240,19 +1217,11 @@ function WorkbenchPanel({
     );
 }
 
-function WorkbenchHeader({ currentLayout, onLayoutChange, compact = false }: { currentLayout: WorkbenchLayout; onLayoutChange: (layout: WorkbenchLayout) => void; compact?: boolean }) {
+function WorkbenchHeader({ compact = false }: { compact?: boolean }) {
     return (
         <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
                 <h1 className={`${compact ? "text-base" : "text-2xl"} font-semibold text-stone-950 dark:text-stone-100`}>生图工作台</h1>
-            </div>
-            <div className="flex shrink-0 rounded-lg border border-stone-200 bg-stone-50 p-1 dark:border-stone-800 dark:bg-stone-900">
-                <Button size="small" type={currentLayout === "side" ? "primary" : "text"} icon={<PanelLeft className="size-3.5" />} onClick={() => onLayoutChange("side")}>
-                    侧边
-                </Button>
-                <Button size="small" type={currentLayout === "bottom" ? "primary" : "text"} icon={<PanelBottom className="size-3.5" />} onClick={() => onLayoutChange("bottom")}>
-                    底部
-                </Button>
             </div>
         </div>
     );
