@@ -70,7 +70,7 @@ export default function PromptsPage() {
                             <div className="mx-auto mt-8 w-full max-w-2xl">
                                 <Input size="large" className="w-full" prefix={<Search className="size-4 text-stone-400" />} value={titleInput} placeholder="按标题查询，按 Enter 搜索" onChange={(event) => setTitleInput(event.target.value)} onPressEnter={searchByTitleInput} />
                             </div>
-                            <div className="mx-auto mt-6 grid max-w-6xl gap-3 text-left">
+                            <div className="mx-auto mt-6 grid max-w-7xl gap-3 text-left">
                                 <div className="grid gap-2 sm:grid-cols-[64px_minmax(0,1fr)] sm:items-start">
                                     <div className="pt-[5px] text-sm leading-none font-medium text-stone-500 dark:text-stone-400">来源</div>
                                     <div className="flex flex-wrap gap-2">
@@ -103,19 +103,20 @@ export default function PromptsPage() {
 
                 {!query.isLoading ? (
                     <div>
-                        <div className="mx-auto grid max-w-7xl gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        <div className="mx-auto columns-1 gap-5 sm:columns-2 xl:columns-3 2xl:columns-4 max-w-7xl">
                             {promptItems.map((item) => (
-                                <PromptCard
-                                    key={item.id}
-                                    item={item}
-                                    onOpen={() => setSelectedPrompt(item)}
-                                    onCopy={() => copyText(item.prompt, "提示词已复制")}
-                                    extraAction={
-                                        <Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => savePromptAsset(item)}>
-                                            加入我的素材
-                                        </Button>
-                                    }
-                                />
+                                <div key={item.id} className="mb-5 break-inside-avoid">
+                                    <PromptCard
+                                        item={item}
+                                        onOpen={() => setSelectedPrompt(item)}
+                                        onCopy={() => copyText(item.prompt, "提示词已复制")}
+                                        extraAction={
+                                            <Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => savePromptAsset(item)}>
+                                                加入我的素材
+                                            </Button>
+                                        }
+                                    />
+                                </div>
                             ))}
                         </div>
                         {promptItems.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有找到匹配的提示词" className="py-16" /> : null}
