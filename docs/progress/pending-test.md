@@ -342,5 +342,50 @@ description: 当前版本已实现但仍需人工验证的变更项
 16. 切换到 Kling / Seedance 视频设置面板，确认比例按钮（带像素说明的三行内容）高度增加、gap 适中不拥挤
 17. 切换浅色/深色主题，确认方框边框和颜色正常显示
 
+## 管理后台模型管理拆分（原"渠道管理"）
+
+把渠道配置从 `/admin/settings` 拆出来作为独立菜单项 `/admin/channels`（UI 文案显示为"模型管理"），系统设置页私有 tab 仅保留同步/日志/存储三块。详细方案见 [channels-page-split.md](./channels-page-split.md)。
+
+### 可测试变更
+
+- 新增管理后台页面 `/admin/channels`，承载原嵌在系统设置页私有 tab 的全部渠道逻辑（页面 UI 文案统一为"模型管理"）：
+  - 渠道 Table（名称/协议/状态/模型/权重/超时/操作）
+  - Channel Drawer（新增/编辑，标题为"新增模型"/"编辑模型"，含 name/protocol/baseUrl/apiKey/models/weight/timeout/enabled/remark）
+  - 选择模型 Modal（双 tab：新获取/已有，Checkbox 网格、搜索、增加模型、拉取模型列表）
+  - 模型测试 Modal（单测/批测）
+- 管理后台侧边栏在「素材库」和「系统设置」之间新增「模型管理」菜单项，使用 `ApiOutlined` 图标
+- 顶部 Header 标题在 `/admin/channels` 路径下显示「模型管理」
+- 系统设置页私有 tab 移除：渠道 Table、Channel Drawer、选择渠道模型 Modal、模型测试 Modal
+- 系统设置页公开 tab「系统可用模型」Select 的 options 改为从 `Form.useWatch(["private", "channels"], form)` 派生（不再依赖独立 `channels` state），extra 文案改为"可选项来自「模型管理」中各启用模型配置的模型"
+- 系统设置页 `saveSettings` 移除 `mergeChannelApiKeys` / `setChannels` / `setKnownModels` 等渠道相关逻辑；`loadSettings` 移除 `setChannels` / `setKnownModels`
+- 沿用整体保存模式：模型管理页保存时读取 form 中的全量 settings，仅替换 `private.channels` 后整体 `POST /api/admin/settings`，后端零改动
+- 模型管理页内联一份 normalize 逻辑（`normalizeSettings` / `normalizePublicSetting` / `normalizePrivateSetting` / `normalizeChannel` 等），与 settings 页解耦
+- 修复新增/编辑模型时浏览器自动填充账号密码问题：Drawer 内 Form 加 `autoComplete="off"`，baseUrl 用 `autoComplete="off"`，apiKey 用 `autoComplete="new-password"`，并在 Form 顶部加两个隐藏的假用户名/密码 input 引导浏览器填充到那里
+
+### 涉及文件
+
+- `next/src/app/(admin)/admin/channels/page.tsx`：新增，从 settings/page.tsx 迁移渠道相关全部逻辑
+- `next/src/app/(admin)/admin/layout.tsx`：新增「模型管理」菜单项（路由 key 仍为 `/admin/channels`）和路由元数据，import `ApiOutlined`
+- `next/src/app/(admin)/admin/settings/page.tsx`：删除渠道相关 UI/state/函数（约 400 行），`channelModels` 改为 Form.useWatch 派生
+
+### 验证步骤
+
+1. 启动前端，登录管理后台 admin/admin123
+2. 确认侧边栏在「素材库」和「系统设置」之间出现「模型管理」菜单项（图标为 ApiOutlined）
+3. 点击「模型管理」，确认 URL 为 `/admin/channels`（路由不变），顶部 Header 标题显示「模型管理」
+4. 确认 Table 正常展示原有渠道数据（名称/协议/状态/模型/权重/超时/操作列）
+5. 点击「新增模型」，确认 Drawer 弹出，标题为"新增模型"；**确认接口地址、API Key 输入框不会被浏览器自动填充账号密码**（这是本次修复重点）
+6. 填写 baseUrl + apiKey + 名称后保存，确认新渠道出现在 Table 中
+7. 点击某行的「编辑」，Drawer 标题为"编辑模型"，修改名称后保存，确认 Table 中名称已更新；确认编辑时 apiKey 输入框 placeholder 为"留空则沿用已保存的 API Key"
+8. 点击某行的「测试」，确认测试 Modal 标题为"{名称} 模型测试"，选择模型后点击「测试」或「批量测试」，确认状态显示正常（成功/失败/请求时长）
+9. 在编辑 Drawer 中点击「选择模型」，确认选择模型 Modal 标题为"选择模型"，点击「拉取模型列表」可拉取上游模型，勾选后确认返回 Drawer
+10. 点击某行的删除按钮，确认渠道从 Table 中移除
+11. 切换到「系统设置」页面，确认私有 tab 仅剩 3 块 Card：提示词定时同步、AI 调用日志、数据存储；不再显示渠道 Table / Drawer / Modal
+12. 切换到公开 tab，确认「系统可用模型」Select 的下拉 options 仍正常显示已启用模型配置的模型；extra 文案为"可选项来自「模型管理」中各启用模型配置的模型"
+13. 在公开 tab 修改默认模型或系统提示词，点击「保存设置」，确认保存成功且无报错
+14. 在公开 tab 切到「手动编辑 JSON」模式，确认 JSON 内容正常显示且可编辑/格式化
+15. 在私有 tab 切到「手动编辑 JSON」模式，确认 JSON 内容包含 `private.channels` 字段（保存全量 settings 仍包含渠道数据）
+16. 在模型管理页保存渠道后切到系统设置页，确认系统设置页公开 tab 的「系统可用模型」options 已按最新渠道模型更新
+
 
 
