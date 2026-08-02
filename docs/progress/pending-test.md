@@ -235,4 +235,41 @@ description: 当前版本已实现但仍需人工验证的变更项
 10. 关闭 `allowGuestConfig` 开关，未登录状态下点击配置入口，确认弹窗被拦截并提示「请登录后使用配置功能」
 11. 打开画布、生图工作台、视频创作台，确认 ModelPicker 选择框均为矩形圆角（非胶囊形）
 
+## 空画布引导浮层
+
+在新建空画布或从首页 agent 会话框进入新空画布时，画布视口中心显示引导浮层，帮助用户快速了解使用方式。
+
+### 可测试变更
+
+- 空画布（`nodes.length === 0`）时在画布视口中心显示两层引导浮层：
+  - 上层：黑色圆角提示按钮（鼠标右键 SVG + "鼠标右键"文案），纯提示无功能
+  - 下层：4 个快捷按钮（上传素材/生成图片/生成视频/让 Agent 创建），有实际功能
+- 浮层固定在视口中心，不随画布平移/缩放移动（`absolute inset-0 flex items-center justify-center`）
+- 浮层容器 `pointer-events-none`，按钮 `pointer-events-auto`，不阻挡画布右键/拖拽操作
+- 快捷按钮功能：
+  - 上传素材 → 触发 `handleUploadRequest()`
+  - 生成图片 → `createNode(CanvasNodeType.Image)`
+  - 生成视频 → `createNode(CanvasNodeType.Video)`
+  - 让 Agent 创建 → 展开右侧助手面板（`setAssistantMounted(true)` + `setAgentPanel open:true`）
+- 画布创建任意节点后（`nodes.length > 0`）浮层自动隐藏
+- 快捷按钮颜色使用 `theme.node.text` / `theme.node.muted`，适配浅色/深色主题
+
+### 涉及文件
+
+- `next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`：在 `</InfiniteCanvas>` 后新增空状态引导浮层 JSX
+
+### 验证步骤
+
+1. 新建空白画布，确认视口中心显示黑色"鼠标右键"提示按钮 + 下方 4 个快捷按钮
+2. 确认黑色提示按钮点击无响应（纯提示）
+3. 点击「上传素材」按钮，确认触发文件上传流程
+4. 点击「生成图片」按钮，确认画布创建图片节点，浮层消失
+5. 删除节点使画布再次为空，确认浮层重新出现
+6. 点击「生成视频」按钮，确认创建视频节点，浮层消失
+7. 点击「让 Agent 创建」按钮，确认右侧助手面板展开
+8. 从首页 agent 会话框输入内容进入新画布，确认浮层显示（pendingAgentRequest 消费前画布为空）
+9. 在画布空白处右键，确认右键菜单正常弹出（浮层不阻挡右键操作）
+10. 拖拽/缩放画布，确认浮层始终固定在视口中心不移动
+11. 切换浅色/深色主题，确认浮层文字和图标颜色适配主题
+
 

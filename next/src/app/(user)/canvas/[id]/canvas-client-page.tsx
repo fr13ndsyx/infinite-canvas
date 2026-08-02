@@ -3789,6 +3789,45 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     ) : null}
                 </InfiniteCanvas>
 
+                {nodes.length === 0 && !nodeCreatePosition ? (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-8">
+                        <div className="flex items-end gap-4">
+                            <div
+                                className="flex items-center gap-2.5 rounded-2xl px-6 py-4 text-white shadow-lg"
+                                style={{ backgroundColor: "#1c1917" }}
+                            >
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M3 3l7 19 2.5-8.5L21 11 3 3z" />
+                                </svg>
+                                <span className="text-xl font-medium">鼠标右键</span>
+                            </div>
+                            <span className="pb-4 text-lg font-medium" style={{ color: theme.node.muted }}>
+                                画布自由生成
+                            </span>
+                        </div>
+                        <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-4">
+                            {([
+                                { icon: <Upload className="size-7" style={{ color: theme.node.muted }} />, label: "上传素材", onClick: () => handleUploadRequest() },
+                                { icon: <ImageIcon className="size-7" style={{ color: theme.node.muted }} />, label: "生成图片", onClick: () => createNode(CanvasNodeType.Image) },
+                                { icon: <Video className="size-7" style={{ color: theme.node.muted }} />, label: "生成视频", onClick: () => createNode(CanvasNodeType.Video) },
+                                { icon: <Bot className="size-7" style={{ color: theme.node.muted }} />, label: "让 Agent 创建", onClick: () => { setAssistantMounted(true); setAgentPanel((current) => ({ ...current, open: true })); } },
+                            ] as const).map((item) => (
+                                <button
+                                    key={item.label}
+                                    type="button"
+                                    onClick={item.onClick}
+                                    onContextMenu={(event) => { event.preventDefault(); preventCanvasContextMenu(event); }}
+                                    className="flex h-14 items-center justify-center gap-2.5 rounded-2xl px-5 text-lg font-medium opacity-60 transition-all duration-200 hover:opacity-100 hover:shadow-[0_8px_24px_rgba(120,113,108,0.35)]"
+                                    style={{ color: theme.node.text, background: "transparent" }}
+                                >
+                                    {item.icon}
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+
                 {openDirectorNode?.type === CanvasNodeType.Director ? (
                     <CanvasDirector
                         nodeId={openDirectorNode.id}
