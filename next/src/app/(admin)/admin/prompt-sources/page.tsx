@@ -1,12 +1,14 @@
 "use client";
 
-import { DeleteOutlined, EditOutlined, ExportOutlined, PlusOutlined, SyncOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, ExportOutlined, PlusOutlined, ReloadOutlined, SaveOutlined, SyncOutlined } from "@ant-design/icons";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
-import { Button, Form, Input, InputNumber, Modal, Space, Switch, Tag, Tooltip, Typography } from "antd";
+import { App, Button, Card, Col, Flex, Form, Input, InputNumber, Modal, Row, Space, Switch, Tag, Tooltip, Typography } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 
 import type { PromptSource, PromptSourceInput, PromptSourceUpdate } from "@/services/api/admin-prompt-sources";
+import { fetchAdminSettings, saveAdminSettings } from "@/services/api/admin";
+import { useUserStore } from "@/stores/use-user-store";
 import { useAdminPromptSources } from "./use-admin-prompt-sources";
 
 type SourceFormValues = PromptSourceInput & { sortOrder: number };
@@ -27,11 +29,57 @@ function formatTime(value: string) {
 
 export default function AdminPromptSourcesPage() {
     const { sources, isLoading, isSyncing, createSource, updateSource, deleteSource, syncSource, syncAllSources, refresh } = useAdminPromptSources();
+    const token = useUserStore((state) => state.token);
+    const { message } = App.useApp();
     const [form] = Form.useForm<SourceFormValues>();
     const [editingSource, setEditingSource] = useState<PromptSource | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [deletingSource, setDeletingSource] = useState<PromptSource | null>(null);
     const isEditing = Boolean(editingSource?.source);
+    const [promptSyncForm] = Form.useForm<{ enabled: boolean; cron: string }>();
+    const [promptSyncLoading, setPromptSyncLoading] = useState(false);
+    const [promptSyncSaving, setPromptSyncSaving] = useState(false);
+
+    const loadPromptSync = async () => {
+        if (!token) return;
+        setPromptSyncLoading(true);
+        try {
+            const settings = await fetchAdminSettings(token);
+            promptSyncForm.setFieldsValue({
+                enabled: settings.private.promptSync?.enabled !== false,
+                cron: settings.private.promptSync?.cron || "0 0 * * *",
+            });
+        } catch {
+            // 忽略，主表格仍可用
+        } finally {
+            setPromptSyncLoading(false);
+        }
+    };
+
+    const savePromptSync = async () => {
+        if (!token) return;
+        const value = await promptSyncForm.validateFields();
+        setPromptSyncSaving(true);
+        try {
+            const settings = await fetchAdminSettings(token);
+            await saveAdminSettings(token, {
+                ...settings,
+                private: {
+                    ...settings.private,
+                    promptSync: { enabled: value.enabled, cron: value.cron },
+                },
+            });
+            message.success("已保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "保存失败");
+        } finally {
+            setPromptSyncSaving(false);
+        }
+    };
+
+    useEffect(() => {
+        void loadPromptSync();
+    }, [token]);
 
     useEffect(() => {
         if (!isFormOpen) return;
@@ -160,6 +208,34 @@ export default function AdminPromptSourcesPage() {
 
     return (
         <main style={{ padding: 24 }}>
+            <Flex vertical gap={16}>
+                <Card variant="borderless">
+                    <Flex justify="space-between" align="center" gap={16} wrap style={{ marginBottom: 16 }}>
+                        <Typography.Text strong>定时同步</Typography.Text>
+                        <Space>
+                            <Button icon={<ReloadOutlined />} loading={promptSyncLoading} onClick={() => void loadPromptSync()}>
+                                刷新
+                            </Button>
+                            <Button type="primary" icon={<SaveOutlined />} loading={promptSyncSaving} onClick={() => void savePromptSync()}>
+                                保存
+                            </Button>
+                        </Space>
+                    </Flex>
+                    <Form form={promptSyncForm} layout="vertical" requiredMark={false}>
+                        <Row gutter={16} align="middle">
+                            <Col xs={24} md={8}>
+                                <Form.Item name="enabled" label="开启定时同步" valuePropName="checked">
+                                    <Switch />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={16}>
+                                <Form.Item name="cron" label="Cron 表达式" extra="默认每天 0 点同步内置 GitHub 远程提示词源">
+                                    <Input placeholder="0 0 * * *" />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </Form>
+                </Card>
             <ProTable<PromptSource>
                 rowKey="source"
                 columns={columns}
@@ -247,6 +323,7 @@ export default function AdminPromptSourcesPage() {
                 <br />
                 <Typography.Text type="secondary">该来源下的提示词将保留在数据库中，但用户端不再展示。</Typography.Text>
             </Modal>
+            </Flex>
         </main>
     );
 }

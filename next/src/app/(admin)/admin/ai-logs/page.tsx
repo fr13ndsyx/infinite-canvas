@@ -1,11 +1,18 @@
 "use client";
 
-import { DeleteOutlined, EyeOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
-import { App, Button, Card, Flex, Form, Input, InputNumber, Modal, Space, Switch, Table, Tag, Typography } from "antd";
+import { DeleteOutlined, EyeOutlined, ReloadOutlined, SaveOutlined, SearchOutlined } from "@ant-design/icons";
+import { App, Button, Card, Col, Flex, Form, Input, InputNumber, Modal, Row, Space, Switch, Table, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
-import { deleteAdminAICallLogs, fetchAdminAICallLogs, fetchAdminSettings, saveAdminSettings, type AdminAICallLog } from "@/services/api/admin";
+import { deleteAdminAICallLogs, fetchAdminAICallLogs, fetchAdminSettings, saveAdminSettings, type AdminAICallLog, type AdminSettings } from "@/services/api/admin";
 import { useUserStore } from "@/stores/use-user-store";
+
+type LogSettingsFormValues = {
+    localDirectReportEnabled: boolean;
+    cleanupEnabled: boolean;
+    retentionDays: number;
+    cron: string;
+};
 
 export default function AdminAICallLogsPage() {
     const token = useUserStore((state) => state.token);
@@ -19,8 +26,9 @@ export default function AdminAICallLogsPage() {
     const [clearDays, setClearDays] = useState(7);
     const [clearing, setClearing] = useState(false);
     const [detail, setDetail] = useState<{ title: string; value: string } | null>(null);
-    const [localDirectReportEnabled, setLocalDirectReportEnabled] = useState(false);
-    const [savingLocalDirectReport, setSavingLocalDirectReport] = useState(false);
+    const [logSettingsForm] = Form.useForm<LogSettingsFormValues>();
+    const [logSettingsLoading, setLogSettingsLoading] = useState(false);
+    const [logSettingsSaving, setLogSettingsSaving] = useState(false);
 
     const loadLogs = async () => {
         if (!token) return;
@@ -40,12 +48,56 @@ export default function AdminAICallLogsPage() {
         void loadLogs();
     }, [token, page, pageSize]);
 
-    useEffect(() => {
+    const loadLogSettings = async () => {
         if (!token) return;
-        fetchAdminSettings(token)
-            .then((settings) => setLocalDirectReportEnabled(settings.private.aiLog?.localDirectReportEnabled === true))
-            .catch(() => undefined);
+        setLogSettingsLoading(true);
+        try {
+            const settings = await fetchAdminSettings(token);
+            logSettingsForm.setFieldsValue({
+                localDirectReportEnabled: settings.private.aiLog?.localDirectReportEnabled === true,
+                cleanupEnabled: settings.private.aiLog?.cleanup?.enabled === true,
+                retentionDays: Number(settings.private.aiLog?.cleanup?.retentionDays) || 14,
+                cron: settings.private.aiLog?.cleanup?.cron || "0 3 * * *",
+            });
+        } catch {
+            // 忽略，主表格仍可用
+        } finally {
+            setLogSettingsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        void loadLogSettings();
     }, [token]);
+
+    const saveLogSettings = async () => {
+        if (!token) return;
+        const value = await logSettingsForm.validateFields();
+        setLogSettingsSaving(true);
+        try {
+            const settings = await fetchAdminSettings(token);
+            const nextSettings: AdminSettings = {
+                ...settings,
+                private: {
+                    ...settings.private,
+                    aiLog: {
+                        localDirectReportEnabled: value.localDirectReportEnabled,
+                        cleanup: {
+                            enabled: value.cleanupEnabled,
+                            retentionDays: value.retentionDays,
+                            cron: value.cron,
+                        },
+                    },
+                },
+            };
+            await saveAdminSettings(token, nextSettings);
+            message.success("已保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "保存日志设置失败");
+        } finally {
+            setLogSettingsSaving(false);
+        }
+    };
 
     const clearLogs = async () => {
         if (!token) return;
@@ -59,32 +111,6 @@ export default function AdminAICallLogsPage() {
             message.error(error instanceof Error ? error.message : "清理 AI 调用日志失败");
         } finally {
             setClearing(false);
-        }
-    };
-
-    const updateLocalDirectReport = async (checked: boolean) => {
-        if (!token) return;
-        const previous = localDirectReportEnabled;
-        setLocalDirectReportEnabled(checked);
-        setSavingLocalDirectReport(true);
-        try {
-            const settings = await fetchAdminSettings(token);
-            await saveAdminSettings(token, {
-                ...settings,
-                private: {
-                    ...settings.private,
-                    aiLog: {
-                        ...settings.private.aiLog,
-                        localDirectReportEnabled: checked,
-                    },
-                },
-            });
-            message.success(checked ? "已开启本地直连日志上报" : "已关闭本地直连日志上报");
-        } catch (error) {
-            setLocalDirectReportEnabled(previous);
-            message.error(error instanceof Error ? error.message : "保存本地直连日志设置失败");
-        } finally {
-            setSavingLocalDirectReport(false);
         }
     };
 
@@ -122,6 +148,43 @@ export default function AdminAICallLogsPage() {
         <main className="p-3 md:p-6">
             <Flex vertical gap={16} className="w-full">
                 <Card variant="borderless">
+                    <Flex justify="space-between" align="center" gap={16} wrap style={{ marginBottom: 16 }}>
+                        <Typography.Text strong>日志设置</Typography.Text>
+                        <Space>
+                            <Button icon={<ReloadOutlined />} loading={logSettingsLoading} onClick={() => void loadLogSettings()}>
+                                刷新
+                            </Button>
+                            <Button type="primary" icon={<SaveOutlined />} loading={logSettingsSaving} onClick={() => void saveLogSettings()}>
+                                保存
+                            </Button>
+                        </Space>
+                    </Flex>
+                    <Form form={logSettingsForm} layout="vertical" requiredMark={false}>
+                        <Row gutter={16}>
+                            <Col xs={24} md={6}>
+                                <Form.Item name="localDirectReportEnabled" label="本地直连日志上报" valuePropName="checked" extra="关闭后本地直连不上报；云端渠道仍默认记录。">
+                                    <Switch />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={6}>
+                                <Form.Item name="cleanupEnabled" label="开启自动清理" valuePropName="checked" extra="日志按天写入本地文件，不保存到 SQLite。">
+                                    <Switch />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={6}>
+                                <Form.Item name="retentionDays" label="保留天数" extra="默认保留 14 天，超过后定时删除对应日期日志文件。">
+                                    <InputNumber min={1} precision={0} className="!w-full" />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={6}>
+                                <Form.Item name="cron" label="清理 Cron">
+                                    <Input placeholder="0 3 * * *" />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </Form>
+                </Card>
+                <Card variant="borderless">
                     <Form
                         layout="vertical"
                         onFinish={() => {
@@ -137,10 +200,6 @@ export default function AdminAICallLogsPage() {
                             <Button icon={<ReloadOutlined />} onClick={() => { setKeyword(""); setPage(1); void loadLogs(); }}>
                                 重置
                             </Button>
-                            <div className="flex h-8 items-center gap-2 rounded-md border border-stone-200 px-3 dark:border-stone-800">
-                                <Typography.Text className="whitespace-nowrap text-sm">本地直连日志</Typography.Text>
-                                <Switch size="small" checked={localDirectReportEnabled} loading={savingLocalDirectReport} onChange={(checked) => void updateLocalDirectReport(checked)} />
-                            </div>
                             <div className="flex h-8 items-center gap-2">
                                 <Typography.Text className="whitespace-nowrap text-sm">清理超过</Typography.Text>
                                 <InputNumber min={1} value={clearDays} className="!w-24" onChange={(value) => setClearDays(Number(value) || 7)} />
@@ -182,7 +241,16 @@ export default function AdminAICallLogsPage() {
 
 function LogBlock({ value }: { value: string }) {
     return (
-        <pre className="max-h-[72vh] whitespace-pre-wrap break-words overflow-auto rounded-lg border border-stone-200 bg-stone-50 p-3 text-xs leading-5 text-stone-700 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-200">{value || "-"}</pre>
+        <pre
+            className="max-h-[72vh] whitespace-pre-wrap break-words overflow-auto rounded-lg p-3 text-xs leading-5"
+            style={{
+                border: "1px solid var(--ant-color-border)",
+                background: "var(--ant-color-fill-quaternary)",
+                color: "var(--ant-color-text)",
+            }}
+        >
+            {value || "-"}
+        </pre>
     );
 }
 

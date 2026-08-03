@@ -196,7 +196,6 @@ export type AdminPublicSettings = {
     };
     storage: {
         mode: string;
-        allowUserProvider: boolean;
     };
 };
 
