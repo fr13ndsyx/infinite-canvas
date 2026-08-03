@@ -466,3 +466,13 @@
     animation: none;
     mix-blend-mode: normal;
 }
+
+/* 深色模式下 antd v6 Checkbox 选中对勾强制黑色（v6 移除了 .ant-checkbox-inner，对勾 ::after 直接在 .ant-checkbox 上） */
+.dark .ant-checkbox-checked::after {
+    border-color: #000 !important;
+}
+
+/* 深色模式下 antd v6 Switch 开启状态圆点强制深色（track 背景为 colorPrimary=白，圆点默认白色看不清） */
+.dark .ant-switch-checked .ant-switch-handle::before {
+    background-color: #171717 !important;
+}

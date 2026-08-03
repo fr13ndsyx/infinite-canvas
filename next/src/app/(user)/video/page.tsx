@@ -1319,6 +1319,14 @@ function WorkbenchPanel({
     const klingBottom = Boolean(klingBottomConfig);
     const showAudioSwitch = klingBottom || audioGenerationEnabled;
     const motionControl = isAPIMartKlingMotionControlConfig(config, model) || isKIEKlingMotionControlConfig(config, model);
+    // 模型能力过滤：capabilities 未传（undefined）= 默认三档 480p/720p/1080p；
+    // 传了但 videoResolutions 空 = 不显示清晰度选择；有值 = 按配置生成选项。
+    const videoCap = config.modelCapabilities?.find((item) => item.model === model);
+    const capResolutions = videoCap?.videoResolutions;
+    const bottomResolutionOptions = !capResolutions
+        ? quickResolutionOptions
+        : capResolutions.map((r) => ({ value: r.replace(/p$/, ""), label: r }));
+    const showBottomResolution = !capResolutions || capResolutions.length > 0;
     const bottomSettingsGridClass = motionControl
         ? showAudioSwitch ? "lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.7fr_0.8fr_0.8fr_0.7fr_auto_auto]" : "lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.7fr_0.8fr_0.7fr_auto_auto]"
         : showAudioSwitch ? "lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.7fr_0.8fr_0.7fr_auto_auto]" : "lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.7fr_0.7fr_auto_auto]";
@@ -1374,7 +1382,7 @@ function WorkbenchPanel({
                                 <KlingV26BottomSettings config={config} updateConfig={updateConfig} generateAudio={generateAudio} isKlingV3={klingBottomVariant === "v3"} />
                             ) : (
                                 <>
-                                    <QuickSelect label="清晰度" value={normalizeVideoResolutionValue(config.vquality)} options={quickResolutionOptions} onChange={(value) => updateConfig("vquality", value)} />
+                                    {showBottomResolution ? <QuickSelect label="清晰度" value={normalizeVideoResolutionValue(config.vquality)} options={bottomResolutionOptions} onChange={(value) => updateConfig("vquality", value)} /> : null}
                                     <QuickSelect label="尺寸" value={normalizeVideoSizeValue(config.size)} options={quickSizeOptions} onChange={(value) => updateConfig("size", value)} />
                                     <QuickNumber label="秒数" value={normalizeVideoSeconds(config.videoSeconds)} min={1} max={30} onChange={(value) => updateConfig("videoSeconds", value)} />
                                     {audioGenerationEnabled ? <QuickSwitch label="生成音频" checked={generateAudio} onChange={(checked) => updateConfig("videoGenerateAudio", String(checked))} /> : null}
@@ -1530,7 +1538,7 @@ function FrameReferenceSlot({ label, reference, compact, onUpload, onRemove }: {
                     <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{label}</span>
                     <span className="absolute inset-x-1 bottom-1 truncate rounded bg-black/60 px-1 py-0.5 text-[10px] text-white">{reference.name}</span>
                     <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={onRemove} aria-label={`移除${label}`}>
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="size-3.5" style={{ color: "#ffffff" }} strokeWidth={2.5} />
                     </button>
                 </>
             ) : (
@@ -1552,7 +1560,7 @@ function ReferenceImageStrip({ references, compact = false, onRemoveReference, o
                     <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{seedanceReferenceLabel("image", index)}</span>
                     <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => onMoveReference(index, offset)} />
                     <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => onRemoveReference(item.id)} aria-label="移除参考图">
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="size-3.5" style={{ color: "#ffffff" }} strokeWidth={2.5} />
                     </button>
                 </div>
             ))}
@@ -1570,7 +1578,7 @@ function ReferenceVideoStrip({ references, compact = false, onRemoveReference, o
                     <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{seedanceReferenceLabel("video", index)}</span>
                     <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => onMoveReference(index, offset)} />
                     <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => onRemoveReference(item.id)} aria-label="移除参考视频">
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="size-3.5" style={{ color: "#ffffff" }} strokeWidth={2.5} />
                     </button>
                 </div>
             ))}
@@ -1701,7 +1709,7 @@ function GenerationSettings({ config, model, updateConfig, openConfigDialog }: {
             <WorkbenchSection title="模型">
                 <ModelPicker config={config} value={model} channelId={config.videoChannelId} onChange={(value, channelId) => { updateConfig("videoModel", value); if (channelId) updateConfig("videoChannelId", channelId); }} capability="video" fullWidth onMissingConfig={() => openConfigDialog(false)} />
             </WorkbenchSection>
-            <VideoSettingsPanel config={config} modelName={model} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-3" />
+            <VideoSettingsPanel config={config} modelName={model} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-3" capabilities={config.modelCapabilities?.find((item) => item.model === model)} />
         </div>
     );
 }

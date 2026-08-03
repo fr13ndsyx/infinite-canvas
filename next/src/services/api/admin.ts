@@ -150,6 +150,7 @@ export type AdminModelChannel = {
     timeout: number;
     enabled: boolean;
     remark: string;
+    apiMode: "images" | "responses";
 };
 
 export type AdminPublicModelChannelSettings = {
@@ -195,6 +196,7 @@ export type AdminPublicModelChannelInfo = {
     timeout: number;
     enabled: boolean;
     remark: string;
+    apiMode: "images" | "responses";
 };
 
 export type AdminPublicSettings = {

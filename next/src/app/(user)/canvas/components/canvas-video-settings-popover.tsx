@@ -109,7 +109,7 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
                         </div>
                     </CanvasSettingGroup>
                 ) : null}
-                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-4" hideNegativePrompt={isKlingV3} visualOnly={visualOnly} />
+                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-4" hideNegativePrompt={isKlingV3} visualOnly={visualOnly} capabilities={config.modelCapabilities?.find((item) => item.model === (config.videoModel || config.model))} />
             </div>
         </div>,
         document.body,

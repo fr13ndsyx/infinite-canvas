@@ -28,7 +28,7 @@ const emptySettings: AdminSettings = {
     },
     private: { channels: [], promptSync: { enabled: true, cron: "0 0 * * *" }, aiLog: { localDirectReportEnabled: false, cleanup: { enabled: false, retentionDays: 14, cron: "0 3 * * *" } }, storage: { mode: "local_indexeddb", allowUserProvider: false, allowUserGlobalProvider: true, providers: [], roundRobinCursor: 0, capacityCheck: { enabled: false, cron: "0 */6 * * *" }, capacityLimitBytes: 9 * 1024 * 1024 * 1024 } },
 };
-const emptyChannel: AdminModelChannel = { id: "", protocol: "openai", name: "", baseUrl: "", apiKey: "", models: [], weight: 1, timeout: 600, enabled: true, remark: "" };
+const emptyChannel: AdminModelChannel = { id: "", protocol: "openai", name: "", baseUrl: "", apiKey: "", models: [], weight: 1, timeout: 600, enabled: true, remark: "", apiMode: "images" };
 
 type ModelSelectTabKey = "new" | "current";
 
@@ -370,6 +370,16 @@ export default function AdminChannelsPage() {
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
+                                <Form.Item name="apiMode" label="生图接口" extra="Images 走 /images/generations；Responses 走 /responses（如 gpt-5 系）">
+                                    <Select
+                                        options={[
+                                            { label: "Images API", value: "images" },
+                                            { label: "Responses API", value: "responses" },
+                                        ]}
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
                                 <Form.Item name="weight" label="权重">
                                     <InputNumber min={1} step={1} className="!w-full" />
                                 </Form.Item>
@@ -640,6 +650,7 @@ function normalizeChannel(item: Partial<AdminModelChannel> = {}): AdminModelChan
         timeout: Math.max(1, Number(item.timeout) || 600),
         enabled: item.enabled !== false,
         remark: item.remark || "",
+        apiMode: item.apiMode === "responses" ? "responses" : "images",
     };
 }
 

@@ -106,10 +106,26 @@ export default function AdminModelPricingPage() {
         setIsLoading(true);
         try {
             const data = normalizeSettings(await fetchAdminSettings(token));
+            // 新模型默认全选：模型完全不在 modelCapabilities 里时填入全部选项（已存在的配置不动，包括用户手动清空的）。
+            const caps = [...data.public.modelChannel.modelCapabilities];
+            const existingModels = new Set(caps.map((c) => c.model));
+            for (const model of data.public.modelChannel.availableModels) {
+                if (existingModels.has(model)) continue;
+                const isImage = modelMatchesCapability(model, "image");
+                const isVideo = modelMatchesCapability(model, "video");
+                if (!isImage && !isVideo) continue;
+                caps.push({
+                    model,
+                    imageAspects: isImage ? IMAGE_ASPECT_OPTIONS.map((o) => o.value) : [],
+                    imageTiers: isImage ? IMAGE_TIER_OPTIONS.map((o) => o.value) : [],
+                    videoResolutions: isVideo ? VIDEO_RESOLUTION_OPTIONS.map((o) => o.value) : [],
+                });
+            }
+            data.public.modelChannel.modelCapabilities = caps;
             form.setFieldsValue(data);
             setChannels(data.private.channels);
             setModelCosts(data.public.modelChannel.modelCosts);
-            setModelCapabilities(data.public.modelChannel.modelCapabilities);
+            setModelCapabilities(caps);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "读取设置失败");
         } finally {
@@ -262,7 +278,7 @@ export default function AdminModelPricingPage() {
                     <Card
                         variant="borderless"
                         title="模型能力"
-                        extra={<Typography.Text type="secondary">勾选每个模型支持的比例和档位；留空 = 走默认（生图全比例+仅标准档，视频 480p/720p/1080p）</Typography.Text>}
+                        extra={<Typography.Text type="secondary">勾选每个模型支持的选项，未勾选 = 前端不展示；新模型默认全选</Typography.Text>}
                     >
                         {availableModels.length === 0 ? (
                             <Typography.Text type="secondary">请先在上方勾选开放模型</Typography.Text>
@@ -283,7 +299,7 @@ export default function AdminModelPricingPage() {
                                                 <Flex gap={32} wrap style={{ marginTop: 8 }}>
                                                     {isImage ? (
                                                         <div style={{ minWidth: 320 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>图片比例（空=全部）</Typography.Text>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片比例</Typography.Text>
                                                             <Checkbox.Group
                                                                 options={IMAGE_ASPECT_OPTIONS}
                                                                 value={cap.imageAspects}
@@ -293,7 +309,7 @@ export default function AdminModelPricingPage() {
                                                     ) : null}
                                                     {isImage ? (
                                                         <div style={{ minWidth: 220 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>图片档位（空=仅标准）</Typography.Text>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片档位</Typography.Text>
                                                             <Checkbox.Group
                                                                 options={IMAGE_TIER_OPTIONS}
                                                                 value={cap.imageTiers}
@@ -303,7 +319,7 @@ export default function AdminModelPricingPage() {
                                                     ) : null}
                                                     {isVideo ? (
                                                         <div style={{ minWidth: 320 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>视频清晰度（空=480p/720p/1080p）</Typography.Text>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频清晰度</Typography.Text>
                                                             <Checkbox.Group
                                                                 options={VIDEO_RESOLUTION_OPTIONS}
                                                                 value={cap.videoResolutions}

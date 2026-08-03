@@ -69,11 +69,13 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
     const size = normalizeVideoSizeValue(config.size);
     const dimensions = readSizeDimensions(size);
     const resolution = normalizeVideoResolutionValue(config.vquality);
-    // 模型能力过滤：空 videoResolutions=默认三档 480p/720p/1080p；不空=按配置生成清晰度按钮，隐藏自定义输入
-    const effectiveVideoResolutions = capabilities?.videoResolutions && capabilities.videoResolutions.length > 0 ? capabilities.videoResolutions : null;
-    const resolutionOptionsForRender = effectiveVideoResolutions
-        ? effectiveVideoResolutions.map((r) => ({ value: r.replace(/p$/, ""), label: r }))
-        : resolutionOptions;
+    // 模型能力过滤：capabilities 未传（undefined）= 默认三档 480p/720p/1080p + 自定义输入兜底；
+    // 传了但 videoResolutions 空 = 无按钮 + 自定义输入兜底；有值 = 按配置生成按钮，隐藏自定义输入。
+    const capResolutions = capabilities?.videoResolutions;
+    const resolutionOptionsForRender = !capabilities
+        ? resolutionOptions
+        : (capResolutions || []).map((r) => ({ value: r.replace(/p$/, ""), label: r }));
+    const showCustomResolutionInput = !capabilities || resolutionOptionsForRender.length === 0;
     const audioGenerationEnabled = supportsVideoAudioGeneration(model);
     const generateAudio = boolConfig(config.videoGenerateAudio, false);
     const updateDimension = (key: "width" | "height", value: number | null) => {
@@ -103,7 +105,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                 {item.label}
                             </OptionPill>
                         ))}
-                        {effectiveVideoResolutions ? null : <ResolutionInput value={resolution} theme={theme} onChange={(value) => onConfigChange("vquality", value)} />}
+                        {showCustomResolutionInput ? <ResolutionInput value={resolution} theme={theme} onChange={(value) => onConfigChange("vquality", value)} /> : null}
                     </div>
                 </SettingGroup>
                 <SettingGroup title="尺寸" color={theme.node.muted}>

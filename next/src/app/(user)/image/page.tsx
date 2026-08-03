@@ -1138,21 +1138,6 @@ function WorkbenchPanel({
                                     fullWidth
                                 />
                             </label>
-                            <label className="grid gap-1 text-xs text-stone-500 dark:text-stone-400">
-                                接口模式
-                                <div className="flex h-11 items-center rounded-xl border border-stone-200 bg-background px-2.5 dark:border-stone-800">
-                                    <Segmented
-                                        size="small"
-                                        className="canvas-config-mode !rounded-md !p-0.5 w-full"
-                                        value={config.apiMode}
-                                        onChange={(value) => updateConfig("apiMode", value as "images" | "responses")}
-                                        options={[
-                                            { value: "images", label: "images" },
-                                            { value: "responses", label: "responses" },
-                                        ]}
-                                    />
-                                </div>
-                            </label>
                             <QuickSelect label="尺寸" value={config.size || "auto"} options={quickSizeOptions} onChange={(value) => updateConfig("size", value)} />
                             <QuickSelect label="质量" value={config.quality || "auto"} options={quickQualityOptions} onChange={(value) => updateConfig("quality", value)} />
                             <QuickNumber label="数量" value={config.count || "1"} min={1} max={10} onChange={(value) => updateConfig("count", value)} />
@@ -1249,7 +1234,7 @@ function ReferenceStrip({ references, compact = false, className = "", onRemoveR
                         }}
                     />
                     <button type="button" className="absolute right-1 top-1 hidden z-10 size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => onRemoveReference(item.id)} aria-label="移除参考图">
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="size-3.5" style={{ color: "#ffffff" }} strokeWidth={2.5} />
                     </button>
                 </div>
             ))}
@@ -1577,6 +1562,8 @@ function CategoryCard({
 
 function GenerationSettings({ config, model, updateConfig, openConfigDialog }: { config: AiConfig; model: string; updateConfig: UpdateAiConfig; openConfigDialog: (shouldPromptContinue?: boolean) => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const effectiveConfig = useEffectiveConfig();
+    const imageCapability = effectiveConfig.modelCapabilities?.find((item) => item.model === config.imageModel);
 
     return (
         <div className="space-y-3">
@@ -1586,22 +1573,9 @@ function GenerationSettings({ config, model, updateConfig, openConfigDialog }: {
                 </div>
                 <div className="border-t border-stone-200 p-3 dark:border-stone-800 space-y-2">
                     <ModelPicker config={config} value={model} capability="image" channelId={config.imageChannelId} onChange={(value, channelId) => { updateConfig("imageModel", value); if (channelId) updateConfig("imageChannelId", channelId); }} fullWidth onMissingConfig={() => openConfigDialog(false)} />
-                    <div className="flex items-center justify-between gap-3 pt-1">
-                        <div className="text-xs opacity-75">接口模式</div>
-                        <Segmented
-                            size="small"
-                            className="canvas-config-mode !rounded-md !p-0.5"
-                            value={config.apiMode}
-                            onChange={(value) => updateConfig("apiMode", value as "images" | "responses")}
-                            options={[
-                                { value: "images", label: "images" },
-                                { value: "responses", label: "responses" },
-                            ]}
-                        />
-                    </div>
                 </div>
             </section>
-            <ImageSettingsPanel config={config} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-3" maxCount={10} />
+            <ImageSettingsPanel config={config} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-3" maxCount={10} capabilities={imageCapability} />
         </div>
     );
 }

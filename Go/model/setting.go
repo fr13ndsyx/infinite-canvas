@@ -21,6 +21,7 @@ type ModelChannel struct {
 	Timeout  int      `json:"timeout"`
 	Enabled  bool     `json:"enabled"`
 	Remark   string   `json:"remark"`
+	ApiMode  string   `json:"apiMode"` // 生图接口模式：images（默认）/ responses
 }
 
 // ModelCost 模型算力点配置。
@@ -73,6 +74,7 @@ type PublicModelChannelInfo struct {
 	Timeout int      `json:"timeout"`
 	Enabled bool     `json:"enabled"`
 	Remark  string   `json:"remark"`
+	ApiMode string   `json:"apiMode"` // 生图接口模式：images（默认）/ responses
 }
 
 // PublicSetting 公开配置。

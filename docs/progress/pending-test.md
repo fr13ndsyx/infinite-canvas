@@ -580,11 +580,19 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 - 后端 `PublicModelChannelSetting` 新增 `ModelCapabilities` 字段（`[]ModelCapability`），每项含 `model`/`imageAspects`/`imageTiers`/`videoResolutions`
 - 后端 `normalizeModelCapabilities` 按 `AvailableModels` 过滤冗余项、同模型去重保留首个、字段去空格
-- 空字段语义（由前端处理默认值）：`imageAspects` 空=支持全部标准比例；`imageTiers` 空=仅标准档；`videoResolutions` 空=480p/720p/1080p
-- 管理后台「开放与定价」页新增「模型能力」卡片：仅展示生图或视频模型，每个模型可勾选图片比例（8 选项）、图片档位（标准/2K/4K）、视频清晰度（480p/720p/1080p/2K/4K）
+- 空字段语义：`imageAspects` 空=无比例可选（只剩 auto）；`imageTiers` 空=无档位可选（Segmented 隐藏，只剩 auto）；`videoResolutions` 空=无清晰度按钮（只剩自定义输入兜底）
+- 管理后台「开放与定价」页新增「模型能力」卡片：仅展示生图或视频模型，每个模型可勾选图片比例（8 选项）、图片档位（标准/2K/4K）、视频清晰度（480p/720p/1080p/2K/4K）；新模型默认全选，用户取消勾选并保存后按空值处理
 - 前端 store `resolveEffectiveConfig` 返回当前模型的 `modelCapabilities`，切换模型时若当前 `size` 比例不在新模型能力内回退到 `auto`，若当前 `vquality` 不在新模型能力内回退到第一个支持的档位
-- 生图工作台 `ImageSettingsPanel` 新增 `capabilities` prop：按 `imageTiers` 过滤 Segmented 档位（仅 1 档时隐藏 Segmented），按 `imageAspects` 过滤比例按钮（空=全部）
-- 视频工作台 `VideoSettingsPanel` 新增 `capabilities` prop：按 `videoResolutions` 动态生成清晰度按钮并隐藏自定义输入框（空=默认 480p/720p + 自定义输入）
+- 生图工作台 `ImageSettingsPanel` 新增 `capabilities` prop：按 `imageTiers` 过滤 Segmented 档位（仅 1 档时隐藏 Segmented），按 `imageAspects` 过滤比例按钮（空=无比例，只剩 auto）
+- 视频工作台 `VideoSettingsPanel` 新增 `capabilities` prop：按 `videoResolutions` 动态生成清晰度按钮并隐藏自定义输入框（空=无按钮 + 自定义输入兜底）
+- 修复 `resolveEffectiveVideoQuality` 把 `2k`/`4k` 拼成 `2kp`/`4kp` 匹配的 bug：改为 `[quality, quality+'p']` 双候选匹配，兼容 480p/720p/1080p（带 p）和 2k/4k（不带 p）两种格式
+- 修复 5 处调用方未传 `capabilities` prop 导致前端永远走默认分支（全档位 + 全比例）的问题：
+  - 生图工作台 `/image`：`GenerationSettings` 内部用 `useEffectiveConfig` 取 `modelCapabilities`，按当前 `imageModel` 查找后传入
+  - 视频工作台 `/video`：从 `config.modelCapabilities`（已是 effectiveConfig 派生）按当前 `model` 查找后传入
+  - 画布生图浮层 `canvas-image-settings-popover.tsx`：从 `config.modelCapabilities` 按 `config.imageModel` 查找后传入
+  - 画布视频浮层 `canvas-video-settings-popover.tsx`：从 `config.modelCapabilities` 按 `config.videoModel || config.model` 查找后传入
+  - 创意工作流编辑器 `creative-workflow-workspace.tsx`：从 `modelConfig.modelCapabilities`（=effectiveConfig）按 `workflow.config.imageModel || workflow.config.model` 查找后传入
+- 视频创作台底部设置栏（compact 布局）按模型能力配置动态显示清晰度：从 `config.modelCapabilities` 按当前 `model` 查找 `videoResolutions`，有值按配置生成选项，空数组不显示清晰度选择，未配置走默认三档 480p/720p/1080p
 
 ### 涉及文件
 
@@ -599,6 +607,11 @@ description: 当前版本已实现但仍需人工验证的变更项
 - `next/src/stores/use-config-store.ts`：`AiConfig` 扩展 `modelCapabilities` 字段；新增 `resolveEffectiveImageSize` / `resolveEffectiveVideoQuality` 回退函数
 - `next/src/components/image-settings-panel.tsx`：新增 `capabilities` prop；按能力过滤档位和比例
 - `next/src/components/video-settings-panel.tsx`：新增 `capabilities` prop；按能力动态生成清晰度选项
+- `next/src/app/(user)/image/page.tsx`：`GenerationSettings` 内部 `useEffectiveConfig` 取能力并传入 `ImageSettingsPanel`
+- `next/src/app/(user)/video/page.tsx`：`VideoSettingsPanel` 调用传入 `capabilities`；底部设置栏（compact 布局）按 `config.modelCapabilities` 动态生成清晰度选项，空 `videoResolutions` 时不显示清晰度选择
+- `next/src/app/(user)/canvas/components/canvas-image-settings-popover.tsx`：`ImageSettingsPanel` 调用传入 `capabilities`
+- `next/src/app/(user)/canvas/components/canvas-video-settings-popover.tsx`：`VideoSettingsPanel` 调用传入 `capabilities`
+- `next/src/components/workflows/creative-workflow-workspace.tsx`：`ImageSettingsPanel` 调用传入 `capabilities`
 
 文档：
 - `docs/backend/backend-database.md`：新增 `modelCapabilities` 字段及每项字段说明
@@ -613,13 +626,55 @@ description: 当前版本已实现但仍需人工验证的变更项
 6. 选择刚才配置了能力的生图模型，确认：
    - Segmented 档位切换器只显示已勾选的档位（如标准 / 2K，无 4K）
    - 比例按钮只显示已勾选的比例（如 1:1 / 16:9 / 9:16，无其他）
-7. 选择一个未配置能力的生图模型，确认走默认值：Segmented 显示全部三档，比例显示全部（空=全部）
-8. 选择一个仅支持标准档的生图模型（`imageTiers` 只有 `standard`），确认 Segmented 切换器隐藏（只支持 1 档无意义）
+7. 在管理后台清空某生图模型的比例勾选并保存，回到生图工作台选择该模型，确认比例区只剩 auto（无其他比例按钮）
+8. 在管理后台清空某生图模型的档位勾选并保存，回到生图工作台选择该模型，确认 Segmented 切换器隐藏，只剩 auto
 9. 当前选中 16:9-4k 后切换到不支持 4K 的模型，确认 `size` 自动回退到 16:9（标准档位）或 auto
 10. 进入视频创作台 `/video`，选择刚才配置了能力的视频模型
-11. 确认清晰度按钮只显示已勾选的选项（如 720p / 1080p），自定义清晰度输入框隐藏
-12. 选择未配置能力的视频模型，确认走默认值：显示 480p / 720p + 自定义输入框
+11. 确认清晰度按钮只显示已勾选的选项（如 720p / 1080p / 2K / 4K），自定义清晰度输入框隐藏
+12. 在管理后台清空某视频模型的清晰度勾选并保存，回到视频工作台选择该模型，确认无清晰度按钮，只剩自定义输入框
 13. 当前选中 1080p 后切换到不支持 1080p 的视频模型，确认 `vquality` 自动回退到第一个支持的档位
-14. 在管理后台清空某模型的全部能力勾选并保存，确认前端该模型走默认值策略（生图全比例+仅标准档，视频三档）
+14. 切换视频工作台为底部 compact 布局（若当前为 side 布局），确认底部"清晰度"下拉同样按模型能力配置动态显示：有值显示对应选项，空数组不显示清晰度下拉，未配置走默认三档 480p/720p/1080p
+15. 新增一个生图/视频模型到开放模型列表，刷新管理后台，确认该模型在「模型能力」卡片中默认全选
+
+## 生图接口模式（apiMode）改为后台渠道控制
+
+将生图接口模式（Images API / Responses API）从前端用户级配置改为后台渠道级配置，用户不再需要也无法手动切换。前端根据当前生图模型所属渠道的 `apiMode` 自动解析。
+
+### 可测试变更
+
+- 后端 `ModelChannel` 和 `PublicModelChannelInfo` 新增 `ApiMode` 字段（`images` 默认 / `responses`）
+- 后端 `normalizeModelChannel` 归一化 `ApiMode`：非 `responses` 一律视为 `images`
+- 后端 `publicChannelInfos` 透传 `ApiMode` 到公开配置
+- 前端 `AdminModelChannel` / `AdminPublicModelChannelInfo` 类型新增 `apiMode` 字段
+- 管理后台「模型管理」渠道编辑抽屉新增「生图接口」Select（Images API / Responses API），默认 Images API
+- 前端 store `resolveEffectiveConfig` 根据当前生图模型所属渠道的 `apiMode` 自动解析；本地模式固定 `images`；找不到渠道默认 `images`
+- 删除前端 3 处 `apiMode` 手动切换 UI：
+  - 生图工作台 `/image` 主面板的「接口模式」Segmented
+  - 生图工作台 `/image` 快速配置弹窗的「接口模式」Segmented
+  - 创意工作流编辑器 `creative-workflow-workspace.tsx` 的 apiMode Select
+- 工作流任务沿用 `effectiveConfig.apiMode`（由渠道决定），用户无法再手动覆盖
+
+### 涉及文件
+
+后端：
+- `Go/model/setting.go`：`ModelChannel` 和 `PublicModelChannelInfo` 新增 `ApiMode` 字段
+- `Go/service/settings.go`：`normalizeModelChannel` 归一化 `ApiMode`；`publicChannelInfos` 透传 `ApiMode`
+
+前端：
+- `next/src/services/api/admin.ts`：`AdminModelChannel` 和 `AdminPublicModelChannelInfo` 新增 `apiMode` 字段
+- `next/src/app/(admin)/admin/channels/page.tsx`：`emptyChannel`/`normalizeChannel` 处理 `apiMode`；渠道编辑抽屉新增「生图接口」Select
+- `next/src/stores/use-config-store.ts`：`resolveEffectiveConfig` 解析 `apiMode`
+- `next/src/app/(user)/image/page.tsx`：删除两处 apiMode Segmented
+- `next/src/components/workflows/creative-workflow-workspace.tsx`：删除 apiMode Select
+
+### 验证步骤
+
+1. 进入管理后台「模型管理」，编辑或新建一个渠道，确认表单出现「生图接口」Select，默认 Images API
+2. 将某渠道的「生图接口」改为 Responses API 并保存，刷新确认持久化
+3. 进入生图工作台 `/image`，确认主面板和快速配置弹窗都不再有「接口模式」切换
+4. 选择步骤 2 配置为 Responses API 的渠道下的生图模型，发起一次生图请求，确认请求走 `/responses` 端点（看网络面板或日志 Tag 显示 Responses）
+5. 选择其他仍为 Images API 的渠道下的生图模型，发起生图请求，确认走 `/images/generations` 端点
+6. 进入创意工作流编辑器，确认配置区不再有 apiMode Select；运行工作流时按当前模型所属渠道的 apiMode 发起请求
+7. 切换本地直连模式，确认生图请求固定走 Images API（本地模式不读渠道 apiMode）
 
 

@@ -1586,15 +1586,6 @@ function WorkflowEditorModal({
                             <ToggleRow label="先审核提示词" checked={workflow.seriesConfig.reviewRequired !== false} onChange={(checked) => patchSeriesConfig({ reviewRequired: checked })} />
                         </div>
                     ) : null}
-                    <Select
-                        className="w-full"
-                        value={workflow.config.apiMode}
-                        options={[
-                            { value: "images", label: "Images API" },
-                            { value: "responses", label: "Responses API" },
-                        ]}
-                        onChange={(value) => patchConfig({ apiMode: value })}
-                    />
                     <ImageSettingsPanel
                         config={{ ...defaultConfig, ...workflow.config, model: workflow.config.model || defaultConfig.model, imageModel: workflow.config.imageModel || workflow.config.model || defaultConfig.imageModel }}
                         onConfigChange={(key, value) => patchConfig({ [key]: value } as Partial<WorkflowGenerationConfig>)}
@@ -1603,6 +1594,7 @@ function WorkflowEditorModal({
                         className="space-y-4"
                         maxCount={10}
                         quickCount={6}
+                        capabilities={modelConfig.modelCapabilities?.find((item) => item.model === (workflow.config.imageModel || workflow.config.model || defaultConfig.imageModel))}
                     />
                     <div className="space-y-2 rounded-md bg-stone-100 p-3 text-sm dark:bg-stone-950">
                         <ToggleRow label="流式传输" checked={Boolean(workflow.config.streamImages)} onChange={(checked) => patchConfig({ streamImages: checked ? "1" : "" })} />

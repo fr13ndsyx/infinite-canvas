@@ -501,6 +501,9 @@ func normalizeModelChannel(channel model.ModelChannel) model.ModelChannel {
 	if channel.Timeout <= 0 {
 		channel.Timeout = 600
 	}
+	if channel.ApiMode != "responses" {
+		channel.ApiMode = "images"
+	}
 	return channel
 }
 
@@ -910,6 +913,7 @@ func publicChannelInfos(channels []model.ModelChannel) []model.PublicModelChanne
 			Timeout: channel.Timeout,
 			Enabled: channel.Enabled,
 			Remark:  channel.Remark,
+			ApiMode: channel.ApiMode,
 		})
 	}
 	return result

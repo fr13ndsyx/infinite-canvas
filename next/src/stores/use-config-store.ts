@@ -168,6 +168,7 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
             models: normalizeModelList(localChannels.flatMap((channel) => channel.models)),
             publicChannels: modelChannel?.channels || [],
             modelCapabilities: [],
+            apiMode: "images",
         };
     }
     const models = modelChannel.availableModels;
@@ -184,6 +185,10 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
     const capabilities = modelChannel.modelCapabilities || [];
     const imageCap = capabilities.find((item) => item.model === effectiveImageModel);
     const videoCap = capabilities.find((item) => item.model === effectiveVideoModel);
+    // 生图接口模式按当前生图模型所属渠道的 apiMode 解析；找不到渠道默认 images。
+    const publicChannels = modelChannel.channels || [];
+    const imageChannel = publicChannels.find((channel) => channel.models?.includes(effectiveImageModel));
+    const effectiveApiMode = imageChannel?.apiMode === "responses" ? "responses" : "images";
     return {
         ...config,
         channelMode,
@@ -198,28 +203,32 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
         textModel: textModels.includes(config.textModel) ? config.textModel : fallbackTextModel,
         audioModel: audioModels.includes(config.audioModel) ? config.audioModel : fallbackAudioModel,
         systemPrompt: modelChannel.systemPrompt,
-        publicChannels: modelChannel.channels || [],
+        publicChannels,
         modelCapabilities: capabilities,
+        apiMode: effectiveApiMode,
         size: resolveEffectiveImageSize(config.size, imageCap),
         vquality: resolveEffectiveVideoQuality(config.vquality, videoCap),
     };
 }
 
 // 切换模型时若当前 size 的比例不在新模型能力内，回退到 auto。
-// 空 imageAspects 视为支持全部，保持原值。
+// !cap（未传能力）保持原值；cap 有值但 imageAspects 空 = 无比例可选，回退 auto。
 function resolveEffectiveImageSize(size: string, cap: AdminModelCapability | undefined): string {
-    if (!cap || !cap.imageAspects || cap.imageAspects.length === 0) return size;
+    if (!cap) return size;
     if (size === "auto" || /^\d+x\d+$/.test(size)) return size;
+    if (!cap.imageAspects || cap.imageAspects.length === 0) return "auto";
     const aspect = size.replace(/-(2k|4k)$/, "");
     return cap.imageAspects.includes(aspect) ? size : "auto";
 }
 
 // 切换模型时若当前 vquality 不在新模型能力内，回退到第一个支持的档位。
-// 空 videoResolutions 视为默认三档（480p/720p/1080p），保持原值。
+// !cap（未传能力）保持原值；cap 有值但 videoResolutions 空 = 无档位可选，保持原值（自定义输入兜底）。
+// 兼容 "720"/"720p" 和 "2k"/"2kp" 两种格式：videoResolutions 里 480p/720p/1080p 带 p，2k/4k 不带 p。
 function resolveEffectiveVideoQuality(quality: string, cap: AdminModelCapability | undefined): string {
-    if (!cap || !cap.videoResolutions || cap.videoResolutions.length === 0) return quality;
-    const normalized = `${quality}p`;
-    if (cap.videoResolutions.includes(normalized)) return quality;
+    if (!cap) return quality;
+    if (!cap.videoResolutions || cap.videoResolutions.length === 0) return quality;
+    const candidates = [quality, `${quality}p`];
+    if (candidates.some((c) => cap.videoResolutions.includes(c))) return quality;
     return (cap.videoResolutions[0] || "720p").replace(/p$/, "");
 }
 

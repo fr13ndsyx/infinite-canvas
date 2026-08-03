@@ -78,13 +78,13 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
     const dimensions = readSizeDimensions(activeSize, selectedAspect || aspectOptions[0]);
 
     // 模型能力过滤：capabilities 未传（undefined）时保持原行为（全部 3 档 + 所有比例）；
-    // 传入后按方案默认值策略：空 imageAspects=支持全部比例；空 imageTiers=仅标准档。
+    // 传入后：空 imageTiers = 无档位可选（Segmented 隐藏，只剩 auto）；空 imageAspects = 无比例可选（只剩 auto）。
     const effectiveTiers: ("standard" | "2k" | "4k")[] = !capabilities
         ? ["standard", "2k", "4k"]
-        : capabilities.imageTiers && capabilities.imageTiers.length > 0 ? capabilities.imageTiers : ["standard"];
+        : capabilities.imageTiers || [];
     const effectiveAspects: string[] | null = !capabilities
         ? null
-        : capabilities.imageAspects && capabilities.imageAspects.length > 0 ? capabilities.imageAspects : null;
+        : capabilities.imageAspects || [];
     const tierOptions = resolutionTierOptions.filter((item) => effectiveTiers.includes(item.value as "standard" | "2k" | "4k"));
     const effectiveResolutionTier = effectiveTiers.includes(resolutionTier) ? resolutionTier : effectiveTiers[0];
     useEffect(() => {

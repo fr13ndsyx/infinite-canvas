@@ -136,7 +136,7 @@ function ImageSettingsPortal({
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-4" showSize={showSize} showCount={showCount} />
+            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-4" showSize={showSize} showCount={showCount} capabilities={config.modelCapabilities?.find((item) => item.model === config.imageModel)} />
         </div>,
         document.body,
     );
