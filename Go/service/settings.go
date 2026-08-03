@@ -152,6 +152,9 @@ func normalizePublicSettingWithChannels(setting model.PublicSetting, channels []
 	if setting.ModelChannel.Channels == nil {
 		setting.ModelChannel.Channels = []model.PublicModelChannelInfo{}
 	}
+	if setting.ModelChannel.ModelCapabilities == nil {
+		setting.ModelChannel.ModelCapabilities = []model.ModelCapability{}
+	}
 	if strings.TrimSpace(setting.ModelChannel.SystemPrompts.Image) == "" {
 		setting.ModelChannel.SystemPrompts.Image = firstNonEmpty(setting.ModelChannel.SystemPrompt, DefaultSystemPrompts().Image)
 	}
@@ -193,6 +196,7 @@ func normalizePublicSettingWithChannels(setting model.PublicSetting, channels []
 	if len(setting.ModelChannel.AvailableModels) == 0 {
 		setting.ModelChannel.AvailableModels = enabledChannelModels(channels)
 	}
+	setting.ModelChannel.ModelCapabilities = normalizeModelCapabilities(setting.ModelChannel.ModelCapabilities, setting.ModelChannel.AvailableModels)
 	setting.ModelChannel.DefaultTextModel = repairDefaultModel(setting.ModelChannel.DefaultTextModel, setting.ModelChannel.AvailableModels, isTextModelName)
 	setting.ModelChannel.DefaultImageModel = repairDefaultModel(setting.ModelChannel.DefaultImageModel, setting.ModelChannel.AvailableModels, isImageModelName)
 	setting.ModelChannel.DefaultVideoModel = repairDefaultModel(setting.ModelChannel.DefaultVideoModel, setting.ModelChannel.AvailableModels, isVideoModelName)
@@ -412,6 +416,30 @@ func uniqueModelNames(models []string) []string {
 		}
 		seen[name] = true
 		result = append(result, name)
+	}
+	return result
+}
+
+// normalizeModelCapabilities 规整模型能力配置：按 AvailableModels 过滤冗余项，同模型去重保留首个。
+// 空字段语义（ImageAspects 空=支持全部标准比例等）由前端按默认值策略处理，这里不强制填充。
+func normalizeModelCapabilities(items []model.ModelCapability, availableModels []string) []model.ModelCapability {
+	allowed := map[string]bool{}
+	for _, modelName := range availableModels {
+		allowed[modelName] = true
+	}
+	result := []model.ModelCapability{}
+	seen := map[string]bool{}
+	for _, item := range items {
+		modelName := strings.TrimSpace(item.Model)
+		if modelName == "" || !allowed[modelName] || seen[modelName] {
+			continue
+		}
+		seen[modelName] = true
+		item.Model = modelName
+		item.ImageAspects = uniqueModelNames(item.ImageAspects)
+		item.ImageTiers = uniqueModelNames(item.ImageTiers)
+		item.VideoResolutions = uniqueModelNames(item.VideoResolutions)
+		result = append(result, item)
 	}
 	return result
 }

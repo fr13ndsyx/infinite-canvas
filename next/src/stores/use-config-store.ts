@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { apiGet } from "@/services/api/request";
-import type { AdminPublicSettings } from "@/services/api/admin";
+import type { AdminModelCapability, AdminPublicSettings } from "@/services/api/admin";
 import { useUserStore } from "@/stores/use-user-store";
 
 export type LocalModelChannel = {
@@ -70,6 +70,7 @@ export type AiConfig = {
     };
     localChannels: LocalModelChannel[];
     publicChannels: Array<{ id?: string; name?: string; baseUrl?: string; models?: string[]; weight?: number; timeout?: number; enabled?: boolean; remark?: string }>;
+    modelCapabilities: AdminModelCapability[];
     syncModelConfig: boolean;
     syncStorageConfig: boolean;
     activeChannelId: string;
@@ -132,6 +133,7 @@ export const defaultConfig: AiConfig = {
     },
     localChannels: [],
     publicChannels: [],
+    modelCapabilities: [],
     syncModelConfig: false,
     syncStorageConfig: false,
     activeChannelId: "",
@@ -165,6 +167,7 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
             localChannels,
             models: normalizeModelList(localChannels.flatMap((channel) => channel.models)),
             publicChannels: modelChannel?.channels || [],
+            modelCapabilities: [],
         };
     }
     const models = modelChannel.availableModels;
@@ -177,6 +180,11 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
     const fallbackImageModel = validDefault(modelChannel.defaultImageModel, imageModels) || preferredModel(imageModels, isImageModelName);
     const fallbackVideoModel = validDefault(modelChannel.defaultVideoModel, videoModels) || preferredModel(videoModels, isVideoModelName);
     const fallbackAudioModel = preferredModel(audioModels, isAudioModelName);
+    const effectiveImageModel = imageModels.includes(config.imageModel) ? config.imageModel : fallbackImageModel;
+    const effectiveVideoModel = videoModels.includes(config.videoModel) ? config.videoModel : fallbackVideoModel;
+    const capabilities = modelChannel.modelCapabilities || [];
+    const imageCap = capabilities.find((item) => item.model === effectiveImageModel);
+    const videoCap = capabilities.find((item) => item.model === effectiveVideoModel);
     return {
         ...config,
         channelMode,
@@ -186,13 +194,34 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
         textModels,
         audioModels,
         model: textModels.includes(config.model) ? config.model : fallbackModel,
-        imageModel: imageModels.includes(config.imageModel) ? config.imageModel : fallbackImageModel,
-        videoModel: videoModels.includes(config.videoModel) ? config.videoModel : fallbackVideoModel,
+        imageModel: effectiveImageModel,
+        videoModel: effectiveVideoModel,
         textModel: textModels.includes(config.textModel) ? config.textModel : fallbackTextModel || fallbackModel,
         audioModel: audioModels.includes(config.audioModel) ? config.audioModel : fallbackAudioModel,
         systemPrompt: modelChannel.systemPrompt,
         publicChannels: modelChannel.channels || [],
+        modelCapabilities: capabilities,
+        size: resolveEffectiveImageSize(config.size, imageCap),
+        vquality: resolveEffectiveVideoQuality(config.vquality, videoCap),
     };
+}
+
+// 切换模型时若当前 size 的比例不在新模型能力内，回退到 auto。
+// 空 imageAspects 视为支持全部，保持原值。
+function resolveEffectiveImageSize(size: string, cap: AdminModelCapability | undefined): string {
+    if (!cap || !cap.imageAspects || cap.imageAspects.length === 0) return size;
+    if (size === "auto" || /^\d+x\d+$/.test(size)) return size;
+    const aspect = size.replace(/-(2k|4k)$/, "");
+    return cap.imageAspects.includes(aspect) ? size : "auto";
+}
+
+// 切换模型时若当前 vquality 不在新模型能力内，回退到第一个支持的档位。
+// 空 videoResolutions 视为默认三档（480p/720p/1080p），保持原值。
+function resolveEffectiveVideoQuality(quality: string, cap: AdminModelCapability | undefined): string {
+    if (!cap || !cap.videoResolutions || cap.videoResolutions.length === 0) return quality;
+    const normalized = `${quality}p`;
+    if (cap.videoResolutions.includes(normalized)) return quality;
+    return (cap.videoResolutions[0] || "720p").replace(/p$/, "");
 }
 
 function validDefault(model: string, models: string[]) {
@@ -390,6 +419,7 @@ export const useConfigStore = create<ConfigStore>()(
                         videoModels: filterModelsByCapability(localModels, "video"),
                         textModels: filterModelsByCapability(localModels, "text"),
                         audioModels: filterModelsByCapability(localModels, "audio"),
+                        modelCapabilities: Array.isArray(config.modelCapabilities) ? config.modelCapabilities : [],
                     },
                 };
             },

@@ -454,4 +454,54 @@ description: 当前版本已实现但仍需人工验证的变更项
 11. 点击「AI 调用日志」菜单，确认页面顶部新增「日志设置」卡片（本地直连上报开关 + 自动清理开关 + 保留天数 + Cron），修改后保存刷新确认持久化
 12. 旧链接兼容：浏览器直接访问 `/admin/settings`，确认自动重定向到 `/admin/model-pricing`
 
+## 生图/视频模型能力配置
+
+管理后台支持按模型勾选支持的图片比例、图片档位和视频清晰度，前端生图/视频工作台根据当前所选模型的能力动态渲染选项按钮，切换模型时若当前选项不在新模型支持范围内则自动回退。详细方案见 [model-capabilities-refactor.md](./model-capabilities-refactor.md)。
+
+### 可测试变更
+
+- 后端 `PublicModelChannelSetting` 新增 `ModelCapabilities` 字段（`[]ModelCapability`），每项含 `model`/`imageAspects`/`imageTiers`/`videoResolutions`
+- 后端 `normalizeModelCapabilities` 按 `AvailableModels` 过滤冗余项、同模型去重保留首个、字段去空格
+- 空字段语义（由前端处理默认值）：`imageAspects` 空=支持全部标准比例；`imageTiers` 空=仅标准档；`videoResolutions` 空=480p/720p/1080p
+- 管理后台「开放与定价」页新增「模型能力」卡片：仅展示生图或视频模型，每个模型可勾选图片比例（8 选项）、图片档位（标准/2K/4K）、视频清晰度（480p/720p/1080p/2K/4K）
+- 前端 store `resolveEffectiveConfig` 返回当前模型的 `modelCapabilities`，切换模型时若当前 `size` 比例不在新模型能力内回退到 `auto`，若当前 `vquality` 不在新模型能力内回退到第一个支持的档位
+- 生图工作台 `ImageSettingsPanel` 新增 `capabilities` prop：按 `imageTiers` 过滤 Segmented 档位（仅 1 档时隐藏 Segmented），按 `imageAspects` 过滤比例按钮（空=全部）
+- 视频工作台 `VideoSettingsPanel` 新增 `capabilities` prop：按 `videoResolutions` 动态生成清晰度按钮并隐藏自定义输入框（空=默认 480p/720p + 自定义输入）
+
+### 涉及文件
+
+后端：
+- `Go/model/setting.go`：新增 `ModelCapability` 结构体；`PublicModelChannelSetting` 添加 `ModelCapabilities` 字段
+- `Go/service/settings.go`：新增 `normalizeModelCapabilities` 函数；`normalizePublicSettingWithChannels` 中调用
+
+前端：
+- `next/src/services/api/admin.ts`：新增 `AdminModelCapability` 类型；`AdminPublicModelChannelSettings` 添加 `modelCapabilities` 字段
+- `next/src/app/(admin)/admin/settings-shared.ts`：新增 `normalizeModelCapabilities` 归一化函数
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：新增「模型能力」编辑卡片（Checkbox.Group 勾选配置）
+- `next/src/stores/use-config-store.ts`：`AiConfig` 扩展 `modelCapabilities` 字段；新增 `resolveEffectiveImageSize` / `resolveEffectiveVideoQuality` 回退函数
+- `next/src/components/image-settings-panel.tsx`：新增 `capabilities` prop；按能力过滤档位和比例
+- `next/src/components/video-settings-panel.tsx`：新增 `capabilities` prop；按能力动态生成清晰度选项
+
+文档：
+- `docs/backend/backend-database.md`：新增 `modelCapabilities` 字段及每项字段说明
+
+### 验证步骤
+
+1. 启动后端和前端，登录管理后台访问 `/admin/model-pricing`
+2. 确认页面底部显示「模型能力」卡片，仅列出生图或视频模型（非文本/音频模型）
+3. 为某个生图模型勾选部分图片比例（如仅 1:1 / 16:9 / 9:16）和图片档位（如标准 / 2K），保存后刷新确认持久化
+4. 为某个视频模型勾选部分视频清晰度（如仅 720p / 1080p），保存后刷新确认持久化
+5. 退出登录或用普通账号，进入生图工作台 `/image`
+6. 选择刚才配置了能力的生图模型，确认：
+   - Segmented 档位切换器只显示已勾选的档位（如标准 / 2K，无 4K）
+   - 比例按钮只显示已勾选的比例（如 1:1 / 16:9 / 9:16，无其他）
+7. 选择一个未配置能力的生图模型，确认走默认值：Segmented 显示全部三档，比例显示全部（空=全部）
+8. 选择一个仅支持标准档的生图模型（`imageTiers` 只有 `standard`），确认 Segmented 切换器隐藏（只支持 1 档无意义）
+9. 当前选中 16:9-4k 后切换到不支持 4K 的模型，确认 `size` 自动回退到 16:9（标准档位）或 auto
+10. 进入视频创作台 `/video`，选择刚才配置了能力的视频模型
+11. 确认清晰度按钮只显示已勾选的选项（如 720p / 1080p），自定义清晰度输入框隐藏
+12. 选择未配置能力的视频模型，确认走默认值：显示 480p / 720p + 自定义输入框
+13. 当前选中 1080p 后切换到不支持 1080p 的视频模型，确认 `vquality` 自动回退到第一个支持的档位
+14. 在管理后台清空某模型的全部能力勾选并保存，确认前端该模型走默认值策略（生图全比例+仅标准档，视频三档）
+
 

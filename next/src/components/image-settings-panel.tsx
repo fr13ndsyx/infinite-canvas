@@ -1,9 +1,10 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { useEffect, type ReactNode, useState } from "react";
 import { ConfigProvider, Segmented, Switch } from "antd";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
+import type { AdminModelCapability } from "@/services/api/admin";
 import type { AiConfig } from "@/stores/use-config-store";
 
 const qualityOptions = [
@@ -58,6 +59,7 @@ type ImageSettingsPanelProps = {
     config: AiConfig;
     onConfigChange: (key: "quality" | "size" | "count", value: string) => void;
     theme: CanvasTheme;
+    capabilities?: AdminModelCapability;
     showTitle?: boolean;
     showSize?: boolean;
     showCount?: boolean;
@@ -66,7 +68,7 @@ type ImageSettingsPanelProps = {
     quickCount?: number;
 };
 
-export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, showSize = true, showCount = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 10 }: ImageSettingsPanelProps) {
+export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities, showTitle = true, showSize = true, showCount = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 10 }: ImageSettingsPanelProps) {
     const [snapDimensionToStep, setSnapDimensionToStep] = useState(true);
     const [resolutionTier, setResolutionTier] = useState<"standard" | "2k" | "4k">(() => tierOfAspect(config.size || "auto"));
     const quality = config.quality || "auto";
@@ -74,7 +76,26 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const activeSize = config.size || "auto";
     const selectedAspect = aspectOptions.find((item) => (item.size || item.value) === activeSize || item.value === activeSize);
     const dimensions = readSizeDimensions(activeSize, selectedAspect || aspectOptions[0]);
-    const visibleAspects = aspectOptions.filter((item) => item.tier === resolutionTier || item.value === "auto");
+
+    // 模型能力过滤：capabilities 未传（undefined）时保持原行为（全部 3 档 + 所有比例）；
+    // 传入后按方案默认值策略：空 imageAspects=支持全部比例；空 imageTiers=仅标准档。
+    const effectiveTiers: ("standard" | "2k" | "4k")[] = !capabilities
+        ? ["standard", "2k", "4k"]
+        : capabilities.imageTiers && capabilities.imageTiers.length > 0 ? capabilities.imageTiers : ["standard"];
+    const effectiveAspects: string[] | null = !capabilities
+        ? null
+        : capabilities.imageAspects && capabilities.imageAspects.length > 0 ? capabilities.imageAspects : null;
+    const tierOptions = resolutionTierOptions.filter((item) => effectiveTiers.includes(item.value as "standard" | "2k" | "4k"));
+    const effectiveResolutionTier = effectiveTiers.includes(resolutionTier) ? resolutionTier : effectiveTiers[0];
+    useEffect(() => {
+        if (resolutionTier !== effectiveResolutionTier) setResolutionTier(effectiveResolutionTier);
+    }, [effectiveResolutionTier, resolutionTier]);
+    const visibleAspects = aspectOptions.filter((item) => {
+        if (item.value === "auto") return true;
+        if (item.tier !== effectiveResolutionTier) return false;
+        if (!effectiveAspects) return true;
+        return effectiveAspects.includes(item.value.replace(/-(2k|4k)$/, ""));
+    });
     const selectAspect = (value: string) => {
         const option = aspectOptions.find((item) => item.value === value);
         onConfigChange("size", option?.size || option?.value || "auto");
@@ -135,14 +156,16 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         <div className="space-y-2.5">
                             <div className="flex items-center justify-between gap-3">
                                 <SettingTitle color={theme.node.muted}>比例</SettingTitle>
-                                <span onMouseDown={(event) => event.stopPropagation()}>
-                                    <Segmented
-                                        size="small"
-                                        value={resolutionTier}
-                                        onChange={(value) => changeResolutionTier(value as "standard" | "2k" | "4k")}
-                                        options={resolutionTierOptions}
-                                    />
-                                </span>
+                                {tierOptions.length >= 2 ? (
+                                    <span onMouseDown={(event) => event.stopPropagation()}>
+                                        <Segmented
+                                            size="small"
+                                            value={effectiveResolutionTier}
+                                            onChange={(value) => changeResolutionTier(value as "standard" | "2k" | "4k")}
+                                            options={tierOptions}
+                                        />
+                                    </span>
+                                ) : null}
                             </div>
                             <div className="grid grid-cols-4 gap-2.5">
                                 {visibleAspects.map((item) => (

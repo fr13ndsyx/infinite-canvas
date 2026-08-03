@@ -7,6 +7,7 @@ import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { boolConfig, isSeedanceFastOrMiniModel, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceDurationOptions, seedancePixelLabel, seedanceRatioOptions, seedanceResolutionOptions } from "@/lib/seedance-video";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import { modelKey, supportsVideoAudioGeneration } from "@/lib/video-model-capabilities";
+import type { AdminModelCapability } from "@/services/api/admin";
 import { channelIdForActiveModel, localChannelForActiveModel, type AiConfig } from "@/stores/use-config-store";
 
 const resolutionOptions = [
@@ -47,13 +48,14 @@ type VideoSettingsPanelProps = {
     modelName?: string;
     onConfigChange: (key: "vquality" | "size" | "videoSeconds" | "videoMode" | "videoNegativePrompt" | "videoGenerateAudio" | "videoWatermark", value: string) => void;
     theme: CanvasTheme;
+    capabilities?: AdminModelCapability;
     showTitle?: boolean;
     className?: string;
     hideNegativePrompt?: boolean;
     visualOnly?: boolean;
 };
 
-export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", hideNegativePrompt = false, visualOnly = false }: VideoSettingsPanelProps) {
+export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, capabilities, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", hideNegativePrompt = false, visualOnly = false }: VideoSettingsPanelProps) {
     if (isAPIMartKlingV26Config(config, modelName || config.model || config.videoModel) || isAPIMartKlingV3Config(config, modelName || config.model || config.videoModel) || isKIEKlingV3Config(config, modelName || config.model || config.videoModel)) {
         return <KlingV26VideoSettingsPanel config={config} modelName={modelName} onConfigChange={onConfigChange} theme={theme} showTitle={showTitle} className={className} hideNegativePrompt={hideNegativePrompt} visualOnly={visualOnly} />;
     }
@@ -67,6 +69,11 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, s
     const size = normalizeVideoSizeValue(config.size);
     const dimensions = readSizeDimensions(size);
     const resolution = normalizeVideoResolutionValue(config.vquality);
+    // 模型能力过滤：空 videoResolutions=默认三档 480p/720p/1080p；不空=按配置生成清晰度按钮，隐藏自定义输入
+    const effectiveVideoResolutions = capabilities?.videoResolutions && capabilities.videoResolutions.length > 0 ? capabilities.videoResolutions : null;
+    const resolutionOptionsForRender = effectiveVideoResolutions
+        ? effectiveVideoResolutions.map((r) => ({ value: r.replace(/p$/, ""), label: r }))
+        : resolutionOptions;
     const audioGenerationEnabled = supportsVideoAudioGeneration(model);
     const generateAudio = boolConfig(config.videoGenerateAudio, false);
     const updateDimension = (key: "width" | "height", value: number | null) => {
@@ -91,12 +98,12 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, s
                 ) : null}
                 <SettingGroup title="清晰度" color={theme.node.muted}>
                     <div className="grid grid-cols-3 gap-2.5">
-                        {resolutionOptions.map((item) => (
+                        {resolutionOptionsForRender.map((item) => (
                             <OptionPill key={item.value} selected={resolution === item.value} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
                                 {item.label}
                             </OptionPill>
                         ))}
-                        <ResolutionInput value={resolution} theme={theme} onChange={(value) => onConfigChange("vquality", value)} />
+                        {effectiveVideoResolutions ? null : <ResolutionInput value={resolution} theme={theme} onChange={(value) => onConfigChange("vquality", value)} />}
                     </div>
                 </SettingGroup>
                 <SettingGroup title="尺寸" color={theme.node.muted}>
