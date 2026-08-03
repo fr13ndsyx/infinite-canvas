@@ -22,3 +22,35 @@
 
 ## 2026-08-03 教训
 - 工作区曾被整体回退（git checkout + 删未跟踪文件）导致未提交修复全部丢失；以后有修复应尽快提交或备份
+
+## 2026-08-03 合并 feat/model-capabilities → main（commit e9cbfbb）
+
+### 完成的工作
+- 后端：`Go/model/setting.go` 新增 `ModelCapability` 结构（`Model` / `ImageAspects` / `ImageTiers` / `VideoResolutions`）；`PublicModelChannelSetting` 添加 `ModelCapabilities` 字段
+- 后端：`Go/service/settings.go` 新增 `normalizeModelCapabilities`（按 `AvailableModels` 过滤、同模型去重、字段去空格），在 `normalizePublicSettingWithChannels` 中调用
+- 前端管理后台：`next/src/app/(admin)/admin/model-pricing/page.tsx` 新增「模型能力」编辑卡片，仅展示生图或视频模型，每模型可勾选图片比例（8 选项）、图片档位（标准/2K/4K）、视频清晰度（480p/720p/1080p/2K/4K）
+- 前端 store：`next/src/stores/use-config-store.ts` 扩展 `AiConfig.modelCapabilities`；新增 `resolveEffectiveImageSize` / `resolveEffectiveVideoQuality`，切换模型时若当前 `size`/`vquality` 不在新模型能力内自动回退
+- 前端工作台：`image-settings-panel.tsx` / `video-settings-panel.tsx` 新增 `capabilities` prop，按能力动态过滤档位、比例和清晰度按钮
+- 类型与归一化：`next/src/services/api/admin.ts` 新增 `AdminModelCapability` 类型；`next/src/app/(admin)/admin/settings-shared.ts` 新增 `normalizeModelCapabilities`
+
+### 空字段默认值策略（前端处理）
+- `imageAspects` 空=支持全部标准比例
+- `imageTiers` 空=仅标准档
+- `videoResolutions` 空=480p/720p/1080p 三档
+
+### 涉及文档
+- `docs/backend/backend-database.md`：`modelChannel.modelCapabilities` 字段及每项字段说明
+- `docs/progress/pending-test.md`：新增「生图/视频模型能力配置」章节，14 项验证步骤
+- `docs/progress/todo.md`：状态改为「已实施，待测试」
+
+### 修复记录
+- `a918d5c` 修正 `model-pricing/page.tsx` 中 `modelMatchesCapability` 导入路径（实际在 `use-config-store.ts` 而非 `use-user-store.ts`，导致页面运行时报错 `is not a function`）
+
+### 待验证（pending-test.md）
+- 管理后台「模型能力」卡片勾选并保存持久化
+- 生图/视频工作台按模型能力动态渲染选项
+- 切换模型时 `size`/`vquality` 自动回退
+- 未配置能力的模型走默认值策略
+
+### 待办（todo.md）
+- 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造暂未实施，后续按需补
