@@ -22,9 +22,10 @@ description: settings 表中 public 和 private 配置结构说明
       { "model": "gpt-5.5", "credits": 1 },
       { "model": "gpt-image-2", "credits": 10 }
     ],
-    "defaultModel": "gpt-image-2",
-    "defaultImageModel": "gpt-image-2",
+   "defaultImageModel": "gpt-image-2",
+    "defaultVideoModel": "",
     "defaultTextModel": "gpt-5.5",
+    "defaultAudioModel": "gpt-4o-mini-tts",
     "systemPrompt": "",
     "allowCustomChannel": true
   },
@@ -48,10 +49,10 @@ description: settings 表中 public 和 private 配置结构说明
 | --- | --- | --- |
 | `availableModels` | string[] | 系统可用模型；保存设置时会自动合并所有已启用私有渠道的模型 |
 | `modelCosts` | object[] | 模型算力点配置，后端模型接口调用前按模型预扣，上游失败时返还；未配置默认不扣除 |
-| `defaultModel` | string | 默认模型，从 `availableModels` 中选择；为空或失效时优先选择文本模型 |
 | `defaultImageModel` | string | 默认图片模型，从 `availableModels` 中选择；为空或失效时优先选择 `seedream`、`image`、`gpt-image` 模型 |
 | `defaultVideoModel` | string | 默认视频模型，从 `availableModels` 中选择；为空或失效时优先选择 `seedance`、`video` 模型 |
-| `defaultTextModel` | string | 默认文本模型，从 `availableModels` 中选择；为空或失效时优先选择非图片/视频模型 |
+| `defaultTextModel` | string | 默认文本模型，从 `availableModels` 中选择；为空或失效时优先选择非图片/视频/音频模型；同时作为通用默认模型的兜底 |
+| `defaultAudioModel` | string | 默认音频模型，从 `availableModels` 中选择；为空或失效时优先选择 `tts`、`audio`、`speech` 等模型 |
 | `systemPrompt` | string | 系统提示词 |
 | `allowCustomChannel` | boolean | 是否允许用户在配置弹窗中切换为本地直连渠道，默认允许 |
 

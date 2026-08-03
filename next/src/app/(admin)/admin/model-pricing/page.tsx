@@ -1,7 +1,7 @@
 "use client";
 
 import { ReloadOutlined, SaveOutlined } from "@ant-design/icons";
-import { App, Button, Card, Checkbox, Col, Flex, Form, InputNumber, Row, Select, Space, Switch, Typography } from "antd";
+import { App, Button, Card, Checkbox, Col, Flex, Form, InputNumber, Row, Select, Space, Switch, Table, Typography } from "antd";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -78,7 +78,28 @@ export default function AdminModelPricingPage() {
     }, [channels]);
 
     const availableSet = useMemo(() => new Set(availableModels), [availableModels]);
-    const publicModelOptions = useMemo(() => availableModels.map((item) => ({ label: item, value: item })), [availableModels]);
+    // 默认模型 Select options 按能力过滤，只显示对应类型的模型
+    const textModelOptions = useMemo(() => availableModels.filter((m) => modelMatchesCapability(m, "text")).map((item) => ({ label: item, value: item })), [availableModels]);
+    const imageModelOptions = useMemo(() => availableModels.filter((m) => modelMatchesCapability(m, "image")).map((item) => ({ label: item, value: item })), [availableModels]);
+    const videoModelOptions = useMemo(() => availableModels.filter((m) => modelMatchesCapability(m, "video")).map((item) => ({ label: item, value: item })), [availableModels]);
+    const audioModelOptions = useMemo(() => availableModels.filter((m) => modelMatchesCapability(m, "audio")).map((item) => ({ label: item, value: item })), [availableModels]);
+
+    // 定价表数据：按渠道分组扁平化，渠道列用 rowSpan 合并首行，其余行 rowSpan=0
+    const pricingTableData = useMemo(() => {
+        const rows: Array<{ key: string; channel: string; model: string; channelRowSpan: number; groupModels: string[] }> = [];
+        channelGroups.forEach((group) => {
+            group.models.forEach((model, index) => {
+                rows.push({
+                    key: `${group.name}-${model}`,
+                    channel: group.name,
+                    model,
+                    channelRowSpan: index === 0 ? group.models.length : 0,
+                    groupModels: group.models,
+                });
+            });
+        });
+        return rows;
+    }, [channelGroups]);
 
     const loadSettings = async () => {
         if (!token) return;
@@ -163,59 +184,77 @@ export default function AdminModelPricingPage() {
                                 请先在<Link href="/admin/channels">模型管理</Link>添加并启用渠道
                             </Typography.Text>
                         ) : (
-                            <Flex vertical gap={16}>
+                            <Flex vertical gap={12}>
                                 {/* 隐藏字段，保持 Form 对 availableModels 的绑定 */}
                                 <Form.Item name={["public", "modelChannel", "availableModels"]} hidden>
                                     <InputNumber />
                                 </Form.Item>
-                                {channelGroups.map((group) => {
-                                    const groupCheckedCount = group.models.filter((m) => availableSet.has(m)).length;
-                                    const groupAllChecked = groupCheckedCount === group.models.length;
-                                    const groupIndeterminate = groupCheckedCount > 0 && !groupAllChecked;
-                                    return (
-                                        <div key={group.name} style={{ border: "1px solid var(--ant-color-border)", borderRadius: 8, overflow: "hidden" }}>
-                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "var(--ant-color-fill-quaternary)", borderBottom: "1px solid var(--ant-color-border)" }}>
-                                                <Space>
-                                                    <Checkbox
-                                                        checked={groupAllChecked}
-                                                        indeterminate={groupIndeterminate}
-                                                        onChange={(e) => toggleGroupAvailable(group.models, e.target.checked)}
-                                                    >
-                                                        <Typography.Text strong>{group.name}</Typography.Text>
-                                                    </Checkbox>
-                                                    <Typography.Text type="secondary">{groupCheckedCount}/{group.models.length} 已开放</Typography.Text>
-                                                </Space>
-                                            </div>
-                                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 0 }}>
-                                                {group.models.map((model) => {
-                                                    const checked = availableSet.has(model);
-                                                    const credits = modelCostCredits(modelCosts, model);
-                                                    return (
-                                                        <div key={model} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: "1px solid var(--ant-color-border-secondary)", borderRight: "1px solid var(--ant-color-border-secondary)" }}>
-                                                            <Checkbox checked={checked} onChange={(e) => toggleModelAvailable(model, e.target.checked)}>
-                                                                <Typography.Text style={{ wordBreak: "break-all" }}>{model}</Typography.Text>
-                                                            </Checkbox>
-                                                            <Space.Compact style={{ marginLeft: "auto", width: 140 }}>
-                                                                <InputNumber
-                                                                    min={0}
-                                                                    step={1}
-                                                                    precision={0}
-                                                                    style={{ width: "100%" }}
-                                                                    value={credits}
-                                                                    disabled={!checked}
-                                                                    onChange={(value) => setModelCost(form, setModelCosts, model, Number(value) || 0)}
-                                                                />
-                                                                <span style={{ display: "flex", alignItems: "center", padding: "0 8px", border: "1px solid var(--ant-color-border)", borderLeft: 0, borderRadius: "0 6px 6px 0", background: "var(--ant-color-fill-quaternary)" }}>
-                                                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>点</Typography.Text>
-                                                                </span>
-                                                            </Space.Compact>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                <Table
+                                    rowKey="key"
+                                    dataSource={pricingTableData}
+                                    pagination={false}
+                                    size="small"
+                                    columns={[
+                                        {
+                                            title: "渠道",
+                                            dataIndex: "channel",
+                                            width: 180,
+                                            onCell: (row) => ({ rowSpan: row.channelRowSpan }),
+                                            render: (_, row) =>
+                                                row.channelRowSpan > 0 ? (
+                                                    <Space direction="vertical" size={0}>
+                                                        <Checkbox
+                                                            checked={row.groupModels.every((m) => availableSet.has(m))}
+                                                            indeterminate={row.groupModels.some((m) => availableSet.has(m)) && !row.groupModels.every((m) => availableSet.has(m))}
+                                                            onChange={(e) => toggleGroupAvailable(row.groupModels, e.target.checked)}
+                                                        >
+                                                            <Typography.Text strong>{row.channel}</Typography.Text>
+                                                        </Checkbox>
+                                                        <Typography.Text type="secondary" style={{ fontSize: 12, paddingLeft: 24 }}>
+                                                            {row.groupModels.filter((m) => availableSet.has(m)).length}/{row.groupModels.length} 已开放
+                                                        </Typography.Text>
+                                                    </Space>
+                                                ) : null,
+                                        },
+                                        {
+                                            title: "模型",
+                                            dataIndex: "model",
+                                            render: (value: string) => (
+                                                <Typography.Text style={{ maxWidth: 320 }} ellipsis={{ tooltip: value }}>
+                                                    {value}
+                                                </Typography.Text>
+                                            ),
+                                        },
+                                        {
+                                            title: "开放",
+                                            key: "available",
+                                            width: 80,
+                                            align: "center",
+                                            render: (_, row) => <Switch checked={availableSet.has(row.model)} onChange={(checked) => toggleModelAvailable(row.model, checked)} />,
+                                        },
+                                        {
+                                            title: "单价",
+                                            key: "credits",
+                                            width: 160,
+                                            render: (_, row) => (
+                                                <Space.Compact>
+                                                    <InputNumber
+                                                        min={0}
+                                                        step={1}
+                                                        precision={0}
+                                                        style={{ width: 100 }}
+                                                        value={modelCostCredits(modelCosts, row.model)}
+                                                        disabled={!availableSet.has(row.model)}
+                                                        onChange={(value) => setModelCost(form, setModelCosts, row.model, Number(value) || 0)}
+                                                    />
+                                                    <span style={{ display: "flex", alignItems: "center", padding: "0 10px", border: "1px solid var(--ant-color-border)", borderLeft: 0, borderRadius: "0 6px 6px 0", background: "var(--ant-color-fill-quaternary)" }}>
+                                                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>点</Typography.Text>
+                                                    </span>
+                                                </Space.Compact>
+                                            ),
+                                        },
+                                    ]}
+                                />
                             </Flex>
                         )}
                     </Card>
@@ -283,23 +322,23 @@ export default function AdminModelPricingPage() {
                     <Card variant="borderless" title="默认模型">
                         <Row gutter={16}>
                             <Col xs={24} md={6}>
-                                <Form.Item name={["public", "modelChannel", "defaultModel"]} label="默认模型">
-                                    <Select showSearch allowClear options={publicModelOptions} />
+                                <Form.Item name={["public", "modelChannel", "defaultTextModel"]} label="默认文本模型">
+                                    <Select showSearch allowClear options={textModelOptions} />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={6}>
                                 <Form.Item name={["public", "modelChannel", "defaultImageModel"]} label="默认图片模型">
-                                    <Select showSearch allowClear options={publicModelOptions} />
+                                    <Select showSearch allowClear options={imageModelOptions} />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={6}>
                                 <Form.Item name={["public", "modelChannel", "defaultVideoModel"]} label="默认视频模型">
-                                    <Select showSearch allowClear options={publicModelOptions} />
+                                    <Select showSearch allowClear options={videoModelOptions} />
                                 </Form.Item>
                             </Col>
                             <Col xs={24} md={6}>
-                                <Form.Item name={["public", "modelChannel", "defaultTextModel"]} label="默认文本模型">
-                                    <Select showSearch allowClear options={publicModelOptions} />
+                                <Form.Item name={["public", "modelChannel", "defaultAudioModel"]} label="默认音频模型">
+                                    <Select showSearch allowClear options={audioModelOptions} />
                                 </Form.Item>
                             </Col>
                         </Row>

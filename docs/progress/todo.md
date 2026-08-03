@@ -54,3 +54,15 @@ description: 当前项目后续值得处理的事项
   - 切换模型时自动回退不支持的尺寸/档位
 - 待办：后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造暂未实施，后续按需补
 
+### 画布 Agent 行为风格可配置
+
+- 状态：暂未实施
+- 方案文档：[canvas-agent-behavior-config.md](./canvas-agent-behavior-config.md)
+- 目标：让管理员可在后台切换画布创作 Agent 的内容落地策略（保守对话 / 积极落地画布），引导用户更深入使用无限画布
+- 改动范围：后端 2 文件（setting.go + service）+ 前端 4 文件（admin.ts + settings-shared + model-pricing + canvas-agent-skills）
+- 关键点：
+  - 新增 `canvasAgentBehavior` 字段（`conservative` 默认 / `eager`）
+  - `eager` 模式下 Agent 收到"生成 prompt / 文案 / 脚本"类指令时自动调用 `create_text_node` 在画布创建节点，而非只在对话框返回文字
+  - 默认 `conservative` 保持现状，不影响已有用户体验
+- 触发条件：管理员希望引导用户更深入使用画布时启用
+

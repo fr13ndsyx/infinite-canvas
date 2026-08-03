@@ -157,10 +157,10 @@ export type AdminPublicModelChannelSettings = {
     modelCosts: AdminModelCost[];
     modelCapabilities: AdminModelCapability[];
     channels: AdminPublicModelChannelInfo[];
-    defaultModel: string;
     defaultImageModel: string;
     defaultVideoModel: string;
     defaultTextModel: string;
+    defaultAudioModel: string;
     systemPrompt: string;
     systemPrompts: {
         image: string;

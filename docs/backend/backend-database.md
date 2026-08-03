@@ -286,10 +286,10 @@ description: 当前后端主要数据表与字段说明
 | --- | --- | --- |
 | `availableModels` | string[] | 系统可用模型列表 |
 | `modelCosts` | object[] | 模型算力点配置 |
-| `defaultModel` | string | 默认模型 |
 | `defaultImageModel` | string | 默认图片模型 |
 | `defaultVideoModel` | string | 默认视频模型 |
-| `defaultTextModel` | string | 默认文本模型 |
+| `defaultTextModel` | string | 默认文本模型，同时作为通用默认模型的兜底 |
+| `defaultAudioModel` | string | 默认音频模型 |
 | `systemPrompt` | string | 系统提示词 |
 | `allowCustomChannel` | bool | 是否允许登录用户自定义渠道，默认允许，关闭后登录用户只能走云端渠道或本地直连 |
 | `allowUserRemoteChannel` | bool | 是否允许普通用户使用云端渠道，默认关闭，关闭后普通用户只能使用本地直连；管理员不受此限制 |

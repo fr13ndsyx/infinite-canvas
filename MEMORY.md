@@ -54,3 +54,45 @@
 
 ### 待办（todo.md）
 - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造暂未实施，后续按需补
+
+## 2026-08-03 合并 fix/bugfixes → main
+
+### 完成的工作
+
+**1. 渠道模型选择隔离与定价表布局优化**
+- `next/src/app/(admin)/admin/channels/page.tsx`：删除 `knownModels` state 及 `rememberModels` / `rememberKnownModels` / `collectKnownModels` 三个辅助函数；"可用模型" Select 下拉候选改为 `modelSelectOptions`（本渠道已选 + 本次拉取）；切换/新建渠道时自动清空上一次的拉取候选，避免跨渠道污染；`openChannelModelSelector` 不再混入 knownModels
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：新增 `pricingTableData`（按渠道分组扁平化 + rowSpan 标记），用 antd Table 替换原 grid 卡片；列：渠道（rowSpan 合并 + 全选 Checkbox + 计数）/ 模型名（ellipsis + tooltip）/ 开放（Switch）/ 单价（InputNumber + "点"后缀）
+
+**2. 默认模型字段重构**
+- 后端 `Go/model/setting.go`：删除 `DefaultModel` 字段，新增 `DefaultAudioModel` 字段
+- 后端 `Go/service/settings.go`：新增 `isAudioModelName`（与前端关键词一致），更新 `isTextModelName` 排除音频；normalize 新增 `defaultAudioModel` 修复，删除 `defaultModel` 修复
+- 后端 `Go/service/workflow_agent.go`：删除 `defaultModel` fallback 分支（`defaultTextModel` 已覆盖）
+- 前端 `next/src/services/api/admin.ts`：删除 `defaultModel`，新增 `defaultAudioModel`
+- 前端 `next/src/app/(admin)/admin/settings-shared.ts` / `channels/page.tsx`：emptySettings 调整
+- 前端 `next/src/app/(admin)/admin/model-pricing/page.tsx`：「默认模型」卡片 4 个 Select 改为文本/图片/视频/音频顺序，options 按模型能力过滤（`textModelOptions` / `imageModelOptions` / `videoModelOptions` / `audioModelOptions`）
+- 前端 `next/src/stores/use-config-store.ts`：`fallbackModel` 删除，`model` 和 `textModel` 兜底都走 `fallbackTextModel`；`fallbackAudioModel` 改为 `validDefault(defaultAudioModel, audioModels) || preferredModel(audioModels, isAudioModelName)`
+
+**3. 模型选择器渠道名隐藏与渠道字段改名**
+- `next/src/components/model-picker.tsx`：`ModelLabel` 移除 channelName 显示，下拉项只显示模型名 + 图标
+- `next/src/app/(admin)/admin/channels/page.tsx`：列表表头"名称"→"渠道"，空值"未命名模型"→"未命名渠道"；Drawer Form.Item label "名称"→"渠道"；顶部按钮"新增模型"→"新增渠道"；Drawer title "新增模型/编辑模型"→"新增渠道/编辑渠道"
+
+**4. 文本节点自动弹出 AI 输入框**
+- `next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`：两处 `setDialogNodeId` 判断去掉 `CanvasNodeType.Text`（`createNode` 函数 + 连线拖到空白处新建节点）；点击节点逻辑删除文本节点特殊分支，让它和图片/视频节点一样走 `setDialogNodeId(clickedNodeId)`
+- `next/src/app/(user)/canvas/components/canvas-node-prompt-panel.tsx`：`promptPlaceholder` 文本节点空内容分支提示语改为"请输入你想要生成的文本内容或在上方输入你的提示词"
+
+### 新增待办（todo.md）
+- 画布 Agent 行为风格可配置（`canvasAgentBehavior`：`conservative` 默认 / `eager`），方案文档 `docs/progress/canvas-agent-behavior-config.md`，暂未实施
+
+### 涉及文档
+- `docs/backend/backend-database.md` / `docs/backend/system-settings.md`：字段说明同步（删除 `defaultModel`，新增 `defaultAudioModel`）
+- `docs/progress/pending-test.md`：新增 4 个验证章节（渠道模型隔离与定价表 / 默认模型字段重构 / 渠道名隐藏与改名 / 文本节点 AI 输入框）
+- `docs/progress/todo.md`：新增"画布 Agent 行为风格可配置"待办
+- `docs/progress/canvas-agent-behavior-config.md`：新增方案文档
+
+### 待验证（pending-test.md）
+- 渠道 A 模型不污染渠道 B 的 Select 下拉和选择弹窗
+- 定价表表格布局、rowSpan 合并、模型名截断 tooltip、全选 Checkbox、单价 disabled 联动
+- 默认模型 4 个 Select 顺序（文本/图片/视频/音频）和 options 按能力过滤
+- 模型选择下拉不显示渠道名小字
+- 渠道管理页文案统一为"渠道"
+- 右键新建文本节点自动弹 AI 输入框，移开后点回来能重新弹出
