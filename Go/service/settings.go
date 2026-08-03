@@ -418,6 +418,10 @@ func uniqueModelNames(models []string) []string {
 
 func repairDefaultModel(current string, models []string, preferred func(string) bool) string {
 	current = strings.TrimSpace(current)
+	// 允许默认模型留空：传入为空时不再自动回填，仅在传入值非空但不在可用列表时修复。
+	if current == "" {
+		return ""
+	}
 	for _, item := range models {
 		if item == current {
 			return current

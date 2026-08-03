@@ -24,7 +24,7 @@ const emptySettings: AdminSettings = {
             allowGuestConfig: true,
         },
         auth: { allowRegister: true },
-        storage: { mode: "local_indexeddb", allowUserProvider: false },
+        storage: { mode: "local_indexeddb" },
     },
     private: { channels: [], promptSync: { enabled: true, cron: "0 0 * * *" }, aiLog: { localDirectReportEnabled: false, cleanup: { enabled: false, retentionDays: 14, cron: "0 3 * * *" } }, storage: { mode: "local_indexeddb", allowUserProvider: false, allowUserGlobalProvider: true, providers: [], roundRobinCursor: 0, capacityCheck: { enabled: false, cron: "0 */6 * * *" }, capacityLimitBytes: 9 * 1024 * 1024 * 1024 } },
 };
@@ -599,7 +599,6 @@ function normalizePublicSetting(setting: Partial<AdminSettings["public"]> = {}):
         },
         storage: {
             mode: setting.storage?.mode || "local_indexeddb",
-            allowUserProvider: setting.storage?.allowUserProvider === true,
         },
     };
 }
