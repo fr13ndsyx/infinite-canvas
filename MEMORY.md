@@ -96,3 +96,46 @@
 - 模型选择下拉不显示渠道名小字
 - 渠道管理页文案统一为"渠道"
 - 右键新建文本节点自动弹 AI 输入框，移开后点回来能重新弹出
+
+## 2026-08-04 提交到 main（commit ffc9c74）
+
+### 完成的工作
+
+**1. 生图接口模式（apiMode）改为后台渠道控制**
+- 后端 `Go/model/setting.go`：`ModelChannel` 和 `PublicModelChannelInfo` 新增 `ApiMode` 字段（`images` 默认 / `responses`）
+- 后端 `Go/service/settings.go`：`normalizeModelChannel` 归一化 `ApiMode`（非 `responses` 一律视为 `images`）；`publicChannelInfos` 透传 `ApiMode`
+- 前端 `next/src/services/api/admin.ts`：`AdminModelChannel` 和 `AdminPublicModelChannelInfo` 新增 `apiMode` 字段
+- 前端 `next/src/app/(admin)/admin/channels/page.tsx`：渠道编辑抽屉新增「生图接口」Select，默认 Images API
+- 前端 `next/src/stores/use-config-store.ts`：`resolveEffectiveConfig` 按当前生图模型所属渠道解析 `apiMode`，本地模式固定 `images`
+- 前端 `next/src/app/(user)/image/page.tsx`：删除主面板和快速配置弹窗的「接口模式」Segmented
+- 前端 `next/src/components/workflows/creative-workflow-workspace.tsx`：删除 apiMode Select
+- 画布生图/视频浮层 `canvas-image-settings-popover.tsx` / `canvas-video-settings-popover.tsx`：传入 `capabilities` 的小修正
+
+**2. 视频创作台底部设置栏按模型能力动态显示清晰度**
+- `next/src/app/(user)/video/page.tsx`：底部 compact 布局的清晰度下拉从 `config.modelCapabilities` 按当前 `model` 查找 `videoResolutions`；有值按配置生成选项，空数组不显示清晰度选择，未配置走默认三档 480p/720p/1080p。与画布节点设置面板行为一致，新模型不支持分辨率调节时管理员后台不勾选即可，无需硬编码
+
+**3. 深色模式 Checkbox/Switch 样式修复**
+- `next/src/app/globals.css`：新增 `.dark .ant-checkbox-checked::after` 强制对勾黑色（v6 移除了 `.ant-checkbox-inner`，对勾 `::after` 直接在 `.ant-checkbox` 上）；新增 `.dark .ant-switch-checked .ant-switch-handle::before` 强制圆点深色（track 背景为 colorPrimary=白，圆点默认白色看不清）。样式放在 `@layer` 外部并使用 `!important` 解决 antd v6 CSS-in-JS 优先级问题
+
+**4. 参考图/视频/音频删除按钮图标颜色统一**
+- `next/src/app/(user)/image/page.tsx`：参考图删除按钮 `Trash2` 图标添加 `style={{ color: "#ffffff" }} strokeWidth={2.5}`
+- `next/src/app/(user)/video/page.tsx`：参考图、参考视频、参考音频三处删除按钮 `Trash2` 图标统一添加 `style={{ color: "#ffffff" }} strokeWidth={2.5}`
+- 原因：浅色模式下 `currentColor` 未正确继承 `text-white`，导致图标显示为黑色看不清
+
+**5. 模型能力配置页面文案与布局优化**
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：删除「（空=全部）」「（空=仅标准）」「（空=480p/720p/1080p）」冗余文案；图片比例、图片档位、视频清晰度标题文字添加 `display: "block", marginBottom: 8` 样式，增加与勾选按钮的间距
+
+### 涉及文件（15 个）
+- 后端：`Go/model/setting.go`、`Go/service/settings.go`
+- 前端：`next/src/services/api/admin.ts`、`next/src/stores/use-config-store.ts`、`next/src/app/(admin)/admin/channels/page.tsx`、`next/src/app/(admin)/admin/model-pricing/page.tsx`、`next/src/app/(user)/image/page.tsx`、`next/src/app/(user)/video/page.tsx`、`next/src/app/(user)/canvas/components/canvas-image-settings-popover.tsx`、`next/src/app/(user)/canvas/components/canvas-video-settings-popover.tsx`、`next/src/components/image-settings-panel.tsx`、`next/src/components/video-settings-panel.tsx`、`next/src/components/workflows/creative-workflow-workspace.tsx`、`next/src/app/globals.css`
+- 文档：`docs/progress/pending-test.md`
+
+### 待验证（pending-test.md）
+- apiMode 后台渠道控制：前端不再有切换 UI，按渠道配置自动走 Images/Responses API
+- 视频底部设置栏：按模型能力动态显示清晰度，空数组不显示，未配置走默认三档
+- 深色模式 Checkbox 对勾为黑色、Switch 圆点为深色
+- 浅色模式参考文件删除按钮图标为白色
+- 模型能力页面文案和间距优化
+
+### 待办（todo.md）
+- 无新增待办
