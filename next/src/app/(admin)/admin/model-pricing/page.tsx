@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchAdminSettings, saveAdminSettings, type AdminModelCapability, type AdminModelCost, type AdminSettings } from "@/services/api/admin";
-import { modelMatchesCapability, useUserStore } from "@/stores/use-user-store";
+import { modelMatchesCapability } from "@/stores/use-config-store";
+import { useUserStore } from "@/stores/use-user-store";
 
 import { collectChannelModels, emptySettings, finalizeSettingsForSave, modelCostCredits, normalizeSettings, setModelCost } from "../settings-shared";
 
