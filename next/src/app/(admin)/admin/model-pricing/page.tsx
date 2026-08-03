@@ -5,10 +5,51 @@ import { App, Button, Card, Checkbox, Col, Flex, Form, InputNumber, Row, Select,
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchAdminSettings, saveAdminSettings, type AdminModelCost, type AdminSettings } from "@/services/api/admin";
-import { useUserStore } from "@/stores/use-user-store";
+import { fetchAdminSettings, saveAdminSettings, type AdminModelCapability, type AdminModelCost, type AdminSettings } from "@/services/api/admin";
+import { modelMatchesCapability, useUserStore } from "@/stores/use-user-store";
 
 import { collectChannelModels, emptySettings, finalizeSettingsForSave, modelCostCredits, normalizeSettings, setModelCost } from "../settings-shared";
+
+// 模型能力可选项：与前端 image-settings-panel / video-settings-panel 保持一致
+const IMAGE_ASPECT_OPTIONS = [
+    { label: "1:1", value: "1:1" },
+    { label: "3:2", value: "3:2" },
+    { label: "2:3", value: "2:3" },
+    { label: "4:3", value: "4:3" },
+    { label: "3:4", value: "3:4" },
+    { label: "16:9", value: "16:9" },
+    { label: "9:16", value: "9:16" },
+    { label: "21:9", value: "21:9" },
+];
+const IMAGE_TIER_OPTIONS = [
+    { label: "标准", value: "standard" },
+    { label: "2K", value: "2k" },
+    { label: "4K", value: "4k" },
+];
+const VIDEO_RESOLUTION_OPTIONS = [
+    { label: "480p", value: "480p" },
+    { label: "720p", value: "720p" },
+    { label: "1080p", value: "1080p" },
+    { label: "2K", value: "2k" },
+    { label: "4K", value: "4k" },
+];
+
+function getModelCapability(items: AdminModelCapability[], model: string): AdminModelCapability {
+    return items.find((item) => item.model === model) || { model, imageAspects: [], imageTiers: [], videoResolutions: [] };
+}
+
+function setModelCapabilityField(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "imageAspects" | "imageTiers" | "videoResolutions", values: string[]) {
+    const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
+    const index = current.findIndex((item) => item.model === model);
+    const next = [...current];
+    if (index >= 0) {
+        next[index] = { ...next[index], [field]: values };
+    } else {
+        next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], [field]: values });
+    }
+    form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
+    setModelCapabilities(next);
+}
 
 export default function AdminModelPricingPage() {
     const token = useUserStore((state) => state.token);
@@ -17,6 +58,7 @@ export default function AdminModelPricingPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [modelCosts, setModelCosts] = useState<AdminModelCost[]>([]);
+    const [modelCapabilities, setModelCapabilities] = useState<AdminModelCapability[]>([]);
     const [channels, setChannels] = useState<AdminSettings["private"]["channels"]>([]);
     const availableModels = (Form.useWatch(["public", "modelChannel", "availableModels"], form) || []) as string[];
     const allowCustomChannel = Form.useWatch(["public", "modelChannel", "allowCustomChannel"], form);
@@ -45,6 +87,7 @@ export default function AdminModelPricingPage() {
             form.setFieldsValue(data);
             setChannels(data.private.channels);
             setModelCosts(data.public.modelChannel.modelCosts);
+            setModelCapabilities(data.public.modelChannel.modelCapabilities);
         } catch (error) {
             message.error(error instanceof Error ? error.message : "读取设置失败");
         } finally {
@@ -64,6 +107,7 @@ export default function AdminModelPricingPage() {
             const saved = normalizeSettings(await saveAdminSettings(token, values));
             form.setFieldsValue(saved);
             setModelCosts(saved.public.modelChannel.modelCosts);
+            setModelCapabilities(saved.public.modelChannel.modelCapabilities);
             message.success("已保存");
         } catch (error) {
             message.error(error instanceof Error ? error.message : "保存失败");
@@ -171,6 +215,66 @@ export default function AdminModelPricingPage() {
                                         </div>
                                     );
                                 })}
+                            </Flex>
+                        )}
+                    </Card>
+
+                    <Card
+                        variant="borderless"
+                        title="模型能力"
+                        extra={<Typography.Text type="secondary">勾选每个模型支持的比例和档位；留空 = 走默认（生图全比例+仅标准档，视频 480p/720p/1080p）</Typography.Text>}
+                    >
+                        {availableModels.length === 0 ? (
+                            <Typography.Text type="secondary">请先在上方勾选开放模型</Typography.Text>
+                        ) : (
+                            <Flex vertical gap={12}>
+                                <Form.Item name={["public", "modelChannel", "modelCapabilities"]} hidden>
+                                    <InputNumber />
+                                </Form.Item>
+                                {availableModels
+                                    .filter((model) => modelMatchesCapability(model, "image") || modelMatchesCapability(model, "video"))
+                                    .map((model) => {
+                                        const cap = getModelCapability(modelCapabilities, model);
+                                        const isImage = modelMatchesCapability(model, "image");
+                                        const isVideo = modelMatchesCapability(model, "video");
+                                        return (
+                                            <div key={model} style={{ border: "1px solid var(--ant-color-border)", borderRadius: 8, padding: "12px 16px" }}>
+                                                <Typography.Text strong style={{ wordBreak: "break-all" }}>{model}</Typography.Text>
+                                                <Flex gap={32} wrap style={{ marginTop: 8 }}>
+                                                    {isImage ? (
+                                                        <div style={{ minWidth: 320 }}>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>图片比例（空=全部）</Typography.Text>
+                                                            <Checkbox.Group
+                                                                options={IMAGE_ASPECT_OPTIONS}
+                                                                value={cap.imageAspects}
+                                                                onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageAspects", values as string[])}
+                                                            />
+                                                        </div>
+                                                    ) : null}
+                                                    {isImage ? (
+                                                        <div style={{ minWidth: 220 }}>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>图片档位（空=仅标准）</Typography.Text>
+                                                            <Checkbox.Group
+                                                                options={IMAGE_TIER_OPTIONS}
+                                                                value={cap.imageTiers}
+                                                                onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageTiers", values as string[])}
+                                                            />
+                                                        </div>
+                                                    ) : null}
+                                                    {isVideo ? (
+                                                        <div style={{ minWidth: 320 }}>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>视频清晰度（空=480p/720p/1080p）</Typography.Text>
+                                                            <Checkbox.Group
+                                                                options={VIDEO_RESOLUTION_OPTIONS}
+                                                                value={cap.videoResolutions}
+                                                                onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "videoResolutions", values as string[])}
+                                                            />
+                                                        </div>
+                                                    ) : null}
+                                                </Flex>
+                                            </div>
+                                        );
+                                    })}
                             </Flex>
                         )}
                     </Card>

@@ -29,10 +29,21 @@ type ModelCost struct {
 	Credits int    `json:"credits"`
 }
 
+// ModelCapability 模型能力配置。
+// 空字段语义：ImageAspects 空=支持全部标准比例；ImageTiers 空=仅标准档；
+// VideoResolutions 空=480p/720p/1080p 三档。
+type ModelCapability struct {
+	Model            string   `json:"model"`
+	ImageAspects     []string `json:"imageAspects,omitempty"`
+	ImageTiers       []string `json:"imageTiers,omitempty"`
+	VideoResolutions []string `json:"videoResolutions,omitempty"`
+}
+
 // PublicModelChannelSetting 公开模型渠道配置。
 type PublicModelChannelSetting struct {
 	AvailableModels        []string                 `json:"availableModels"`
 	ModelCosts             []ModelCost              `json:"modelCosts"`
+	ModelCapabilities      []ModelCapability        `json:"modelCapabilities"`
 	Channels               []PublicModelChannelInfo `json:"channels"`
 	DefaultModel           string                   `json:"defaultModel"`
 	DefaultImageModel      string                   `json:"defaultImageModel"`

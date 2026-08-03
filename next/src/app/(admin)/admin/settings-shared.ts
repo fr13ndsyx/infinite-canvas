@@ -1,4 +1,4 @@
-import type { AdminModelChannel, AdminModelCost, AdminSettings, AdminStorageProvider } from "@/services/api/admin";
+import type { AdminModelCapability, AdminModelChannel, AdminModelCost, AdminSettings, AdminStorageProvider } from "@/services/api/admin";
 
 // 全量 settings 空默认值，供各设置页 Form initialValues 与归一化兜底使用。
 export const emptySettings: AdminSettings = {
@@ -6,6 +6,7 @@ export const emptySettings: AdminSettings = {
         modelChannel: {
             availableModels: [],
             modelCosts: [],
+            modelCapabilities: [],
             channels: [],
             defaultModel: "",
             defaultImageModel: "",
@@ -40,6 +41,7 @@ export function normalizePublicSetting(setting: Partial<AdminSettings["public"]>
             ...(setting.modelChannel || {}),
             availableModels: setting.modelChannel?.availableModels || [],
             modelCosts: normalizeModelCosts(setting.modelChannel?.modelCosts || []),
+            modelCapabilities: normalizeModelCapabilities(setting.modelChannel?.modelCapabilities || []),
             channels: setting.modelChannel?.channels || [],
             allowCustomChannel: setting.modelChannel?.allowCustomChannel !== false,
             allowUserRemoteChannel: setting.modelChannel?.allowUserRemoteChannel === true,
@@ -64,6 +66,15 @@ export function normalizePublicSetting(setting: Partial<AdminSettings["public"]>
 
 export function normalizeModelCosts(items: Partial<AdminSettings["public"]["modelChannel"]["modelCosts"][number]>[]) {
     return items.filter((item) => item.model).map((item) => ({ model: item.model || "", credits: Math.max(0, Number(item.credits) || 0) }));
+}
+
+export function normalizeModelCapabilities(items: Partial<AdminModelCapability>[]): AdminModelCapability[] {
+    return items.filter((item) => item.model).map((item) => ({
+        model: item.model || "",
+        imageAspects: uniqueModels(item.imageAspects || []),
+        imageTiers: uniqueModels(item.imageTiers || []) as ("standard" | "2k" | "4k")[],
+        videoResolutions: uniqueModels(item.videoResolutions || []),
+    }));
 }
 
 export function normalizePrivateSetting(setting: Partial<AdminSettings["private"]> = {}): AdminSettings["private"] {

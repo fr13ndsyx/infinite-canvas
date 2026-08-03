@@ -44,14 +44,13 @@ description: 当前项目后续值得处理的事项
 
 ### 生图/视频模型能力配置
 
-- 状态：待实施
+- 状态：已实施，待测试（详见 [pending-test.md](./pending-test.md)）
 - 方案文档：[model-capabilities-refactor.md](./model-capabilities-refactor.md)
 - 目标：管理后台支持勾选每个模型支持的比例和清晰度档位，前端工作台按模型能力动态渲染选项
-- 改动范围：后端 4 文件（setting.go + service + 2 个 image handler）+ 前端 5 文件（admin.ts + 管理后台表格 + store + 2 个工作台 panel）
+- 改动范围：后端 2 文件（setting.go + service）+ 前端 6 文件（admin.ts + settings-shared + model-pricing + store + 2 个工作台 panel）
 - 关键点：
   - 新增 `ModelCapability` 结构（`imageAspects` / `imageTiers` / `videoResolutions`）
   - 空字段走保守默认（生图=全比例+仅标准档，视频=480p/720p/1080p）
   - 切换模型时自动回退不支持的尺寸/档位
-  - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置，硬编码作 fallback
-- 依赖：建议在"渠道管理拆分"完成后实施，模型能力表格放在新的渠道管理页
+- 待办：后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造暂未实施，后续按需补
 
