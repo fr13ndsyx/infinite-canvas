@@ -120,12 +120,11 @@ export function ModelPicker({ config, value, channelId, capability, onChange, cl
     );
 }
 
-function ModelLabel({ model, channelName }: { model: string; channelName?: string }) {
+function ModelLabel({ model }: { model: string; channelName?: string }) {
     return (
         <span className="flex min-w-0 items-center gap-2">
             <ModelIcon model={model} />
             <span className="truncate">{model}</span>
-            {channelName ? <span className="ml-auto max-w-24 shrink-0 truncate text-xs opacity-50">{channelName}</span> : null}
         </span>
     );
 }

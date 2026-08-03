@@ -162,9 +162,6 @@ func workflowDraftModel(modelName string) (string, error) {
 	if strings.TrimSpace(normalized.Public.ModelChannel.DefaultTextModel) != "" {
 		return strings.TrimSpace(normalized.Public.ModelChannel.DefaultTextModel), nil
 	}
-	if strings.TrimSpace(normalized.Public.ModelChannel.DefaultModel) != "" {
-		return strings.TrimSpace(normalized.Public.ModelChannel.DefaultModel), nil
-	}
 	for _, channel := range normalized.Private.Channels {
 		for _, model := range channel.Models {
 			if strings.TrimSpace(model) != "" {

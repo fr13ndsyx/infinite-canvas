@@ -13,10 +13,10 @@ const emptySettings: AdminSettings = {
             availableModels: [],
             modelCosts: [],
             channels: [],
-            defaultModel: "",
             defaultImageModel: "",
             defaultVideoModel: "",
             defaultTextModel: "",
+            defaultAudioModel: "",
             systemPrompt: "",
             systemPrompts: { image: "", video: "", text: "", workflow: "", workflowAgent: "" },
             allowCustomChannel: true,
@@ -55,8 +55,10 @@ export default function AdminChannelsPage() {
     const [isFetchingChannelModels, setIsFetchingChannelModels] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [knownModels, setKnownModels] = useState<string[]>([]);
     const channelTableData = useMemo(() => channels.map((channel, index) => ({ ...channel, _index: index, _rowKey: `${index}-${channel.name}-${channel.baseUrl}` })), [channels]);
+    // 当前编辑渠道的可用模型候选：本渠道已选 + 本次拉取的模型，不混入其他渠道数据
+    const channelModelsWatch = Form.useWatch("models", channelForm) as string[] | undefined;
+    const modelSelectOptions = useMemo(() => uniqueModels([...(channelModelsWatch || []), ...modelSelectSource]), [channelModelsWatch, modelSelectSource]);
     const modelSelectGroups = useMemo(() => buildModelSelectGroups(modelSelectSource, modelSelectExisting), [modelSelectSource, modelSelectExisting]);
     const activeModelSelectModels = useMemo(() => {
         const keyword = modelSelectKeyword.trim().toLowerCase();
@@ -71,7 +73,6 @@ export default function AdminChannelsPage() {
             const data = normalizeSettings(await fetchAdminSettings(token));
             form.setFieldsValue(data);
             setChannels(data.private.channels);
-            setKnownModels(collectKnownModels(data));
         } catch (error) {
             message.error(error instanceof Error ? error.message : "读取设置失败");
         } finally {
@@ -88,7 +89,8 @@ export default function AdminChannelsPage() {
         setIsChannelDrawerOpen(true);
         const channel = index === null ? emptyChannel : normalizeChannel(channels[index]);
         channelForm.setFieldsValue(channel);
-        rememberModels(channel.models);
+        // 切换渠道时清空本次拉取的模型候选，避免上一个渠道的拉取结果污染新渠道
+        setModelSelectSource([]);
     };
 
     const closeChannelDrawer = () => {
@@ -99,7 +101,6 @@ export default function AdminChannelsPage() {
 
     const saveChannel = async () => {
         const channel = normalizeChannel(await channelForm.validateFields());
-        rememberModels(channel.models);
         const nextChannels = [...channels];
         if (editingChannelIndex === null) nextChannels.push(channel);
         else nextChannels[editingChannelIndex] = channel;
@@ -122,7 +123,6 @@ export default function AdminChannelsPage() {
         try {
             const channelModels = await fetchChannelModels(token, { index: editingChannelIndex ?? undefined, channel: normalizeChannel(channel) });
             const current = isModelSelectorOpen ? uniqueModels(modelSelectSelected) : uniqueModels(channelForm.getFieldValue("models") || []);
-            rememberModels(channelModels);
             if (!channelModels.length) {
                 message.warning("上游未返回模型列表，请手动输入模型名称");
                 return;
@@ -144,7 +144,8 @@ export default function AdminChannelsPage() {
 
     const openChannelModelSelector = (sourceModels?: string[]) => {
         const current = uniqueModels(channelForm.getFieldValue("models") || []);
-        const source = uniqueModels(sourceModels !== undefined ? sourceModels : [...knownModels, ...current]);
+        // 不混入 knownModels：未传 sourceModels 时，候选仅限本渠道已选模型
+        const source = uniqueModels(sourceModels !== undefined ? sourceModels : current);
         setModelSelectExisting(current);
         setModelSelectSource(source);
         setModelSelectSelected(sourceModels ? uniqueModels([...current, ...source]) : current);
@@ -163,7 +164,6 @@ export default function AdminChannelsPage() {
     const confirmChannelModelSelector = () => {
         const models = uniqueModels(modelSelectSelected);
         channelForm.setFieldValue("models", models);
-        rememberModels(models);
         closeChannelModelSelector();
     };
 
@@ -188,14 +188,6 @@ export default function AdminChannelsPage() {
         setModelSelectNewModel("");
         setModelSelectTab("current");
     };
-
-    function rememberModels(models: string[]) {
-        setKnownModels((current) => uniqueModels([...current, ...models]));
-    }
-
-    function rememberKnownModels(settings: AdminSettings) {
-        rememberModels(collectKnownModels(settings));
-    }
 
     const openTestDialog = (index: number) => {
         const channel = normalizeChannel(channels[index]);
@@ -264,7 +256,6 @@ export default function AdminChannelsPage() {
             const saved = await saveAdminSettings(token, nextSettings);
             const merged = mergeChannelApiKeys(normalizedChannels, normalizeSettings(saved));
             setChannels(merged.private.channels);
-            rememberKnownModels(merged);
             form.setFieldsValue(merged);
             message.success("已保存");
         } catch (error) {
@@ -287,7 +278,7 @@ export default function AdminChannelsPage() {
                                 刷新
                             </Button>
                             <Button type="primary" icon={<PlusOutlined />} loading={isSaving} onClick={() => openChannelDrawer(null)}>
-                                新增模型
+                                新增渠道
                             </Button>
                         </Space>
                     </Flex>
@@ -299,7 +290,7 @@ export default function AdminChannelsPage() {
                             pagination={false}
                             dataSource={channelTableData}
                             columns={[
-                                { title: "名称", dataIndex: "name", render: (value) => value || "未命名模型" },
+                                { title: "渠道", dataIndex: "name", render: (value) => value || "未命名渠道" },
                                 { title: "协议", dataIndex: "protocol", width: 96, render: (value) => <Tag>{value || "openai"}</Tag> },
                                 { title: "状态", dataIndex: "enabled", width: 96, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "已启用" : "已停用"}</Tag> },
                                 {
@@ -344,7 +335,7 @@ export default function AdminChannelsPage() {
                     </Form>
                 </Card>
                 <Drawer
-                    title={editingChannelIndex === null ? "新增模型" : "编辑模型"}
+                    title={editingChannelIndex === null ? "新增渠道" : "编辑渠道"}
                     open={isChannelDrawerOpen}
                     size={560}
                     onClose={closeChannelDrawer}
@@ -364,7 +355,7 @@ export default function AdminChannelsPage() {
                     <Form form={channelForm} layout="vertical" requiredMark={false} initialValues={emptyChannel} autoComplete="off">
                         <Row gutter={16}>
                             <Col span={12}>
-                                <Form.Item name="name" label="名称" rules={[{ required: true, message: "请输入名称" }]}>
+                                <Form.Item name="name" label="渠道" rules={[{ required: true, message: "请输入渠道名" }]}>
                                     <Input autoComplete="off" />
                                 </Form.Item>
                             </Col>
@@ -407,7 +398,7 @@ export default function AdminChannelsPage() {
                                 <Form.Item label="可用模型">
                                     <Space.Compact style={{ width: "100%" }}>
                                         <Form.Item name="models" noStyle>
-                                            <Select mode="tags" maxTagCount="responsive" tokenSeparators={[",", "\n"]} options={knownModels.map((model) => ({ label: model, value: model }))} />
+                                            <Select mode="tags" maxTagCount="responsive" tokenSeparators={[",", "\n"]} options={modelSelectOptions.map((model) => ({ label: model, value: model }))} />
                                         </Form.Item>
                                         <Button onClick={() => openChannelModelSelector()}>选择模型</Button>
                                     </Space.Compact>
@@ -665,10 +656,6 @@ function mergeChannelApiKeys(currentChannels: AdminModelChannel[], saved: AdminS
 
 function collectChannelModels(channels: AdminModelChannel[]) {
     return uniqueModels(channels.filter((channel) => channel.enabled).flatMap((channel) => channel.models || []));
-}
-
-function collectKnownModels(settings: AdminSettings) {
-    return uniqueModels([...(settings.public.modelChannel.availableModels || []), ...(settings.public.modelChannel.modelCosts || []).map((item) => item.model), ...settings.private.channels.flatMap((channel) => channel.models || [])]);
 }
 
 function buildModelSelectGroups(sourceModels: string[], existingModels: string[]): Record<ModelSelectTabKey, string[]> {

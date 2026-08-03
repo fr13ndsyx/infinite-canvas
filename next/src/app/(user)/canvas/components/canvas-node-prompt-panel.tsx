@@ -182,7 +182,7 @@ function promptPlaceholder(mode: CanvasNodeGenerationMode, hasImageContent: bool
     if (mode === "video") return "描述要生成的视频内容";
     if (mode === "audio") return "描述要生成的音频内容";
     if (mode === "image") return hasImageContent ? "请输入你想要把这张图修改成什么" : "描述要生成的图片内容";
-    return hasTextContent ? "请输入你想要将本段文本修改成什么" : "请输入你想要生成的文本内容";
+    return hasTextContent ? "请输入你想要将本段文本修改成什么" : "请输入你想要生成的文本内容或在上方输入你的提示词";
 }
 
 function videoConfigPatch(key: keyof AiConfig, value: string) {

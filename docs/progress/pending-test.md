@@ -5,6 +5,124 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+## 文本节点自动弹出 AI 输入框
+
+让右键新建文本节点与图片/视频节点行为一致，自动弹出下方 AI 输入框；输入框 placeholder 根据节点内是否有内容动态变化，空内容时提示用户可生成或在上方直接编辑。
+
+### 可测试变更
+
+- `createNode` 和连线拖到空白处新建节点的 `setDialogNodeId` 判断去掉 `CanvasNodeType.Text`，新建文本节点后自动弹出下方 `CanvasNodePromptPanel`
+- `CanvasNodePromptPanel` 的 `promptPlaceholder` 在文本节点 + 节点内无内容时，提示语改为"请输入你想要生成的文本内容或在上方输入你的提示词"；有内容时保持"请输入你想要将本段文本修改成什么"
+
+### 涉及文件
+
+- `next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`：两处 `setDialogNodeId` 判断去掉 `CanvasNodeType.Text`
+- `next/src/app/(user)/canvas/components/canvas-node-prompt-panel.tsx`：`promptPlaceholder` 文本节点空内容分支提示语调整
+
+### 验证步骤
+
+1. 进入画布，右键空白处选择"文本生成"，确认新建文本节点后自动弹出下方 AI 输入框（与图片/视频节点行为一致）
+2. 确认节点内无文字时，输入框 placeholder 显示"请输入你想要生成的文本内容或在上方输入你的提示词"
+3. 在节点内输入任意文字后，确认 placeholder 切换为"请输入你想要将本段文本修改成什么"
+4. 从已有节点拖出连线到空白处，选择新建文本节点，确认同样自动弹出 AI 输入框
+5. 点击空白处取消选中后，再次单击该文本节点，确认 AI 输入框重新弹出（与图片/视频节点行为一致）
+6. 双击文本节点，确认仍可进入节点内直接编辑文字（原有功能不受影响）
+7. 右键新建图片/视频/音频节点，确认行为不受影响（图片/视频仍自动弹面板，音频仍不弹）
+
+## 模型选择器渠道名隐藏与渠道字段改名
+
+隐藏 ModelPicker 下拉项右侧的渠道名标签（普通用户不需看到管理员侧的来源命名），并把模型管理页的"名称"字段统一改为"渠道"，与"模型开放与定价"页的渠道列命名保持一致。
+
+### 可测试变更
+
+- `ModelPicker` 下拉项不再显示右侧渠道名小字，只显示模型名 + 模型图标
+- `admin/channels` 列表表头"名称"改为"渠道"，空值显示"未命名渠道"
+- `admin/channels` 渠道编辑 Drawer："名称" Form.Item label 改为"渠道"，校验提示"请输入渠道名"
+- `admin/channels` 顶部按钮"新增模型"改为"新增渠道"，Drawer title "新增模型/编辑模型"改为"新增渠道/编辑渠道"
+
+### 涉及文件
+
+- `next/src/components/model-picker.tsx`：`ModelLabel` 移除 channelName 显示
+- `next/src/app/(admin)/admin/channels/page.tsx`：列表表头、Form.Item label、按钮、Drawer title 文案统一为"渠道"
+
+### 验证步骤
+
+1. 进入画布或生图/视频/音频工作台，打开模型选择下拉，确认下拉项只显示模型名 + 图标，不再显示右侧的渠道名小字
+2. 进入 `/admin/channels`，确认列表表头为"渠道"，空名称行显示"未命名渠道"
+3. 点"新增渠道"，确认 Drawer 标题为"新增渠道"，第一个字段 label 为"渠道"，留空时提示"请输入渠道名"
+4. 编辑现有渠道，确认 Drawer 标题为"编辑渠道"
+5. 进入 `/admin/model-pricing`，确认"模型开放与定价"表格的"渠道"列与 channels 页命名一致
+
+## 默认模型字段重构
+
+合并 `defaultModel` 到 `defaultTextModel`（市面 AI 厂商共识：默认模型即默认文本模型），并新增缺失的 `defaultAudioModel` 配置项，使管理员后台与普通用户配置弹窗（已有 4 个默认模型）保持一致。
+
+### 可测试变更
+
+- 后端 `PublicModelChannelSetting`：删除 `DefaultModel` 字段，新增 `DefaultAudioModel` 字段
+- 后端 `normalizePublicSetting`：删除 `defaultModel` 修复逻辑，新增 `defaultAudioModel` 修复逻辑
+- 后端 `isAudioModelName`：新增函数，与前端 `isAudioModelName` 关键词一致（audio/tts/speech/voice/music/sound/elevenlabs/suno/lyrics/vocal/midi/wav）
+- 后端 `isTextModelName`：更新为排除图片/视频/音频模型
+- 后端 `workflow_agent.go`：选模型兜底逻辑删除 `defaultModel` 分支（`defaultTextModel` 已覆盖）
+- 前端 `AdminPublicModelChannelSettings` 类型：删除 `defaultModel`，新增 `defaultAudioModel`
+- 前端 `emptySettings`（settings-shared.ts、channels/page.tsx）：删除 `defaultModel`，新增 `defaultAudioModel: ""`
+- 前端 `model-pricing` 页面"默认模型"卡片：4 个 Select 改为「默认图片/视频/文本/音频模型」
+- 前端 `resolveEffectiveConfig`：`fallbackModel` 删除，`model` 兜底改用 `fallbackTextModel`；`fallbackAudioModel` 改为 `validDefault(defaultAudioModel, audioModels) || preferredModel(audioModels, isAudioModelName)`
+
+### 涉及文件
+
+- `Go/model/setting.go`：删除 `DefaultModel`，新增 `DefaultAudioModel`
+- `Go/service/settings.go`：新增 `isAudioModelName`，更新 `isTextModelName`，调整 normalize 逻辑
+- `Go/service/workflow_agent.go`：删除 `defaultModel` fallback 分支
+- `next/src/services/api/admin.ts`：类型字段调整
+- `next/src/app/(admin)/admin/settings-shared.ts`、`next/src/app/(admin)/admin/channels/page.tsx`：emptySettings 调整
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：默认模型卡片改 4 个 Select
+- `next/src/stores/use-config-store.ts`：`resolveEffectiveConfig` 兜底逻辑调整
+- `docs/backend/backend-database.md`、`docs/backend/system-settings.md`：字段说明同步
+
+### 验证步骤
+
+1. 进入 `/admin/model-pricing`，确认"默认模型"卡片显示 4 个 Select：默认图片/视频/文本/音频模型（不再有"默认模型"）
+2. 在"默认音频模型"Select 中选择一个音频模型（如 `gpt-4o-mini-tts`），点"保存设置"，刷新确认持久化
+3. 进入画布，打开配置弹窗，确认音频节点的默认模型使用了管理员设置的"默认音频模型"
+4. 进入画布，确认文本节点和工作流 agent 的默认模型使用了"默认文本模型"（原 `defaultModel` 的兜底语义已合并）
+5. 调用工作流 agent 草稿接口，确认文本模型选择走 `defaultTextModel` 兜底（后端 `workflow_agent.go` 已删除 `defaultModel` 分支）
+6. 数据库中旧的 `defaultModel` 值不再被读取，确认无报错
+
+## 渠道模型选择隔离与定价表布局优化
+
+修复新建渠道时"可用模型"下拉和"选择模型"弹窗混入其他已保存渠道模型的问题，并将"开放与定价"页面从卡片网格改为表格布局。
+
+### 可测试变更
+
+- `admin/channels` 渠道编辑 Drawer：
+  - "可用模型" Select 下拉候选只显示本渠道已选模型 + 本次拉取的模型，不再混入 `knownModels`（其他渠道/availableModels/modelCosts 的模型）
+  - 切换/新建渠道时自动清空上一次的拉取候选，避免跨渠道污染
+  - "选择模型"弹窗未拉取时只显示"已有的模型" Tab（本渠道已选），拉取后显示"新获取的模型" Tab
+- `admin/model-pricing` "模型开放与定价"卡片：
+  - 由按渠道分组的网格布局改为单个 Table
+  - 列：渠道（rowSpan 合并，含全选 Checkbox + 已开放计数）/ 模型名（ellipsis 截断，悬浮 tooltip 显示完整名）/ 开放（Switch）/ 单价（InputNumber + "点"后缀）
+  - 模型名超长不再换行，表格紧凑对齐
+
+### 涉及文件
+
+- `next/src/app/(admin)/admin/channels/page.tsx`：删除 `knownModels` state 及 `rememberModels` / `rememberKnownModels` / `collectKnownModels`；Select options 改为 `modelSelectOptions`（本渠道已选 + 本次拉取）；`openChannelModelSelector` 不再混入 knownModels
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：新增 `pricingTableData`（按渠道分组扁平化 + rowSpan 标记），用 antd Table 替换原 grid 卡片
+
+### 验证步骤
+
+1. 进入 `/admin/channels`，新增渠道 A，填写接口地址和 API Key 后点"拉取模型列表"，确认弹窗"新获取的模型"只显示本次拉取的模型
+2. 在 A 中选择部分模型并保存
+3. 再点"新增模型"打开渠道 B，点"可用模型" Select 下拉，确认**不显示** A 的模型（应为空）
+4. 在 B 点"选择模型"按钮，确认弹窗"已有的模型"为空、"新获取的模型"为空（未拉取时）
+5. 在 B 点"拉取模型列表"，确认只显示 B 本次拉取的模型，不含 A 的模型
+6. 编辑 A（点"编辑"），确认 Select 下拉只显示 A 已选的模型 + 本次拉取的，不含 B 的
+7. 进入 `/admin/model-pricing`，确认"模型开放与定价"显示为表格：渠道列合并、模型名单行截断、开放 Switch、单价输入框
+8. 鼠标悬浮截断的模型名，确认 tooltip 显示完整名称
+9. 点渠道列的全选 Checkbox，确认该渠道下所有模型开放状态同步切换
+10. 切换某模型开放开关为关闭，确认单价输入框变为 disabled
+11. 修改单价后点"保存设置"，刷新确认持久化
+
 ## 提示词分类管理后台化
 
 把原硬编码的 `promptCategories` 迁移到数据库 `prompt_categories` 表，支持管理后台可视化增删改查。详细方案见 [prompt-category-refactor.md](./prompt-category-refactor.md)。

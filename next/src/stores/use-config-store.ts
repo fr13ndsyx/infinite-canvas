@@ -176,10 +176,9 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
     const videoModels = filterModelsByCapability(models, "video");
     const audioModels = filterModelsByCapability(models, "audio");
     const fallbackTextModel = validDefault(modelChannel.defaultTextModel, textModels) || preferredModel(textModels, isTextModelName);
-    const fallbackModel = validDefault(modelChannel.defaultModel, textModels) || fallbackTextModel;
     const fallbackImageModel = validDefault(modelChannel.defaultImageModel, imageModels) || preferredModel(imageModels, isImageModelName);
     const fallbackVideoModel = validDefault(modelChannel.defaultVideoModel, videoModels) || preferredModel(videoModels, isVideoModelName);
-    const fallbackAudioModel = preferredModel(audioModels, isAudioModelName);
+    const fallbackAudioModel = validDefault(modelChannel.defaultAudioModel, audioModels) || preferredModel(audioModels, isAudioModelName);
     const effectiveImageModel = imageModels.includes(config.imageModel) ? config.imageModel : fallbackImageModel;
     const effectiveVideoModel = videoModels.includes(config.videoModel) ? config.videoModel : fallbackVideoModel;
     const capabilities = modelChannel.modelCapabilities || [];
@@ -193,10 +192,10 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
         videoModels,
         textModels,
         audioModels,
-        model: textModels.includes(config.model) ? config.model : fallbackModel,
+        model: textModels.includes(config.model) ? config.model : fallbackTextModel,
         imageModel: effectiveImageModel,
         videoModel: effectiveVideoModel,
-        textModel: textModels.includes(config.textModel) ? config.textModel : fallbackTextModel || fallbackModel,
+        textModel: textModels.includes(config.textModel) ? config.textModel : fallbackTextModel,
         audioModel: audioModels.includes(config.audioModel) ? config.audioModel : fallbackAudioModel,
         systemPrompt: modelChannel.systemPrompt,
         publicChannels: modelChannel.channels || [],
