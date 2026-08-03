@@ -51,6 +51,11 @@ func SaveSettings(settings model.Settings) (model.Settings, error) {
 	settings = normalizeSettings(settings)
 	keepPrivateAPIKeys(&settings, normalizeSettings(saved))
 	keepPrivateStorageSecrets(&settings, normalizeSettings(saved))
+	settings.Public.ModelChannel.AvailableModels = mergeNewEnabledChannelModels(
+		settings.Public.ModelChannel.AvailableModels,
+		enabledChannelModels(normalizePrivateSetting(saved.Private).Channels),
+		enabledChannelModels(settings.Private.Channels),
+	)
 	result, err := repository.SaveSettings(settings, now())
 	if err == nil {
 		RefreshPromptSyncScheduler()
@@ -185,6 +190,9 @@ func normalizePublicSettingWithChannels(setting model.PublicSetting, channels []
 		setting.Auth.AllowRegister = &enabled
 	}
 	setting.ModelChannel.AvailableModels = filterEnabledModels(setting.ModelChannel.AvailableModels, enabledChannelModels(channels))
+	if len(setting.ModelChannel.AvailableModels) == 0 {
+		setting.ModelChannel.AvailableModels = enabledChannelModels(channels)
+	}
 	setting.ModelChannel.DefaultTextModel = repairDefaultModel(setting.ModelChannel.DefaultTextModel, setting.ModelChannel.AvailableModels, isTextModelName)
 	setting.ModelChannel.DefaultImageModel = repairDefaultModel(setting.ModelChannel.DefaultImageModel, setting.ModelChannel.AvailableModels, isImageModelName)
 	setting.ModelChannel.DefaultVideoModel = repairDefaultModel(setting.ModelChannel.DefaultVideoModel, setting.ModelChannel.AvailableModels, isVideoModelName)
@@ -368,6 +376,27 @@ func filterEnabledModels(models []string, options []string) []string {
 	for _, modelName := range uniqueModelNames(models) {
 		if allowed[modelName] {
 			result = append(result, modelName)
+		}
+	}
+	return result
+}
+
+// mergeNewEnabledChannelModels 保留当前可用模型，并把本次新增启用的渠道模型自动并入，
+// 同时不会把管理员手动移除的既有模型加回来。
+func mergeNewEnabledChannelModels(current []string, previouslyEnabled []string, nowEnabled []string) []string {
+	previous := map[string]bool{}
+	for _, modelName := range previouslyEnabled {
+		previous[modelName] = true
+	}
+	result := append([]string{}, current...)
+	seen := map[string]bool{}
+	for _, modelName := range result {
+		seen[modelName] = true
+	}
+	for _, modelName := range nowEnabled {
+		if !previous[modelName] && !seen[modelName] {
+			result = append(result, modelName)
+			seen[modelName] = true
 		}
 	}
 	return result

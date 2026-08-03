@@ -387,5 +387,27 @@ description: 当前版本已实现但仍需人工验证的变更项
 15. 在私有 tab 切到「手动编辑 JSON」模式，确认 JSON 内容包含 `private.channels` 字段（保存全量 settings 仍包含渠道数据）
 16. 在模型管理页保存渠道后切到系统设置页，确认系统设置页公开 tab 的「系统可用模型」options 已按最新渠道模型更新
 
+## 修复公开配置可用模型不随渠道同步
+
+修复 bug.md 反馈的问题：管理后台模型管理添加渠道后，公开配置 `availableModels` 一直为空，普通用户看不到/用不了管理员配置的付费模型。根因是保存设置时只对 `availableModels` 做交集过滤（`filterEnabledModels`），从不把新渠道的模型合并进来，与 `docs/backend/system-settings.md` 描述的"自动合并"设计意图不符。
+
+### 可测试变更
+
+- 保存设置时自动合并新增渠道模型：`SaveSettings` 在过滤之外调用 `mergeNewEnabledChannelModels`，把本次新增启用渠道的模型并入公开配置 `availableModels`
+- 空值兜底：`normalizePublicSettingWithChannels` 中过滤后若 `availableModels` 为空，则直接用当前启用渠道模型填充（首次配置/全部失效时不再出现空列表）
+- 管理员手动移除的既有模型不会被加回：只合并"上次不存在、这次新出现"的启用模型，已存在但被手动取消勾选的模型保持移除状态
+- 默认模型自动修复逻辑不变：默认文/图/视频模型不在可用列表时仍按原规则修复
+
+### 涉及文件
+
+- `Go/service/settings.go`：`SaveSettings` 增加合并调用；`normalizePublicSettingWithChannels` 增加空值填充；新增 `mergeNewEnabledChannelModels` 函数
+
+### 验证步骤
+
+1. 管理后台「模型管理」新增一个启用渠道（含若干模型），保存后打开系统设置页公开 tab，确认「系统可用模型」中已自动出现该渠道的模型（修复前为空）
+2. 若此前 `availableModels` 为空，确认保存后默认文/图/视频模型被自动修复为列表中的有效模型
+3. 在系统设置页公开 tab 手动取消勾选某个既有模型并保存，再次保存渠道配置，确认该模型不会被自动加回
+4. 普通用户登录后打开生图/视频工作台或聊天，确认模型下拉中能看到并正常使用管理员配置的付费模型
+
 
 
