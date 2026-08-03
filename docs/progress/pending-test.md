@@ -409,5 +409,49 @@ description: 当前版本已实现但仍需人工验证的变更项
 3. 在系统设置页公开 tab 手动取消勾选某个既有模型并保存，再次保存渠道配置，确认该模型不会被自动加回
 4. 普通用户登录后打开生图/视频工作台或聊天，确认模型下拉中能看到并正常使用管理员配置的付费模型
 
+## 管理后台导航重组
+
+按管理员工作流重组后台导航为四组（用户与资费 / 模型服务 / 内容库 / 系统），隐藏"公开/私有配置"实现概念；原系统设置页拆分为「开放与定价」「存储设置」「系统偏好」「高级配置」四个新页面，并把 `promptSync` 迁进提示词来源页、`aiLog` 迁进 AI 调用日志页。详细方案见 [admin-nav-restructure.md](./admin-nav-restructure.md)。
+
+### 可测试变更
+
+- `admin/layout.tsx` 菜单改为 4 分组结构：用户与资费（用户管理 / 算力点日志）/ 模型服务（模型管理 / 开放与定价 / AI 调用日志）/ 内容库（提示词来源 / 提示词管理 / 素材库）/ 系统（存储设置 / 系统偏好 / 高级配置），移除原「系统设置」菜单项
+- `admin/settings/page.tsx` 删除全部内容，改为 `redirect("/admin/model-pricing")`，兼容旧链接
+- 新增 `admin/model-pricing/page.tsx`「开放与定价」页：系统可用模型多选（options 来自已启用渠道模型并标注来源渠道名）、未定价模型顶部 Alert 警告、模型定价表（每行算力点单价输入框）、默认文/图/视频模型 4 个 Select、`allowCustomChannel` / `allowUserRemoteChannel` 两个渠道策略开关
+- 新增 `admin/storage/page.tsx`「存储设置」页：存储模式、`allowUserProvider` / `allowUserGlobalProvider` 开关、容量上限与定时测量 cron、providers 列表
+- 新增 `admin/preferences/page.tsx`「系统偏好」页：访问控制（`auth.allowRegister` / `allowGuestConfig`）+ 5 个内置系统提示词 TextArea
+- 新增 `admin/advanced/page.tsx`「高级配置」页：左右两栏 JSON 编辑器（公开 / 私有），页头警示"仅供排障与迁移使用"
+- 新增 `admin/settings-shared.ts` 抽取共享的 `normalizeSettings` / `normalizePublicSetting` / `normalizePrivateSetting` / `filterModels` / `collectChannelModels` 等归一化函数
+- `admin/prompt-sources/page.tsx` 顶部新增「定时同步」卡片：`promptSync.enabled` 开关 + Cron 表达式
+- `admin/ai-logs/page.tsx` 顶部新增「日志设置」卡片：`aiLog.localDirectReportEnabled` 开关 + 自动清理开关 + 保留天数 + Cron
+- 后端零改动，各新页面沿用全量 settings 读写模式（读全量 → 渲染自己负责片段 → 整体 `POST /api/admin/settings`）
+
+### 涉及文件
+
+前端：
+- `next/src/app/(admin)/admin/layout.tsx`：菜单改为 4 分组结构，新增 4 个菜单项与 `routeMeta`，移除原「系统设置」项
+- `next/src/app/(admin)/admin/settings/page.tsx`：清空原内容，改为 `redirect("/admin/model-pricing")`
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：新增「开放与定价」页
+- `next/src/app/(admin)/admin/storage/page.tsx`：新增「存储设置」页
+- `next/src/app/(admin)/admin/preferences/page.tsx`：新增「系统偏好」页
+- `next/src/app/(admin)/admin/advanced/page.tsx`：新增「高级配置」页
+- `next/src/app/(admin)/admin/settings-shared.ts`：新增共享归一化函数
+- `next/src/app/(admin)/admin/prompt-sources/page.tsx`：顶部新增「定时同步」卡片
+- `next/src/app/(admin)/admin/ai-logs/page.tsx`：顶部新增「日志设置」卡片
+
+### 验证步骤
+
+1. 登录管理后台，确认左侧菜单显示 4 个分组：用户与资费 / 模型服务 / 内容库 / 系统
+2. 确认「系统设置」菜单项已消失，原 `/admin/settings` 路径访问时自动跳转到 `/admin/model-pricing`
+3. 点击「开放与定价」菜单，确认页面显示：系统可用模型多选、未定价模型 Alert（若有）、模型定价表、默认模型 Select×4、渠道策略开关×2
+4. 在「模型管理」新增一个启用渠道并保存后，回到「开放与定价」页确认该渠道的模型已自动出现在「系统可用模型」中
+5. 在「开放与定价」页修改某个模型的算力点单价并保存，刷新确认价格持久化
+6. 切换 `allowCustomChannel` / `allowUserRemoteChannel` 两个开关，确认下方"当前：xxx"模式说明文案同步更新
+7. 点击「存储设置」菜单，确认页面显示存储模式、`allowUserProvider` / `allowUserGlobalProvider` 开关、容量上限、定时测量 cron、providers 列表
+8. 点击「系统偏好」菜单，确认页面显示 `auth.allowRegister` / `allowGuestConfig` 两个开关 + 5 个内置系统提示词 TextArea（image / video / text / workflow / workflowAgent）
+9. 点击「高级配置」菜单，确认页面顶部有警示文案，左右两栏分别显示公开 / 私有 JSON，可格式化、可编辑、可保存
+10. 点击「提示词来源」菜单，确认页面顶部新增「定时同步」卡片（开启开关 + Cron 表达式），修改 Cron 保存后刷新确认持久化
+11. 点击「AI 调用日志」菜单，确认页面顶部新增「日志设置」卡片（本地直连上报开关 + 自动清理开关 + 保留天数 + Cron），修改后保存刷新确认持久化
+12. 旧链接兼容：浏览器直接访问 `/admin/settings`，确认自动重定向到 `/admin/model-pricing`
 
 
