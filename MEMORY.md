@@ -139,3 +139,64 @@
 
 ### 待办（todo.md）
 - 无新增待办
+
+## 2026-08-04 合并 fix/canvas-image-tiers → main（commit 05d6edc + merge）
+
+### 完成的工作
+
+**1. 画布图片节点分辨率档位显示修复（最终版）**
+- `next/src/app/(user)/canvas/components/canvas-image-settings-popover.tsx`：能力查找从 `config.imageModel || config.model` 改为 `config.model`，画布节点用用户实际选中的模型查能力（原 `config.imageModel` 是全局默认图片模型，非节点选中模型）
+- `next/src/components/image-settings-panel.tsx`：Segmented 渲染条件从 `tierOptions.length >= 2` 改为 `>= 1`，保证模型只配 1 档时也渲染
+
+**2. 顶栏算力图标补全**
+- `next/src/components/layout/user-status-actions.tsx`：default variant 新增算力余额显示，使用 `CreditSymbol` + stone 配色，一处改动覆盖全站顶栏 + 管理后台顶栏（原来仅画布顶栏有算力显示）
+
+**3. 视频首尾帧能力拆分**
+- 后端 `Go/model/setting.go`：`ModelCapability` 新增 `SupportsFirstFrame` 字段，保留 `SupportsFirstLastFrame` 作为兼容字段（勾选首尾帧=首帧+尾帧都支持，勾选首帧=仅首帧）
+- 前端类型 `next/src/services/api/admin.ts` + normalize `settings-shared.ts`：透传 `supportsFirstFrame`
+- 前端 store `next/src/stores/use-config-store.ts`：新增 `resolveSupportsFirstFrame`（`supportsFirstFrame || supportsFirstLastFrame`）+ `resolveSupportsLastFrame`（仅 `supportsFirstLastFrame`），未配置时向后兼容
+- 后台配置 UI `model-pricing/page.tsx`：原「首尾帧」Checkbox 拆为「首尾帧」+「首帧」两项
+- 画布视频设置 `canvas-video-settings-popover.tsx`：通用面板和 Kling V3 面板的「首尾帧」分组都拆为「首帧」「尾帧」两个独立分组，按能力开关分别显隐
+- 视频工作台 `video/page.tsx`：侧栏「首尾帧」Section 拆为「首帧」「尾帧」两个 Section；`FrameReferenceStrip` 新增 `showFirst`/`showLast` 参数；去掉 `!kling` 守卫
+- `video.ts`：去掉首尾帧 `!kling` 守卫，统一按能力开关决定是否传参
+- `canvas-client-page.tsx`：两处 `frameReferencesEnabled` 拆为 `firstFrameEnabled`/`lastFrameEnabled`，不支持侧图片合并进普通参考图
+
+**4. 画布生图节点去掉数量选择**
+- `canvas-image-settings-popover.tsx`：`showCount` 默认改为 `false`
+- `canvas-client-page.tsx`：图片生成 / 全景图生成 `count` 固定为 1
+- `canvas-config-node-panel.tsx` / `canvas-node-prompt-panel.tsx`：credits 计算固定 count=1
+
+**5. 生图并发保护与数量 UI 滑块化**
+- `next/src/services/api/image.ts`：`requestImages` 去掉 `useConcurrentSingleRequests` 条件，所有 `n > 1` 统一走 `Promise.allSettled` 并发多次单张请求（count=1），不再依赖上游是否支持 `n` 参数；`n` 上限从 15 调整为 10（对齐 gpt-image-1 行业天花板）
+- `next/src/components/image-settings-panel.tsx`：生成数量 UI 从「快捷选项网格 + 数字输入框」改为 antd `Slider` 滑块，右侧显示当前数值；`maxCount` 默认值从 15 改为 10；删除 `quickCount` 参数和未使用的 `OptionPill` / `CountInput` 组件
+- 深色模式下「生成数量」标题颜色从 `theme.node.muted`（浅灰）改为 `theme.node.text`（白色）；Slider tooltip 加 `color: theme.node.text`
+
+### 显隐逻辑总结
+
+| 后台勾选 | 首帧上传 | 尾帧上传 |
+|---------|---------|---------|
+| 首尾帧 | 显示 | 显示 |
+| 首帧 | 显示 | 不显示 |
+| 都不勾 | 不显示 | 不显示 |
+
+### 涉及文件（18 个）
+- 后端：`Go/model/setting.go`
+- 前端类型/store：`next/src/services/api/admin.ts`、`next/src/app/(admin)/admin/settings-shared.ts`、`next/src/stores/use-config-store.ts`
+- 后台配置 UI：`next/src/app/(admin)/admin/model-pricing/page.tsx`
+- 画布：`next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`、`canvas-config-node-panel.tsx`、`canvas-image-settings-popover.tsx`、`canvas-node-prompt-panel.tsx`、`canvas-video-settings-popover.tsx`
+- 工作台：`next/src/app/(user)/video/page.tsx`、`next/src/components/image-settings-panel.tsx`、`next/src/components/layout/user-status-actions.tsx`
+- API：`next/src/services/api/image.ts`、`next/src/services/api/video.ts`
+- 文档：`docs/backend/backend-database.md`、`docs/backend/video-exclusive-panels-params.md`、`docs/progress/pending-test.md`
+
+### 待验证（pending-test.md）
+- 画布图片节点档位 Segmented 正常显示并跟随模型切换
+- 非画布页面顶栏算力图标显示
+- 后台「首帧」「首尾帧」两个独立 Checkbox 正常
+- 仅首帧模型只显示首帧 Section、不显示尾帧 Section
+- 旧模型（supportsFirstLastFrame=true）首尾帧都显示（向后兼容）
+- 画布图片节点设置弹窗不显示数量滑块
+- 生图工作台数量滑块 1-10 范围
+- Grok Imagine 选 3 张能正常生成（并发 3 次单张请求）
+
+### 待办（todo.md）
+- 无新增待办（原有「生图/视频模型能力配置」剩余项不变：Seedance 分辨率/参考素材限制后台化、后端 apimartImageConfig/kieModelInputConfig 配置优先改造）
