@@ -25,8 +25,8 @@
 | `supportsElementList` | ✅ 已接入 | 元素列表（Kling V3） |
 | `audioRequiresMode` | ✅ 已接入 | 音频生成所需模式（Kling V26 pro） |
 | `audioMaxReferences` | ✅ 已接入 | 音频生成最大参考图数量 |
-| Seedance 分辨率 | ⚠️ 待接入 | 仍用 `seedanceResolutionOptions` 硬编码，未读 `videoResolutions` |
-| Seedance 参考素材限制 | ⚠️ 待接入 | 仍硬编码 `SEEDANCE_REFERENCE_LIMITS` |
+| Seedance 分辨率 | ✅ 已接入 | UI 早已读 `videoResolutions`，本轮清理 `seedanceResolutionOptions` 等死代码 |
+| Seedance 参考素材限制 | ✅ 已接入 | 数量上限读 `maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`，0=走默认；字节限制保持硬编码 |
 
 ## 现状概览
 
@@ -170,8 +170,8 @@
 - 取值：`480p` / `720p` / `1080p`
 - 默认：`720p`
 - 限制：`fast` / `mini` 模型不支持 `1080p`，自动降级 `720p`
-- 来源：`next/src/lib/seedance-video.ts` L14-18 `seedanceResolutionOptions`，L77-81 `normalizeSeedanceResolution`
-- 后台控制：⚠️ 待接入（仍用 `seedanceResolutionOptions` 硬编码，未读 `videoResolutions`）
+- 来源：`next/src/components/video-settings-panel.tsx`（通用面板按 `videoResolutions` 渲染）；原 `seedanceResolutionOptions` / `normalizeSeedanceResolution` / `seedancePixels` / `seedancePixelLabel` 死代码已删除
+- 后台控制：✅ 已接入 `ModelCapability.videoResolutions`（空=走默认 480p/720p/1080p 三档，空数组=仅自定义输入框）
 
 ### 比例（size）
 
@@ -211,8 +211,8 @@
 - 视频：最多 3 个，单个 ≤50MB，时长 2-15 秒，宽高 300-6000px，宽高比 0.4-2.5，像素总量 640×640 ~ 2206×946
 - 音频：最多 3 个，单个 ≤15MB
 - 总时长：参考视频合计 ≤15 秒
-- 来源：`seedance-video.ts` L5-12 `SEEDANCE_REFERENCE_LIMITS`，L146-166 `seedanceVideoReferenceError`
-- 后台控制：⚠️ 待接入（仍硬编码 `SEEDANCE_REFERENCE_LIMITS`）
+- 来源：`seedance-video.ts` `SEEDANCE_REFERENCE_LIMITS`（字节限制，保持硬编码）；数量上限改读 `ModelCapability.maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`，0=走默认（图片 9/视频 3/音频 3）；`video/page.tsx` 主组件 `referenceLimits` 对象统一解析
+- 后台控制：✅ 数量上限已接入 `ModelCapability`（0=走前端默认）；字节限制保持硬编码不动
 
 ## 后端统一控制字段（已实施）
 
@@ -265,10 +265,8 @@ type VideoModeOption struct {
 
 ## 迁移策略
 
-1. **已完成**：`VideoPanelType` / `VideoProvider` / `VideoModes` / `VideoRatios` / `VideoSecondsMin`/`Max` / `VideoSecondsPresets` / 全部能力开关 / 音频限制字段接入，删除前端 `isSeedanceVideoConfig` / `isSeedanceVideoModel` / `supportsVideoFrameReferences` / `supportsVideoAudioGeneration` 等硬编码判断函数
+1. **已完成**：`VideoPanelType` / `VideoProvider` / `VideoModes` / `VideoRatios` / `VideoSecondsMin`/`Max` / `VideoSecondsPresets` / 全部能力开关 / 音频限制字段接入，删除前端 `isSeedanceVideoConfig` / `isSeedanceVideoModel` / `supportsVideoFrameReferences` / `supportsVideoAudioGeneration` 等硬编码判断函数；Seedance 分辨率死代码清理（UI 早已读 `videoResolutions`）；Seedance 参考素材数量上限接入 `maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`（字节限制保持硬编码）
 2. **待办**：
    - `VideoSecondsSmart` 接入 Seedance 面板 UI（控制 `-1` 智能时长选项显隐，目前仍硬编码显示）
-   - Seedance 分辨率改读 `videoResolutions`（目前仍用 `seedanceResolutionOptions` 硬编码）
-   - Seedance 参考素材限制改后台配置（目前仍硬编码 `SEEDANCE_REFERENCE_LIMITS`）
    - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造
 3. **最终目标**：所有视频面板参数从后台 `ModelCapability` 读取，前端不再按模型名/渠道做硬编码分支，新增模型或厂商调整参数只需后台改配置

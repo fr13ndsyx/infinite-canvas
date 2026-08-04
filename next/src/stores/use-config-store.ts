@@ -284,6 +284,17 @@ export function resolveAudioMaxReferences(cap: AdminModelCapability | undefined)
     return cap?.audioMaxReferences || 0;
 }
 
+// 参考素材数量上限（Seedance 等）。0=走前端默认硬编码（图片 9/视频 3/音频 3）。
+export function resolveMaxImageReferences(cap: AdminModelCapability | undefined): number {
+    return cap?.maxImageReferences || 0;
+}
+export function resolveMaxVideoReferences(cap: AdminModelCapability | undefined): number {
+    return cap?.maxVideoReferences || 0;
+}
+export function resolveMaxAudioReferences(cap: AdminModelCapability | undefined): number {
+    return cap?.maxAudioReferences || 0;
+}
+
 // 按模型名查找 ModelCapability。
 export function findModelCapability(config: AiConfig, model: string): AdminModelCapability | undefined {
     return (config.modelCapabilities || []).find((item) => item.model === model);

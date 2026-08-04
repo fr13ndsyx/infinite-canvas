@@ -209,6 +209,9 @@ export type AdminModelCapability = {
     supportsElementList?: boolean;
     audioRequiresMode?: string;
     audioMaxReferences?: number;
+    maxImageReferences?: number;
+    maxVideoReferences?: number;
+    maxAudioReferences?: number;
 };
 
 export type AdminPublicModelChannelInfo = {

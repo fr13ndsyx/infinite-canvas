@@ -128,7 +128,7 @@ function setModelCapabilityModes(form: any, setModelCapabilities: (items: AdminM
     setModelCapabilities(next);
 }
 
-function setModelCapabilityNumber(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "audioMaxReferences", value: number | null) {
+function setModelCapabilityNumber(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "audioMaxReferences" | "maxImageReferences" | "maxVideoReferences" | "maxAudioReferences", value: number | null) {
     const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
     const index = current.findIndex((item) => item.model === model);
     const next = [...current];
@@ -544,6 +544,38 @@ export default function AdminModelPricingPage() {
                                                                 </Space>
                                                             </div>
                                                         ) : null}
+                                                        <div style={{ minWidth: 280 }}>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>参考素材数量上限（0=默认）</Typography.Text>
+                                                            <Space>
+                                                                <InputNumber
+                                                                    size="small"
+                                                                    min={0}
+                                                                    max={20}
+                                                                    placeholder="图片"
+                                                                    value={cap.maxImageReferences || undefined}
+                                                                    onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxImageReferences", value)}
+                                                                    style={{ width: 90 }}
+                                                                />
+                                                                <InputNumber
+                                                                    size="small"
+                                                                    min={0}
+                                                                    max={10}
+                                                                    placeholder="视频"
+                                                                    value={cap.maxVideoReferences || undefined}
+                                                                    onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxVideoReferences", value)}
+                                                                    style={{ width: 90 }}
+                                                                />
+                                                                <InputNumber
+                                                                    size="small"
+                                                                    min={0}
+                                                                    max={10}
+                                                                    placeholder="音频"
+                                                                    value={cap.maxAudioReferences || undefined}
+                                                                    onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxAudioReferences", value)}
+                                                                    style={{ width: 90 }}
+                                                                />
+                                                            </Space>
+                                                        </div>
                                                     </Flex>
                                                 </div>
                                             </div>

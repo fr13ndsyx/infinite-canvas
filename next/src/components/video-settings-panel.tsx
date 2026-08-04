@@ -10,8 +10,9 @@ import type { AdminModelCapability } from "@/services/api/admin";
 import { resolveAudioRequiresMode, resolveSupportsAudioGeneration, resolveSupportsNegativePrompt, resolveSupportsWatermark, resolveVideoModes, resolveVideoRatios, resolveVideoSecondsRange, type AiConfig } from "@/stores/use-config-store";
 
 const resolutionOptions = [
-    { value: "720", label: "720p" },
     { value: "480", label: "480p" },
+    { value: "720", label: "720p" },
+    { value: "1080", label: "1080p" },
 ];
 
 const sizeOptions = [
@@ -42,7 +43,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
     const secondsRange = resolveVideoSecondsRange(capabilities);
     const secondsValue = Math.max(secondsRange.min, Math.min(secondsRange.max, Math.floor(Number(config.videoSeconds) || secondsRange.min)));
 
-    // 分辨率：capabilities 未传=默认 720p/480p + 自定义输入；传了空数组=仅自定义输入；有值=按配置
+    // 分辨率：capabilities 未传=默认 480p/720p/1080p + 自定义输入；传了空数组=仅自定义输入；有值=按配置
     const capResolutions = capabilities?.videoResolutions;
     const resolutionOptionsForRender = !capabilities
         ? resolutionOptions

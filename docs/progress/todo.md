@@ -52,9 +52,7 @@ description: 当前项目后续值得处理的事项
   - 新增 `ModelCapability` 结构（`imageAspects` / `imageTiers` / `videoResolutions` / `videoSecondsMin` / `videoSecondsMax`）
   - 空字段走保守默认（生图=全比例+仅标准档，视频=480p/720p/1080p，秒数=4-20）
   - 切换模型时自动回退不支持的尺寸/档位/秒数
-- 待办：专属面板（Kling V26/V3/Seedance/Grok/Motion Control）的面板类型、厂商、模式、比例、能力开关、音频限制已接入后台 `ModelCapability`（详见 [pending-test.md](./pending-test.md)「视频专属面板能力后台化重构」）。画布视频设置弹窗已改为完全能力开关驱动（详见 [pending-test.md](./pending-test.md)「画布视频设置弹窗改为能力开关驱动」），`panelType` 仅控制请求体格式不再控制 UI 显隐。模型能力卡片已拆为「图片模型能力」+「视频模型能力」两张，秒数统一走 Slider（已删除秒数预设档位），视频创作台任务数量输入框已移除（详见 [pending-test.md](./pending-test.md)「模型能力配置拆分与任务数量移除」）。剩余项：
-  - Seedance 分辨率改读 `videoResolutions`（目前仍用 `seedanceResolutionOptions` 硬编码）
-  - Seedance 参考素材限制改后台配置（目前仍硬编码 `SEEDANCE_REFERENCE_LIMITS`）
+- 待办：专属面板（Kling V26/V3/Seedance/Grok/Motion Control）的面板类型、厂商、模式、比例、能力开关、音频限制已接入后台 `ModelCapability`（详见 [pending-test.md](./pending-test.md)「视频专属面板能力后台化重构」）。画布视频设置弹窗已改为完全能力开关驱动（详见 [pending-test.md](./pending-test.md)「画布视频设置弹窗改为能力开关驱动」），`panelType` 仅控制请求体格式不再控制 UI 显隐。模型能力卡片已拆为「图片模型能力」+「视频模型能力」两张，秒数统一走 Slider（已删除秒数预设档位），视频创作台任务数量输入框已移除（详见 [pending-test.md](./pending-test.md)「模型能力配置拆分与任务数量移除」）。Seedance 分辨率死代码清理、Seedance 参考素材数量限制后台化已完成（详见 [pending-test.md](./pending-test.md)「Seedance 分辨率与参考素材限制后台化收尾」）。剩余项：
   - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造暂未实施，后续按需补
 
 ### 画布 Agent 行为风格可配置

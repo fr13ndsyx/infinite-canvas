@@ -91,6 +91,9 @@ export function normalizeModelCapabilities(items: Partial<AdminModelCapability>[
         supportsElementList: item.supportsElementList === true,
         audioRequiresMode: item.audioRequiresMode || "",
         audioMaxReferences: Number(item.audioMaxReferences) || 0,
+        maxImageReferences: Number(item.maxImageReferences) || 0,
+        maxVideoReferences: Number(item.maxVideoReferences) || 0,
+        maxAudioReferences: Number(item.maxAudioReferences) || 0,
     }));
 }
 

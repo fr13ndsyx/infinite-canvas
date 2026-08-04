@@ -73,6 +73,11 @@ type ModelCapability struct {
 	// 音频生成限制：AudioRequiresMode 如 "pro" 表示仅该模式可用；AudioMaxReferences 如 1。
 	AudioRequiresMode  string `json:"audioRequiresMode,omitempty"`
 	AudioMaxReferences int    `json:"audioMaxReferences,omitempty"`
+
+	// 参考素材数量上限（Seedance 等）。0=走前端默认硬编码（图片 9/视频 3/音频 3）。
+	MaxImageReferences int `json:"maxImageReferences,omitempty"`
+	MaxVideoReferences int `json:"maxVideoReferences,omitempty"`
+	MaxAudioReferences int `json:"maxAudioReferences,omitempty"`
 }
 
 // VideoModeOption 视频模式选项。

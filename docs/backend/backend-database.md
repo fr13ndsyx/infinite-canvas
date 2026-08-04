@@ -329,6 +329,9 @@ description: 当前后端主要数据表与字段说明
 | `supportsElementList` | bool | 是否支持元素列表 |
 | `audioRequiresMode` | string | 音频生成所需模式，如 Kling V26 要求 `pro`；空=不限 |
 | `audioMaxReferences` | int | 音频生成最大参考图数量，如 Kling V26 要求 `1`；空/0=不限 |
+| `maxImageReferences` | int | 参考图数量上限（Seedance 等）；空/0=走前端默认（图片 9） |
+| `maxVideoReferences` | int | 参考视频数量上限（Seedance 等）；空/0=走前端默认（视频 3） |
+| `maxAudioReferences` | int | 参考音频数量上限（Seedance 等）；空/0=走前端默认（音频 3） |
 
 `videoModes` 每项字段：
 
