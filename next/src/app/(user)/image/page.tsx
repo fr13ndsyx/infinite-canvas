@@ -27,7 +27,7 @@ import { App, Button, Checkbox, Empty, Image, Input, Modal, Segmented, Tag, Typo
 import localforage from "localforage";
 import { saveAs } from "file-saver";
 
-import { ImageSettingsPanel, imageFormatLabel, imageQualityLabel, imageSizeLabel } from "@/components/image-settings-panel";
+import { ImageSettingsPanel, imageFormatLabel, imageSizeLabel } from "@/components/image-settings-panel";
 import { ModelPicker } from "@/components/model-picker";
 import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { AssetPickerModal, type InsertAssetPayload } from "@/app/(user)/canvas/components/asset-picker-modal";
@@ -90,7 +90,6 @@ type GenerationLog = {
     failCount: number;
     imageCount: number;
     size: string;
-    quality: string;
     status: "生成中" | "成功" | "失败";
     images: GeneratedImage[];
     thumbnails: string[];
@@ -105,7 +104,7 @@ type GenerationLog = {
     lastPolledAt?: number;
 };
 
-type GenerationLogConfig = Pick<AiConfig, "channelMode" | "model" | "imageModel" | "activeChannelId" | "imageChannelId" | "quality" | "size" | "count" | "apiMode" | "streamImages" | "streamPartialImages" | "responseFormatB64Json" | "codexCli">;
+type GenerationLogConfig = Pick<AiConfig, "channelMode" | "model" | "imageModel" | "activeChannelId" | "imageChannelId" | "size" | "count" | "apiMode" | "streamImages" | "streamPartialImages" | "responseFormatB64Json" | "codexCli">;
 type RequestSnapshot = { text: string; requestConfig: AiConfig; displayConfig: GenerationLogConfig; references: ReferenceImage[] };
 type GenerationCategory = { id: string; name: string; createdAt: number };
 type ResultViewMode = "all" | "category";
@@ -827,7 +826,6 @@ export default function ImagePage() {
             updateConfig("imageChannelId", nextChannelId);
             updateConfig("activeChannelId", nextChannelId);
         }
-        if (log.config.quality) updateConfig("quality", log.config.quality);
         if (log.config.size) updateConfig("size", log.config.size);
         if (log.config.count) updateConfig("count", log.config.count);
         if (log.config.apiMode) updateConfig("apiMode", log.config.apiMode);
@@ -1040,13 +1038,6 @@ const quickSizeOptions = [
     { value: "1152x2048", label: "9:16 2k" },
 ];
 
-const quickQualityOptions = [
-    { value: "auto", label: "自动" },
-    { value: "high", label: "高" },
-    { value: "medium", label: "中" },
-    { value: "low", label: "低" },
-];
-
 function WorkbenchPanel({
     layout,
     prompt,
@@ -1121,7 +1112,7 @@ function WorkbenchPanel({
                                 </Button>
                             </div>
                         </div>
-                        <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[1.3fr_1.1fr_0.9fr_0.9fr_0.9fr_0.85fr_0.8fr_0.8fr_auto_auto] ${bottomSettingsCollapsed ? "hidden lg:grid" : "grid"}`}>
+                        <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[1.3fr_1.1fr_0.9fr_0.9fr_0.85fr_0.8fr_0.8fr_auto_auto] ${bottomSettingsCollapsed ? "hidden lg:grid" : "grid"}`}>
                             <label className="grid gap-1 text-xs text-stone-500 dark:text-stone-400">
                                 模型
                                 <ModelPicker
@@ -1139,7 +1130,6 @@ function WorkbenchPanel({
                                 />
                             </label>
                             <QuickSelect label="尺寸" value={config.size || "auto"} options={quickSizeOptions} onChange={(value) => updateConfig("size", value)} />
-                            <QuickSelect label="质量" value={config.quality || "auto"} options={quickQualityOptions} onChange={(value) => updateConfig("quality", value)} />
                             <QuickNumber label="数量" value={config.count || "1"} min={1} max={10} onChange={(value) => updateConfig("count", value)} />
                             <ReferenceQuickActions references={references} onUploadReferences={onUploadReferences} />
                             <Button type="primary" className="h-11 min-w-28 rounded-xl hidden lg:inline-flex" icon={<Sparkles className="size-4" />} disabled={!canGenerate} onClick={onGenerate}>
@@ -1294,7 +1284,6 @@ function settingsSummary(config: AiConfig, model: string) {
     return [
         model,
         imageSizeLabel(config.size || "auto"),
-        imageQualityLabel(config.quality || "auto"),
         `${config.count || "1"} 张`,
         config.streamImages ? `流式 ${config.streamPartialImages || "1"}` : "非流式",
     ].join(" · ");
@@ -1708,7 +1697,6 @@ function TaskInfo({ result, error, onCopyPrompt }: { result: GenerationResult; e
                 <Tag className="m-0">{result.model}</Tag>
                 <Tag className="m-0">{result.config.apiMode === "responses" ? "Responses" : "Images"}</Tag>
                 <Tag className="m-0">{result.config.size || "auto"}</Tag>
-                <Tag className="m-0">{result.config.quality || "auto"}</Tag>
                 {result.config.streamImages ? <Tag className="m-0">流式 {result.config.streamPartialImages || "1"}</Tag> : null}
                 {result.durationMs ? <Tag className="m-0">{formatDuration(result.durationMs)}</Tag> : null}
             </div>
@@ -1845,7 +1833,6 @@ function HistoryLogCard({
                     <Tag className="m-0 text-[10px]">{log.model}</Tag>
                     <Tag className="m-0 text-[10px]">{log.config.apiMode === "responses" ? "Responses" : "Images"}</Tag>
                     <Tag className="m-0 text-[10px]">{log.config.size || "auto"}</Tag>
-                    <Tag className="m-0 text-[10px]">{log.config.quality || "auto"}</Tag>
                     {log.config.streamImages ? <Tag className="m-0 text-[10px]">流式 {log.config.streamPartialImages || "1"}</Tag> : null}
                     <Tag className="m-0 text-[10px]">{formatDuration(log.durationMs)}</Tag>
                 </div>
@@ -2335,7 +2322,6 @@ async function normalizeLog(log: Partial<GenerationLog>): Promise<GenerationLog>
         failCount: log.failCount || 0,
         imageCount: log.imageCount || log.successCount || 0,
         size: log.size || config.size || "",
-        quality: log.quality || config.quality || "",
         status: log.status || "成功",
         images: visibleImages,
         thumbnails: visibleImages.map((image) => image.dataUrl),
@@ -2374,7 +2360,6 @@ function normalizeLogConfig(log: Partial<GenerationLog>): GenerationLogConfig {
         imageModel: log.config?.imageModel || log.model || "",
         activeChannelId: taskChannelId || log.config?.activeChannelId || log.config?.imageChannelId || "",
         imageChannelId: taskChannelId || log.config?.imageChannelId || log.config?.activeChannelId || "",
-        quality: log.config?.quality || log.quality || "",
         size: log.config?.size || log.size || "",
         count: log.config?.count || String(log.imageCount || log.successCount || 1),
         apiMode: log.config?.apiMode || "images",
@@ -2407,7 +2392,6 @@ function buildGenerationLogConfig(config: AiConfig): GenerationLogConfig {
         imageModel: config.imageModel,
         activeChannelId: config.imageChannelId || config.activeChannelId,
         imageChannelId: config.imageChannelId,
-        quality: config.quality,
         size: config.size,
         count: config.count,
         apiMode: config.apiMode,
@@ -2484,7 +2468,6 @@ function buildLog({
         failCount,
         imageCount: status === "生成中" ? 0 : Number(logConfig.count) || successCount,
         size: logConfig.size,
-        quality: logConfig.quality,
         status,
         images,
         thumbnails: images.map((image) => image.dataUrl),

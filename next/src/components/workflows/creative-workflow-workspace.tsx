@@ -1380,7 +1380,6 @@ function WorkflowTaskCard({ task, now, onCopyPrompt, onDownload }: { task: Workf
                     <Tag className="m-0 text-[10px]">{task.model}</Tag>
                     <Tag className="m-0 text-[10px]">{task.apiMode === "responses" ? "Responses" : "Images"}</Tag>
                     <Tag className="m-0 text-[10px]">{task.config.size || "auto"}</Tag>
-                    <Tag className="m-0 text-[10px]">{task.config.quality || "auto"}</Tag>
                     <Tag className="m-0 text-[10px]">{task.count} 张</Tag>
                     {task.config.streamImages ? <Tag className="m-0 text-[10px]">流式 {task.config.streamPartialImages || "1"}</Tag> : null}
                 </div>
@@ -1762,7 +1761,6 @@ function createWorkflowConfig(config: AiConfig): WorkflowGenerationConfig {
         model: config.model || defaultConfig.model,
         imageModel: config.imageModel || config.model || defaultConfig.imageModel,
         imageChannelId: config.imageChannelId || "",
-        quality: config.quality || defaultConfig.quality,
         size: config.size || defaultConfig.size,
         count: config.count || "1",
         apiMode: config.apiMode || "images",
@@ -2063,7 +2061,6 @@ function buildImageHistoryLog({
         failCount: status === "失败" ? 1 : 0,
         imageCount: status === "生成中" ? 0 : images.length,
         size: config.size,
-        quality: config.quality,
         status,
         images,
         thumbnails: images.map((image) => image.dataUrl),

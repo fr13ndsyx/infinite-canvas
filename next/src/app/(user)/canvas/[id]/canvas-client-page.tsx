@@ -11,14 +11,13 @@ import { deleteCanvasProjects, deleteCanvasTasks } from "@/services/api/canvas-t
 import { createCanvasImageTask, pollCanvasImageTaskStatus, requestImageQuestion, type CanvasImageTask } from "@/services/api/image";
 import { createCanvasAudioTask, pollCanvasAudioTaskStatus, type CanvasAudioTask } from "@/services/api/audio";
 import { createVideoGenerationTask, pollVideoGenerationTaskStatus, VIDEO_POLL_INTERVAL_MS, type VideoResponse } from "@/services/api/video";
-import { defaultConfig, type AiConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
+import { defaultConfig, findModelCapability, resolveSupportsAudioGeneration, resolveSupportsFirstLastFrame, resolveVideoPanelType, resolveVideoProvider, type AiConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { collectImageStorageKeys, deleteStoredImages, resolveImageUrl, uploadImage, uploadRemoteImageToServer, type UploadedImage } from "@/services/image-storage";
 import { resolveMediaUrl, uploadMediaFile, uploadRemoteMediaToServer, type UploadedFile } from "@/services/file-storage";
 import { nanoid } from "nanoid";
 import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
-import { isKIEKlingV3Config } from "@/components/video-settings-panel";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { cropDataUrl, splitDataUrl, upscaleDataUrl } from "../utils/canvas-image-data";
@@ -27,7 +26,7 @@ import { PANORAMA_IMAGE_SIZE, PANORAMA_NODE_SIZE, buildPanoramaPrompt, isCanvasI
 import { applyCameraPrompt } from "../utils/canvas-camera";
 import { GROUP_PADDING, findContainingGroupId, findGroupDropTarget, getNodeBounds, snapNodesIntoGroup } from "../utils/canvas-group";
 import { App, Button, Dropdown, Modal } from "antd";
-import { modelKey, supportsVideoAudioGeneration, supportsVideoFrameReferences } from "@/lib/video-model-capabilities";
+import { modelKey } from "@/lib/video-model-capabilities";
 import { NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
 import { ActiveConnectionPath, ConnectionPath } from "../components/canvas-connections";
 import { CanvasConfigComposer } from "../components/canvas-config-composer";
@@ -2786,7 +2785,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
 
                 if (mode === "video") {
                     const videoGenerationConfig = withCanvasVideoAdvancedConfig(generationConfig, generationContext);
-                    const frameReferencesEnabled = supportsVideoFrameReferences(videoGenerationConfig.model);
+                    const frameReferencesEnabled = resolveSupportsFirstLastFrame(findModelCapability(videoGenerationConfig, videoGenerationConfig.model)) === true;
                     const firstFrame = frameReferencesEnabled ? generationContext.firstFrame : null;
                     const lastFrame = frameReferencesEnabled ? generationContext.lastFrame : null;
                     const videoReferenceImages = frameReferencesEnabled ? generationContext.referenceImages : [...generationContext.referenceImages, ...[generationContext.firstFrame, generationContext.lastFrame].filter((image): image is ReferenceImage => Boolean(image))];
@@ -3026,7 +3025,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                         imageCount: 1,
                         videoSeconds: agentEffectiveConfig.videoSeconds,
                         videoGenerateAudio: agentEffectiveConfig.videoGenerateAudio,
-                        videoSupportsAudio: supportsVideoAudioGeneration(videoModel),
+                        videoSupportsAudio: resolveSupportsAudioGeneration(findModelCapability(agentEffectiveConfig, videoModel)) === true,
                         videoDuration: canvasAgentVideoDurationHint(videoModel),
                         audioVoice: agentEffectiveConfig.audioVoice,
                         audioFormat: agentEffectiveConfig.audioFormat,
@@ -3246,7 +3245,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                         const durationError = validateCanvasAgentVideoSeconds(generationConfig.model, seconds);
                         if (durationError) return { ok: false, code: "unsupported_duration", message: durationError, supported: canvasAgentVideoDurationHint(generationConfig.model) };
                         const generateAudio = typeof args.generateAudio === "boolean" ? args.generateAudio : generationConfig.videoGenerateAudio === "true";
-                        if (generateAudio && !supportsVideoAudioGeneration(generationConfig.model)) {
+                        if (generateAudio && resolveSupportsAudioGeneration(findModelCapability(generationConfig, generationConfig.model)) !== true) {
                             return { ok: false, code: "video_audio_not_supported", message: "当前全局视频模型不支持视频原生声音" };
                         }
                         metadata.seconds = String(seconds);
@@ -3363,7 +3362,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                 }
                 if (node.type === CanvasNodeType.Video) {
                     const videoGenerationConfig = context ? withCanvasVideoAdvancedConfig(generationConfig, context) : generationConfig;
-                    const frameReferencesEnabled = supportsVideoFrameReferences(videoGenerationConfig.model);
+                    const frameReferencesEnabled = resolveSupportsFirstLastFrame(findModelCapability(videoGenerationConfig, videoGenerationConfig.model)) === true;
                     const firstFrame = frameReferencesEnabled ? context?.firstFrame || null : null;
                     const lastFrame = frameReferencesEnabled ? context?.lastFrame || null : null;
                     const references = frameReferencesEnabled ? retryImages : [...retryImages, ...[context?.firstFrame, context?.lastFrame].filter((image): image is ReferenceImage => Boolean(image))];
@@ -4412,7 +4411,8 @@ function referenceUrl(image: ReferenceImage) {
 }
 
 function withCanvasVideoAdvancedConfig(config: AiConfig, context: Pick<NodeGenerationContext, "videoMultiPrompt" | "videoElementList">): AiConfig {
-    const kieKlingV3 = isKIEKlingV3Config(config, config.model || config.videoModel);
+    const kieKlingV3Cap = findModelCapability(config, config.model || config.videoModel);
+    const kieKlingV3 = resolveVideoPanelType(kieKlingV3Cap) === "kling-v3" && resolveVideoProvider(kieKlingV3Cap) === "kie";
     return {
         ...config,
         videoNegativePrompt: kieKlingV3 ? "" : config.videoNegativePrompt,
@@ -4487,7 +4487,7 @@ async function hydrateAssistantImages(sessions: CanvasAssistantSession[]) {
 }
 
 function getGenerationCount(count: string) {
-    return Math.max(1, Math.min(15, Math.floor(Math.abs(Number(count)) || 1)));
+    return Math.max(1, Math.min(50, Math.floor(Math.abs(Number(count)) || 1)));
 }
 
 function applyNodeConfigPatch(node: CanvasNodeData, patch: Partial<CanvasNodeData["metadata"]>) {

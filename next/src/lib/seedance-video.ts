@@ -1,4 +1,3 @@
-import type { AiConfig } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
@@ -18,12 +17,12 @@ export const seedanceResolutionOptions = [
 ] as const;
 
 export const seedanceRatioOptions = [
-    { value: "16:9", label: "横屏" },
-    { value: "9:16", label: "竖屏" },
-    { value: "1:1", label: "方形" },
-    { value: "4:3", label: "标准横屏" },
-    { value: "3:4", label: "标准竖屏" },
-    { value: "21:9", label: "宽银幕" },
+    { value: "16:9", label: "16:9" },
+    { value: "9:16", label: "9:16" },
+    { value: "1:1", label: "1:1" },
+    { value: "4:3", label: "4:3" },
+    { value: "3:4", label: "3:4" },
+    { value: "21:9", label: "21:9" },
     { value: "adaptive", label: "自适应" },
 ] as const;
 
@@ -56,27 +55,8 @@ const seedancePixels = {
     },
 } as const;
 
-export function isSeedanceVideoConfig(config: Pick<AiConfig, "model" | "videoModel" | "baseUrl">) {
-    return isSeedanceVideoModel(config.model || config.videoModel) || isArkPlanBaseUrl(config.baseUrl);
-}
-
-export function isSeedanceVideoModel(model: string) {
-    const value = model.toLowerCase();
-    return value.includes("seedance") || value.includes("doubao-seedance");
-}
-
-export function isSeedanceFastOrMiniModel(model: string) {
-    const value = model.toLowerCase();
-    return isSeedanceVideoModel(value) && (value.includes("fast") || value.includes("mini"));
-}
-
-export function isArkPlanBaseUrl(baseUrl: string) {
-    return baseUrl.toLowerCase().includes("ark.cn-beijing.volces.com/api/plan/v3") || baseUrl.toLowerCase().includes("/api/plan/v3");
-}
-
-export function normalizeSeedanceResolution(value: string, model = "") {
+export function normalizeSeedanceResolution(value: string, _model = "") {
     const normalized = normalizeResolutionToken(value);
-    if (isSeedanceFastOrMiniModel(model) && normalized === "1080p") return "720p";
     return seedanceResolutionOptions.some((item) => item.value === normalized) ? normalized : "720p";
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { ReloadOutlined, SaveOutlined } from "@ant-design/icons";
-import { App, Button, Card, Checkbox, Col, Flex, Form, InputNumber, Row, Select, Space, Switch, Table, Typography } from "antd";
+import { DeleteOutlined, PlusOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
+import { App, Button, Card, Checkbox, Col, Flex, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Typography } from "antd";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -34,12 +34,35 @@ const VIDEO_RESOLUTION_OPTIONS = [
     { label: "2K", value: "2k" },
     { label: "4K", value: "4k" },
 ];
+const VIDEO_PANEL_TYPE_OPTIONS = [
+    { label: "通用（默认）", value: "" },
+    { label: "Kling 请求格式", value: "kling-v26" },
+    { label: "Kling V3 请求格式", value: "kling-v3" },
+    { label: "Seedance 请求格式", value: "seedance" },
+    { label: "Grok 请求格式", value: "grok" },
+    { label: "运动控制请求格式", value: "motion-control" },
+    { label: "Agnes 请求格式", value: "agnes" },
+];
+const VIDEO_PROVIDER_OPTIONS = [
+    { label: "不区分（空）", value: "" },
+    { label: "apimart", value: "apimart" },
+    { label: "kie", value: "kie" },
+];
+const VIDEO_RATIO_OPTIONS = [
+    { label: "16:9", value: "16:9" },
+    { label: "9:16", value: "9:16" },
+    { label: "1:1", value: "1:1" },
+    { label: "4:3", value: "4:3" },
+    { label: "3:4", value: "3:4" },
+    { label: "21:9", value: "21:9" },
+    { label: "adaptive", value: "adaptive" },
+];
 
 function getModelCapability(items: AdminModelCapability[], model: string): AdminModelCapability {
-    return items.find((item) => item.model === model) || { model, imageAspects: [], imageTiers: [], videoResolutions: [] };
+    return items.find((item) => item.model === model) || { model, imageAspects: [], imageTiers: [], videoResolutions: [], videoSecondsMin: 4, videoSecondsMax: 20 };
 }
 
-function setModelCapabilityField(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "imageAspects" | "imageTiers" | "videoResolutions", values: string[]) {
+function setModelCapabilityField(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "imageAspects" | "imageTiers" | "videoResolutions" | "videoRatios", values: string[]) {
     const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
     const index = current.findIndex((item) => item.model === model);
     const next = [...current];
@@ -47,6 +70,72 @@ function setModelCapabilityField(form: any, setModelCapabilities: (items: AdminM
         next[index] = { ...next[index], [field]: values };
     } else {
         next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], [field]: values });
+    }
+    form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
+    setModelCapabilities(next);
+}
+
+function setModelCapabilitySeconds(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "videoSecondsMin" | "videoSecondsMax", value: number | null) {
+    const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
+    const index = current.findIndex((item) => item.model === model);
+    const fallback = { model, imageAspects: [], imageTiers: [], videoResolutions: [], videoSecondsMin: 4, videoSecondsMax: 20 } as AdminModelCapability;
+    const next = [...current];
+    if (index >= 0) {
+        next[index] = { ...next[index], [field]: value ?? (field === "videoSecondsMin" ? 4 : 20) };
+    } else {
+        next.push({ ...fallback, [field]: value ?? (field === "videoSecondsMin" ? 4 : 20) });
+    }
+    form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
+    setModelCapabilities(next);
+}
+
+function setModelCapabilityValue(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "videoPanelType" | "videoProvider" | "audioRequiresMode", value: string) {
+    const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
+    const index = current.findIndex((item) => item.model === model);
+    const next = [...current];
+    if (index >= 0) {
+        next[index] = { ...next[index], [field]: value };
+    } else {
+        next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], [field]: value });
+    }
+    form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
+    setModelCapabilities(next);
+}
+
+function setModelCapabilityBool(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "videoSecondsSmart" | "supportsNegativePrompt" | "supportsFirstLastFrame" | "supportsMotionControl" | "supportsAudioGeneration" | "supportsWatermark" | "supportsMultiShot" | "supportsElementList", value: boolean) {
+    const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
+    const index = current.findIndex((item) => item.model === model);
+    const next = [...current];
+    if (index >= 0) {
+        next[index] = { ...next[index], [field]: value };
+    } else {
+        next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], [field]: value });
+    }
+    form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
+    setModelCapabilities(next);
+}
+
+function setModelCapabilityModes(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, modes: { value: string; label: string; desc?: string }[]) {
+    const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
+    const index = current.findIndex((item) => item.model === model);
+    const next = [...current];
+    if (index >= 0) {
+        next[index] = { ...next[index], videoModes: modes };
+    } else {
+        next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], videoModes: modes });
+    }
+    form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
+    setModelCapabilities(next);
+}
+
+function setModelCapabilityNumber(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "audioMaxReferences", value: number | null) {
+    const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
+    const index = current.findIndex((item) => item.model === model);
+    const next = [...current];
+    if (index >= 0) {
+        next[index] = { ...next[index], [field]: value ?? 0 };
+    } else {
+        next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], [field]: value ?? 0 });
     }
     form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
     setModelCapabilities(next);
@@ -119,6 +208,8 @@ export default function AdminModelPricingPage() {
                     imageAspects: isImage ? IMAGE_ASPECT_OPTIONS.map((o) => o.value) : [],
                     imageTiers: isImage ? IMAGE_TIER_OPTIONS.map((o) => o.value) : [],
                     videoResolutions: isVideo ? VIDEO_RESOLUTION_OPTIONS.map((o) => o.value) : [],
+                    videoSecondsMin: isVideo ? 4 : undefined,
+                    videoSecondsMax: isVideo ? 20 : undefined,
                 });
             }
             data.public.modelChannel.modelCapabilities = caps;
@@ -277,8 +368,8 @@ export default function AdminModelPricingPage() {
 
                     <Card
                         variant="borderless"
-                        title="模型能力"
-                        extra={<Typography.Text type="secondary">勾选每个模型支持的选项，未勾选 = 前端不展示；新模型默认全选</Typography.Text>}
+                        title="图片模型能力"
+                        extra={<Typography.Text type="secondary">勾选每个图片模型支持的选项，未勾选 = 前端不展示；新模型默认全选</Typography.Text>}
                     >
                         {availableModels.length === 0 ? (
                             <Typography.Text type="secondary">请先在上方勾选开放模型</Typography.Text>
@@ -288,46 +379,172 @@ export default function AdminModelPricingPage() {
                                     <InputNumber />
                                 </Form.Item>
                                 {availableModels
-                                    .filter((model) => modelMatchesCapability(model, "image") || modelMatchesCapability(model, "video"))
+                                    .filter((model) => modelMatchesCapability(model, "image"))
                                     .map((model) => {
                                         const cap = getModelCapability(modelCapabilities, model);
-                                        const isImage = modelMatchesCapability(model, "image");
-                                        const isVideo = modelMatchesCapability(model, "video");
                                         return (
                                             <div key={model} style={{ border: "1px solid var(--ant-color-border)", borderRadius: 8, padding: "12px 16px" }}>
                                                 <Typography.Text strong style={{ wordBreak: "break-all" }}>{model}</Typography.Text>
                                                 <Flex gap={32} wrap style={{ marginTop: 8 }}>
-                                                    {isImage ? (
-                                                        <div style={{ minWidth: 320 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片比例</Typography.Text>
-                                                            <Checkbox.Group
-                                                                options={IMAGE_ASPECT_OPTIONS}
-                                                                value={cap.imageAspects}
-                                                                onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageAspects", values as string[])}
-                                                            />
-                                                        </div>
-                                                    ) : null}
-                                                    {isImage ? (
-                                                        <div style={{ minWidth: 220 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片档位</Typography.Text>
-                                                            <Checkbox.Group
-                                                                options={IMAGE_TIER_OPTIONS}
-                                                                value={cap.imageTiers}
-                                                                onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageTiers", values as string[])}
-                                                            />
-                                                        </div>
-                                                    ) : null}
-                                                    {isVideo ? (
-                                                        <div style={{ minWidth: 320 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频清晰度</Typography.Text>
-                                                            <Checkbox.Group
-                                                                options={VIDEO_RESOLUTION_OPTIONS}
-                                                                value={cap.videoResolutions}
-                                                                onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "videoResolutions", values as string[])}
-                                                            />
-                                                        </div>
-                                                    ) : null}
+                                                    <div style={{ minWidth: 320 }}>
+                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片比例</Typography.Text>
+                                                        <Checkbox.Group
+                                                            options={IMAGE_ASPECT_OPTIONS}
+                                                            value={cap.imageAspects}
+                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageAspects", values as string[])}
+                                                        />
+                                                    </div>
+                                                    <div style={{ minWidth: 220 }}>
+                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片档位</Typography.Text>
+                                                        <Checkbox.Group
+                                                            options={IMAGE_TIER_OPTIONS}
+                                                            value={cap.imageTiers}
+                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageTiers", values as string[])}
+                                                        />
+                                                    </div>
                                                 </Flex>
+                                            </div>
+                                        );
+                                    })}
+                            </Flex>
+                        )}
+                    </Card>
+
+                    <Card
+                        variant="borderless"
+                        title="视频模型能力"
+                        extra={<Typography.Text type="secondary">勾选每个视频模型支持的选项，未勾选 = 前端不展示；新模型默认全选</Typography.Text>}
+                    >
+                        {availableModels.length === 0 ? (
+                            <Typography.Text type="secondary">请先在上方勾选开放模型</Typography.Text>
+                        ) : (
+                            <Flex vertical gap={12}>
+                                {availableModels
+                                    .filter((model) => modelMatchesCapability(model, "video"))
+                                    .map((model) => {
+                                        const cap = getModelCapability(modelCapabilities, model);
+                                        return (
+                                            <div key={model} style={{ border: "1px solid var(--ant-color-border)", borderRadius: 8, padding: "12px 16px" }}>
+                                                <Typography.Text strong style={{ wordBreak: "break-all" }}>{model}</Typography.Text>
+                                                <Flex gap={32} wrap style={{ marginTop: 8 }}>
+                                                    <div style={{ minWidth: 320 }}>
+                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频分辨率</Typography.Text>
+                                                        <Checkbox.Group
+                                                            options={VIDEO_RESOLUTION_OPTIONS}
+                                                            value={cap.videoResolutions}
+                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "videoResolutions", values as string[])}
+                                                        />
+                                                    </div>
+                                                    <div style={{ minWidth: 220 }}>
+                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频秒数范围（默认 4-20）</Typography.Text>
+                                                        <Space>
+                                                            <InputNumber
+                                                                size="small"
+                                                                min={1}
+                                                                max={60}
+                                                                value={cap.videoSecondsMin ?? 4}
+                                                                onChange={(value) => setModelCapabilitySeconds(form, setModelCapabilities, model, "videoSecondsMin", value)}
+                                                                style={{ width: 80 }}
+                                                            />
+                                                            <span style={{ color: "var(--ant-color-text-secondary)" }}>~</span>
+                                                            <InputNumber
+                                                                size="small"
+                                                                min={1}
+                                                                max={60}
+                                                                value={cap.videoSecondsMax ?? 20}
+                                                                onChange={(value) => setModelCapabilitySeconds(form, setModelCapabilities, model, "videoSecondsMax", value)}
+                                                                style={{ width: 80 }}
+                                                            />
+                                                            <span style={{ color: "var(--ant-color-text-secondary)", fontSize: 12 }}>秒</span>
+                                                        </Space>
+                                                    </div>
+                                                </Flex>
+                                                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--ant-color-border)" }}>
+                                                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频能力配置（每个视频模型均可自由勾选，前端通用面板按勾选能力动态渲染）</Typography.Text>
+                                                    <Flex gap={32} wrap>
+                                                        <div style={{ minWidth: 180 }}>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>请求体格式（控制后端请求字段映射）</Typography.Text>
+                                                            <Select
+                                                                size="small"
+                                                                style={{ width: 180 }}
+                                                                value={cap.videoPanelType || ""}
+                                                                onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "videoPanelType", value)}
+                                                                options={VIDEO_PANEL_TYPE_OPTIONS}
+                                                            />
+                                                        </div>
+                                                        {(cap.videoPanelType === "kling-v3" || cap.videoPanelType === "motion-control") ? (
+                                                            <div style={{ minWidth: 140 }}>
+                                                                <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>厂商（区分请求体格式）</Typography.Text>
+                                                                <Select
+                                                                    size="small"
+                                                                    style={{ width: 120 }}
+                                                                    value={cap.videoProvider || ""}
+                                                                    onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "videoProvider", value)}
+                                                                    options={VIDEO_PROVIDER_OPTIONS}
+                                                                />
+                                                            </div>
+                                                        ) : null}
+                                                        <div style={{ minWidth: 280 }}>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>视频比例</Typography.Text>
+                                                            <Checkbox.Group
+                                                                options={VIDEO_RATIO_OPTIONS}
+                                                                value={cap.videoRatios}
+                                                                onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "videoRatios", values as string[])}
+                                                            />
+                                                        </div>
+                                                        <div style={{ minWidth: 320 }}>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>视频模式（空=不支持模式选择）</Typography.Text>
+                                                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                                                                {(cap.videoModes || []).map((mode, modeIndex) => (
+                                                                    <Space key={modeIndex} size={4}>
+                                                                        <Input size="small" placeholder="值" style={{ width: 70 }} value={mode.value} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, value: e.target.value } : m))} />
+                                                                        <Input size="small" placeholder="标签" style={{ width: 80 }} value={mode.label} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, label: e.target.value } : m))} />
+                                                                        <Input size="small" placeholder="说明" style={{ width: 100 }} value={mode.desc || ""} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, desc: e.target.value } : m))} />
+                                                                        <Button size="small" type="text" icon={<DeleteOutlined />} onClick={() => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).filter((_, i) => i !== modeIndex))} />
+                                                                    </Space>
+                                                                ))}
+                                                                <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={() => setModelCapabilityModes(form, setModelCapabilities, model, [...(cap.videoModes || []), { value: "", label: "" }])}>添加模式</Button>
+                                                            </Space>
+                                                        </div>
+                                                        <div style={{ minWidth: 280 }}>
+                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>能力开关</Typography.Text>
+                                                            <Space size={[16, 8]} wrap>
+                                                                <Checkbox checked={!!cap.supportsNegativePrompt} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsNegativePrompt", e.target.checked)}>负面提示词</Checkbox>
+                                                                <Checkbox checked={!!cap.supportsFirstLastFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstLastFrame", e.target.checked)}>首尾帧</Checkbox>
+                                                                <Checkbox checked={!!cap.supportsMotionControl} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMotionControl", e.target.checked)}>运动控制</Checkbox>
+                                                                <Checkbox checked={!!cap.supportsAudioGeneration} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsAudioGeneration", e.target.checked)}>音频生成</Checkbox>
+                                                                <Checkbox checked={!!cap.supportsWatermark} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsWatermark", e.target.checked)}>水印</Checkbox>
+                                                                <Checkbox checked={!!cap.supportsMultiShot} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMultiShot", e.target.checked)}>多镜头</Checkbox>
+                                                                <Checkbox checked={!!cap.supportsElementList} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsElementList", e.target.checked)}>元素列表</Checkbox>
+                                                                <Checkbox checked={!!cap.videoSecondsSmart} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "videoSecondsSmart", e.target.checked)}>智能时长(-1)</Checkbox>
+                                                            </Space>
+                                                        </div>
+                                                        {cap.supportsAudioGeneration ? (
+                                                            <div style={{ minWidth: 280 }}>
+                                                                <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>音频生成限制</Typography.Text>
+                                                                <Space>
+                                                                    <Select
+                                                                        size="small"
+                                                                        style={{ width: 120 }}
+                                                                        placeholder="需要模式"
+                                                                        value={cap.audioRequiresMode || ""}
+                                                                        onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "audioRequiresMode", value)}
+                                                                        options={[{ label: "不限", value: "" }, { label: "std", value: "std" }, { label: "pro", value: "pro" }, { label: "4k", value: "4k" }]}
+                                                                    />
+                                                                    <InputNumber
+                                                                        size="small"
+                                                                        min={0}
+                                                                        max={10}
+                                                                        placeholder="最大参考图"
+                                                                        value={cap.audioMaxReferences || undefined}
+                                                                        onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "audioMaxReferences", value)}
+                                                                        style={{ width: 120 }}
+                                                                    />
+                                                                </Space>
+                                                            </div>
+                                                        ) : null}
+                                                    </Flex>
+                                                </div>
                                             </div>
                                         );
                                     })}

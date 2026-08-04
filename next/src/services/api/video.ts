@@ -1,12 +1,11 @@
 import axios from "axios";
 
 import { dataUrlToFile } from "@/lib/image-utils";
-import { boolConfig, isSeedanceVideoConfig, normalizeSeedanceRatio } from "@/lib/seedance-video";
-import { isKIEGrokVideoModel } from "@/components/video-settings-panel";
-import { modelKey, supportsVideoAudioGeneration } from "@/lib/video-model-capabilities";
+import { boolConfig, normalizeSeedanceRatio } from "@/lib/seedance-video";
+import { modelKey } from "@/lib/video-model-capabilities";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { imageToDataUrl, resolveImageUrl } from "@/services/image-storage";
-import { buildApiUrl, channelIdForActiveModel, localChannelForActiveModel, type AiConfig, type VideoElementReference } from "@/stores/use-config-store";
+import { buildApiUrl, channelIdForActiveModel, findModelCapability, localChannelForActiveModel, resolveSupportsAudioGeneration, resolveVideoPanelType, resolveVideoProvider, type AiConfig, type VideoElementReference } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
@@ -164,6 +163,9 @@ export async function deleteVideoGenerationTask(config: AiConfig, task?: VideoRe
 }
 
 async function createVideoRequestBody(config: AiConfig, model: string, prompt: string, input: Required<VideoReferenceInput>) {
+    const cap = findModelCapability(config, model);
+    const panelType = resolveVideoPanelType(cap);
+    const provider = resolveVideoProvider(cap);
     const size = normalizeVideoSize(config.size);
     if (isAgnesVideoModel(model)) {
         const references = input.references;
@@ -185,11 +187,11 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
         return body;
     }
 
-    const klingV26 = isAPIMartKlingV26VideoConfig(config, model);
-    const apimartKlingV3 = isAPIMartKlingV3VideoConfig(config, model);
-    const apimartMotionControl = isAPIMartKlingMotionControlVideoConfig(config, model);
-    const kieKlingV3 = isKIEKlingV3VideoConfig(config, model);
-    const kieMotionControl = isKIEKlingMotionControlVideoConfig(config, model);
+    const klingV26 = panelType === "kling-v26";
+    const apimartKlingV3 = panelType === "kling-v3" && provider !== "kie";
+    const apimartMotionControl = panelType === "motion-control" && provider !== "kie";
+    const kieKlingV3 = panelType === "kling-v3" && provider === "kie";
+    const kieMotionControl = panelType === "motion-control" && provider === "kie";
     const motionControl = apimartMotionControl || kieMotionControl;
     const klingV3 = apimartKlingV3 || kieKlingV3;
     const kling = klingV26 || klingV3;
@@ -219,14 +221,14 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
         body.append("mode", normalizeAPIMartKlingMotionControlMode(config.vquality));
     } else {
         if (!kieMotionControl && !isGeminiOmniFlashVideoModel(model)) body.append("seconds", normalizeVideoSecondsForModel(model, config.videoSeconds));
-        if (isSeedanceVideoConfig(config)) body.append("size", normalizeSeedanceRatio(config.size));
+        if (panelType === "seedance") body.append("size", normalizeSeedanceRatio(config.size));
         else if (size) body.append("size", size);
         body.append("resolution_name", normalizeVideoResolution(config.vquality));
-        if (isKIEGrokVideoModel(config, model)) body.append("mode", normalizeGrokVideoMode(config.videoMode));
+        if (panelType === "grok") body.append("mode", normalizeGrokVideoMode(config.videoMode));
         else body.append("preset", "normal");
     }
     if (motionControl) body.append("character_orientation", normalizeCharacterOrientation(config.videoCharacterOrientation));
-    if (supportsVideoAudioGeneration(model)) body.append("video_generate_audio", String(boolConfig(config.videoGenerateAudio, false)));
+    if (resolveSupportsAudioGeneration(cap) === true) body.append("video_generate_audio", String(boolConfig(config.videoGenerateAudio, false)));
     const files = await Promise.all(input.references.slice(0, kling ? 2 : 9).map(imageReferenceToFormValue));
     files.forEach((file) => body.append("input_reference[]", file));
     if (!kling && input.firstFrame) body.append("first_frame_url", await imageReferenceToFormValue(input.firstFrame));
@@ -236,43 +238,6 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
     const audioFiles = kling ? [] : await Promise.all(input.audioReferences.map(mediaReferenceToFormValue));
     audioFiles.forEach((file) => body.append("audio_reference[]", file));
     return body;
-}
-
-function isAPIMartKlingV26VideoConfig(config: AiConfig, model: string) {
-    return isAPIMartKlingVideoConfig(config, model, "kling-v2-6");
-}
-
-function isAPIMartKlingV3VideoConfig(config: AiConfig, model: string) {
-    return isAPIMartKlingVideoConfig(config, model, "kling-v3");
-}
-
-function isAPIMartKlingMotionControlVideoConfig(config: AiConfig, model: string) {
-    return isAPIMartKlingVideoConfig(config, model, "kling-v2-6-motion-control") || isAPIMartKlingVideoConfig(config, model, "kling-v3-motion-control");
-}
-
-function isKIEKlingV3VideoConfig(config: AiConfig, model: string) {
-    return isKIEKlingVideoConfig(config, model, "kling-3-0-video");
-}
-
-function isKIEKlingMotionControlVideoConfig(config: AiConfig, model: string) {
-    return isKIEKlingVideoConfig(config, model, "kling-2-6-motion-control") || isKIEKlingVideoConfig(config, model, "kling-3-0-motion-control");
-}
-
-function isAPIMartKlingVideoConfig(config: AiConfig, model: string, key: string) {
-    return modelKey(model) === key && videoChannelText(config, model).includes("apimart");
-}
-
-function isKIEKlingVideoConfig(config: AiConfig, model: string, key: string) {
-    return modelKey(model) === key && videoChannelText(config, model).includes("kie");
-}
-
-function videoChannelText(config: AiConfig, model: string) {
-    const scopedConfig = { ...config, model, videoModel: model };
-    const channelId = channelIdForActiveModel(scopedConfig);
-    const channels = config.channelMode === "remote" ? config.publicChannels : [localChannelForActiveModel(scopedConfig)];
-    const channel = channels.find((item) => (item?.id || "") === channelId) || channels[0];
-    const record = channel as { id?: string; name?: string; baseUrl?: string; remark?: string } | undefined;
-    return [record?.id, record?.name, record?.baseUrl, record?.remark].filter(Boolean).join(" ").toLowerCase();
 }
 
 function normalizeCharacterOrientation(value: string | undefined) {

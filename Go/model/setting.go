@@ -33,11 +33,52 @@ type ModelCost struct {
 // ModelCapability 模型能力配置。
 // 空字段语义：ImageAspects 空=支持全部标准比例；ImageTiers 空=仅标准档；
 // VideoResolutions 空=480p/720p/1080p 三档。
+// VideoSecondsMin/Max 空=默认 4-20 秒。
+// VideoPanelType 空=通用面板；kling-v26/kling-v3/seedance/grok/motion-control/agnes。
+// VideoProvider 空=不区分；apimart/kie（仅 kling-v3/motion-control 需要区分请求体格式）。
 type ModelCapability struct {
 	Model            string   `json:"model"`
 	ImageAspects     []string `json:"imageAspects,omitempty"`
 	ImageTiers       []string `json:"imageTiers,omitempty"`
 	VideoResolutions []string `json:"videoResolutions,omitempty"`
+	VideoSecondsMin  *int     `json:"videoSecondsMin,omitempty"`
+	VideoSecondsMax  *int     `json:"videoSecondsMax,omitempty"`
+
+	// 视频面板类型与厂商，替代前端按模型名+渠道硬编码判断面板和请求体格式。
+	VideoPanelType string `json:"videoPanelType,omitempty"`
+	VideoProvider  string `json:"videoProvider,omitempty"`
+
+	// 视频模式选项（Kling std/pro/4k、Grok fun/normal/spicy）。空=不支持模式选择。
+	VideoModes []VideoModeOption `json:"videoModes,omitempty"`
+
+	// 视频比例选项（如 16:9/9:16/1:1/adaptive）。空=通用面板走默认 sizeOptions。
+	VideoRatios []string `json:"videoRatios,omitempty"`
+
+	// 秒数预设档位（如 [5,10]）。空=连续 Slider；有值=按档位显示 OptionPill。
+	VideoSecondsPresets []int `json:"videoSecondsPresets,omitempty"`
+
+	// 是否支持 -1 智能时长（Seedance）。
+	VideoSecondsSmart bool `json:"videoSecondsSmart,omitempty"`
+
+	// 能力开关，控制 UI 功能显隐和请求体字段。
+	SupportsNegativePrompt  bool `json:"supportsNegativePrompt,omitempty"`
+	SupportsFirstLastFrame  bool `json:"supportsFirstLastFrame,omitempty"`
+	SupportsMotionControl   bool `json:"supportsMotionControl,omitempty"`
+	SupportsAudioGeneration bool `json:"supportsAudioGeneration,omitempty"`
+	SupportsWatermark       bool `json:"supportsWatermark,omitempty"`
+	SupportsMultiShot       bool `json:"supportsMultiShot,omitempty"`
+	SupportsElementList     bool `json:"supportsElementList,omitempty"`
+
+	// 音频生成限制：AudioRequiresMode 如 "pro" 表示仅该模式可用；AudioMaxReferences 如 1。
+	AudioRequiresMode  string `json:"audioRequiresMode,omitempty"`
+	AudioMaxReferences int    `json:"audioMaxReferences,omitempty"`
+}
+
+// VideoModeOption 视频模式选项。
+type VideoModeOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Desc  string `json:"desc,omitempty"`
 }
 
 // PublicModelChannelSetting 公开模型渠道配置。

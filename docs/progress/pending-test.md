@@ -677,4 +677,256 @@ description: 当前版本已实现但仍需人工验证的变更项
 6. 进入创意工作流编辑器，确认配置区不再有 apiMode Select；运行工作流时按当前模型所属渠道的 apiMode 发起请求
 7. 切换本地直连模式，确认生图请求固定走 Images API（本地模式不读渠道 apiMode）
 
+## 生图/视频工作台参数精简与视频秒数后台控制
+
+精简生图/视频工作台底部栏与画布节点设置面板的参数，删除生图质量选项和尺寸 W/H 输入框（保留比例），「清晰度」文案统一改为「分辨率」，视频秒数从固定档位/数值输入改为 Slider 进度条，并由后台 `ModelCapability` 的 `videoSecondsMin`/`videoSecondsMax` 统一控制范围（默认 4-20 秒）。
+
+### 可测试变更
+
+- 后端 `ModelCapability` 新增 `VideoSecondsMin` / `VideoSecondsMax`（指针类型，空=默认 4-20）
+- 前端 `AdminModelCapability` 类型同步新增 `videoSecondsMin` / `videoSecondsMax`
+- 管理后台「模型开放与定价」视频模型配置区新增「视频秒数范围（默认 4-20）」两个 InputNumber，新模型默认填 4/20
+- 前端 `use-config-store` 新增 `resolveVideoSecondsRange(cap)` 工具函数（默认 4-20），`resolveEffectiveConfig` 切换模型时 clamp `videoSeconds` 到新范围（保留 -1 智能时长原值）
+- 删除生图质量选项：
+  - 生图工作台 `/image` 底部栏「质量」QuickSelect、`quickQualityOptions`、`settingsSummary` 的 quality 项、日志 quality Tag/字段
+  - `ImageSettingsPanel` 的「质量」栏、`qualityOptions`、`imageQualityLabel`、`DimensionInput`、`readSizeDimensions`、`alignDimension`
+  - `canvas-image-settings-popover.tsx` 的 `imageQualityLabel` 引用与 quality 变量
+  - 创意工作流日志 quality Tag 与 `createWorkflowConfig`/`buildWorkflowImageLog` 的 quality 字段
+  - `AiConfig.quality` 字段保留（兼容历史日志反序列化），不再有 UI 读写入口，API 层仍按默认值发送
+- 删除生图/视频尺寸 W/H 输入框（保留比例栏）：
+  - `ImageSettingsPanel` 删除「尺寸」W/H 输入栏与「16 倍数对齐」开关
+  - `VideoSettingsPanel` 通用面板删除「尺寸」W/H 输入栏
+  - `/video` 底部栏删除「尺寸」QuickSelect 与 `quickSizeOptions`
+- 「清晰度」文案统一改为「分辨率」：
+  - `/video` 底部栏、`VideoSettingsPanel` 通用面板、后台 model-pricing 视频配置区
+  - 画布 Agent 工具描述与 Skill 文档（`canvas-agent-tools.ts` / `core.ts` / `video.ts`）
+- 视频秒数改 Slider + 后台范围控制：
+  - 新增 `QuickSlider`（`/video` 底部栏）和 `SecondsSlider`（`VideoSettingsPanel`）组件，使用 antd Slider
+  - `/video` 底部栏通用分支：`QuickNumber` 秒数 → `QuickSlider`，范围 `resolveVideoSecondsRange(videoCap)`
+  - `/video` 底部栏 Kling 分支 `KlingV26BottomSettings`：秒数 → Slider，范围从父级传入；「尺寸」文案改「比例」
+  - `VideoSettingsPanel` 通用面板：秒数 OptionPill+NumberInput → `SecondsSlider`
+  - `KlingV26VideoSettingsPanel`：秒数 OptionPill+NumberInput → `SecondsSlider`，「时长」改「秒数」
+  - `kling-v26-workbench-panel.tsx`：秒数 OptionGrid+NumberInput → Slider，删除 V3 初始化 useEffect
+  - `SeedanceVideoSettingsPanel`：保留 OptionPill（含 -1 智能时长）+ NumberInput，「时长」改「秒数」，NumberInput max 改用 `secondsRange.max`
+  - 删除 `secondOptions` / `klingV26DurationOptions` / `klingV3DurationOptions` / `normalizeKlingV26Duration` / `normalizeKlingV3Duration` 等硬编码定义
+  - 删除 `/video` 的 V3 秒数初始化 `useEffect`（统一由 `resolveEffectiveVideoSeconds` clamp）
+- 新增专属面板参数梳理文档 `docs/backend/video-exclusive-panels-params.md`，记录通用/Kling V26 V3/Seedance/Grok 四套面板的硬编码参数与后端 `ModelCapability` 扩展建议字段，作为后续后端统一控制的参考
+
+### 涉及文件
+
+后端：
+- `Go/model/setting.go`：`ModelCapability` 新增 `VideoSecondsMin` / `VideoSecondsMax`
+
+前端：
+- `next/src/services/api/admin.ts`：`AdminModelCapability` 新增 `videoSecondsMin` / `videoSecondsMax`
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：新增 `setModelCapabilitySeconds`、视频秒数范围配置 UI、视频清晰度→分辨率文案
+- `next/src/stores/use-config-store.ts`：新增 `resolveVideoSecondsRange` 与 `resolveEffectiveVideoSeconds`
+- `next/src/app/(user)/image/page.tsx`：删除质量 QuickSelect/quickQualityOptions/settingsSummary/日志 quality
+- `next/src/app/(user)/video/page.tsx`：新增 QuickSlider、删除尺寸 QuickSelect/quickSizeOptions、秒数改 Slider、清晰度→分辨率、删除 V3 初始化 useEffect
+- `next/src/components/image-settings-panel.tsx`：删除质量栏/尺寸W/H栏/imageQualityLabel/DimensionInput/readSizeDimensions/alignDimension
+- `next/src/components/video-settings-panel.tsx`：删除尺寸W/H栏、清晰度→分辨率、秒数改 SecondsSlider、Kling 时长→秒数、Seedance 时长→秒数、删除硬编码档位
+- `next/src/app/(user)/canvas/components/canvas-image-settings-popover.tsx`：删除 imageQualityLabel 引用
+- `next/src/app/(user)/video/components/kling-v26-workbench-panel.tsx`：秒数改 Slider、删除 V3 初始化
+- `next/src/components/workflows/creative-workflow-workspace.tsx`：删除日志 quality Tag/字段
+- `next/src/app/(user)/canvas/agent/canvas-agent-tools.ts` / `skills/core.ts` / `skills/video.ts`：清晰度→分辨率文案
+
+文档：
+- `docs/backend/video-exclusive-panels-params.md`：新增（专属面板参数梳理 + 后端扩展建议）
+
+### 验证步骤
+
+1. 生图工作台 `/image`：确认底部栏只剩「模型 / 尺寸 / 数量」等，无「质量」选项；画布节点 ImageSettingsPanel 无「质量」栏和「尺寸」W/H 输入，只保留「比例」栏
+2. 生图工作台日志区：确认历史日志和新生成日志都不再显示 quality Tag
+3. 视频工作台 `/video`：确认底部栏无「尺寸」QuickSelect，「清晰度」文案变为「分辨率」
+4. 视频工作台底部栏秒数：确认是 Slider 进度条（带 {N}s 数值显示），拖动范围 4-20；切换不同视频模型，Slider 范围按后台配置变化
+5. 管理后台「模型开放与定价」：视频模型配置区出现「视频秒数范围（默认 4-20）」两个输入框，修改某模型为 6-12 保存，回到视频工作台选该模型，确认 Slider 范围变为 6-12
+6. 视频工作台选 Kling V26/V3 模型：确认专属面板与底部栏的秒数都是 Slider，范围从后台读取，「尺寸」文案变为「比例」
+7. 视频工作台选 Seedance 模型：确认秒数仍保留「智能」选项和数值输入（-1 智能时长保留），但 max 从后台读取，「时长」文案变为「秒数」
+8. 画布节点视频设置面板：通用面板秒数是 Slider，Kling 面板秒数是 Slider，「清晰度」变「分辨率」
+9. 创意工作流编辑器：确认工作流日志不再显示 quality Tag
+
+## 画布视频设置弹窗改为能力开关驱动
+
+把画布视频节点设置弹窗（`canvas-video-settings-popover.tsx`）中按 `panelType` 厂商分流 UI 的逻辑改为完全由 `ModelCapability` 能力开关驱动，使每个视频模型都能通过后台勾选能力开关来控制多镜头、元素列表、首尾帧、运动控制等功能的显隐，不再绑定厂商专属面板类型。
+
+### 可测试变更
+
+- 移除 `isKlingV3` / `isKlingMotionControl` / `isKIEKlingV3` 等基于 `panelType` 的 UI 分流变量
+- 角色朝向参考（运动控制）：改为 `resolveSupportsMotionControl(cap) === true` 时显示，不再仅限 `motion-control` 面板类型
+- 多镜头分镜 / 分镜模式 / 分镜提示词：改为 `resolveSupportsMultiShot(cap) === true` 时显示，不再仅限 `kling-v3` 面板类型
+- 元素列表：改为 `resolveSupportsElementList(cap) === true` 时显示，不再仅限 `kling-v3` 面板类型
+- 首尾帧：改为 `resolveSupportsFirstLastFrame(cap) === true` 时显示；`kling-v3` 请求体格式仍使用 `klingImageNodeIds` 元数据存储，其他格式使用 `firstFrameNodeId` / `lastFrameNodeId` props
+- 负面提示词：移除 `hideNegativePrompt` 传参，完全由 `VideoSettingsPanel` 内部的 `resolveSupportsNegativePrompt` 能力开关控制
+- `KlingV3AdvancedSettings` 组件重命名为 `AdvancedVideoSettings`，参数改为接收 `supportsMultiShot` / `supportsElementList` / `supportsFirstLastFrame` / `useKlingMultiShotBehavior` 能力开关
+- `panelType` 和 `provider` 仅用于决定首尾帧存储格式和 KIE 多镜头行为差异（请求体格式层面），不再控制 UI 功能区块的显隐
+
+### 涉及文件
+
+- `next/src/app/(user)/canvas/components/canvas-video-settings-popover.tsx`：移除厂商分流变量，改用能力开关；重命名 `KlingV3AdvancedSettings` → `AdvancedVideoSettings`；移除 `hideNegativePrompt` 传参和重复的负面提示词区块；清理未使用的 `Input` / `CSSProperties` 导入
+
+### 验证步骤
+
+1. 进入管理后台「模型开放与定价」，选一个通用视频模型（非 Kling V3），勾选「多镜头」能力开关，保存
+2. 进入画布，新建视频节点选择该模型，打开设置弹窗，确认出现「多镜头分镜」区块（之前仅 Kling V3 面板类型才显示）
+3. 取消勾选「多镜头」，勾选「元素列表」，保存后刷新画布，确认设置弹窗出现「元素列表」区块
+4. 勾选「运动控制」，确认出现「角色朝向参考」区块（之前仅 motion-control 面板类型才显示）
+5. 勾选「首尾帧」，确认出现「首尾帧」区块（之前仅非 Kling V3 模型才显示通用首尾帧）
+6. 勾选「负面提示词」，确认 `VideoSettingsPanel` 内出现负面提示词输入框
+7. 选一个 Kling V3 模型（面板类型 = kling-v3），确认首尾帧使用 `klingImageNodeIds` 元数据存储格式，多镜头/元素列表按能力开关显示
+8. 确认 `panelType` 为 `kling-v3` 且 `provider` 为 `kie` 时，多镜头行为仍保持 KIE 特有逻辑（不设置 shotType、分镜提示词直接显示）
+
+## 视频专属面板能力后台化重构
+
+把视频工作台和画布节点设置面板中按「模型名 + 渠道文本」硬编码判断面板类型、厂商、模式、比例、能力开关的逻辑，统一改为读后端 `ModelCapability` 配置。新增模型或厂商调整参数只需后台改配置，前端不再硬编码分支。
+
+### 可测试变更
+
+- 后端 `ModelCapability` 新增视频面板控制字段（替代前端按模型名 + 渠道硬编码判断面板和请求体格式）：
+  - `VideoPanelType`：面板类型，空=通用面板；`kling-v26` / `kling-v3` / `seedance` / `grok` / `motion-control` / `agnes`
+  - `VideoProvider`：厂商，空=不区分；`apimart` / `kie`（仅 `kling-v3` / `motion-control` 需要区分请求体格式）
+  - `VideoModes`：视频模式选项数组（Kling `std`/`pro`/`4k`、Grok `fun`/`normal`/`spicy`），空=不支持模式选择；新增 `VideoModeOption` 结构体（`value`/`label`/`desc`）
+  - `VideoRatios`：视频比例选项（如 `16:9`/`9:16`/`1:1`/`adaptive`），空=通用面板走默认 `sizeOptions`
+  - `VideoSecondsPresets`：秒数预设档位（如 `[5,10]`），空=连续 Slider；有值=按档位显示 OptionPill
+  - `VideoSecondsSmart`：是否支持 `-1` 智能时长（Seedance）
+  - 能力开关：`SupportsNegativePrompt` / `SupportsFirstLastFrame` / `SupportsMotionControl` / `SupportsAudioGeneration` / `SupportsWatermark` / `SupportsMultiShot` / `SupportsElementList`
+  - 音频生成限制：`AudioRequiresMode`（如 Kling V26 要求 `mode=pro`）、`AudioMaxReferences`（如 Kling V26 要求参考图 ≤1）
+- 前端 `AdminModelCapability` 类型同步新增上述字段，`AdminVideoModeOption` 类型新增
+- 前端 `use-config-store` 新增 resolve 工具函数：`resolveVideoPanelType` / `resolveVideoProvider` / `resolveVideoModes` / `resolveVideoRatios` / `resolveVideoSecondsPresets` / `resolveVideoSecondsSmart` / `resolveSupportsNegativePrompt` / `resolveSupportsFirstLastFrame` / `resolveSupportsMotionControl` / `resolveSupportsAudioGeneration` / `resolveSupportsWatermark` / `resolveSupportsMultiShot` / `resolveSupportsElementList` / `resolveAudioRequiresMode` / `resolveAudioMaxReferences` / `findModelCapability`
+  - 能力开关 resolve 返回 `boolean | undefined`：未配置（`undefined`）= 走前端默认硬编码兜底；有值 = 按配置
+- 管理后台「模型开放与定价」视频模型配置区新增「视频专属面板配置」区块：
+  - 面板类型 Select（通用/Kling V26/Kling V3/Seedance/Grok/Motion Control/Agnes）
+  - 厂商 Select（仅面板类型为 `kling-v3` 或 `motion-control` 时显示，apimart/kie）
+  - 视频比例 Checkbox.Group（16:9/9:16/1:1/4:3/3:4/21:9/adaptive）
+  - 能力开关 Checkbox 组：负面提示词/首尾帧/运动控制/音频生成/水印/多镜头/元素列表/智能时长(-1)
+  - 音频生成限制（仅勾选「音频生成」时显示）：需要模式 Select + 最大参考图 InputNumber
+- 前端 `VideoSettingsPanel` 通用面板按 `videoPanelType` 分流到 Kling V26 / Seedance 专属面板；通用分支按 `videoModes` 动态渲染模式 OptionPill、按 `videoRatios` 动态渲染比例按钮（空=走默认 `sizeOptions`）、按 `resolveSupportsAudioGeneration` 控制音频生成开关显隐
+- 前端 `/video` 工作台 `buildVideoConfig` 与 `createVideoRequestBody` 改用 `resolveVideoPanelType` / `resolveVideoProvider` 判断面板和厂商，替代原 `isKlingV26VideoModel` / `isSeedanceVideoConfig` / `isAPIMartKlingV26Config` 等按模型名 + 渠道文本硬编码判断
+- 画布 `canvas-video-settings-popover` 与 `canvas-client-page` 视频能力判断改用 `findModelCapability` + `resolveSupportsFirstLastFrame` / `resolveSupportsAudioGeneration` / `resolveVideoPanelType` / `resolveVideoProvider`
+- 删除已废弃的硬编码判断函数：
+  - `next/src/lib/video-model-capabilities.ts`：删除 `supportsVideoFrameReferences` / `supportsVideoAudioGeneration`
+  - `next/src/lib/seedance-video.ts`：删除 `isSeedanceVideoConfig` / `isSeedanceVideoModel` / `isSeedanceFastOrMiniModel` / `isArkPlanBaseUrl`
+
+### 涉及文件
+
+后端：
+- `Go/model/setting.go`：`ModelCapability` 新增视频面板字段；新增 `VideoModeOption` 结构体
+
+前端：
+- `next/src/services/api/admin.ts`：`AdminModelCapability` 新增字段；新增 `AdminVideoModeOption` 类型
+- `next/src/stores/use-config-store.ts`：新增 16 个 resolve 工具函数与 `findModelCapability`
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：新增「视频专属面板配置」区块（面板类型/厂商/比例/能力开关/音频限制）及对应 `setModelCapabilityValue` / `setModelCapabilityBool` / `setModelCapabilityNumber` 辅助函数
+- `next/src/components/video-settings-panel.tsx`：通用面板按 `videoPanelType` 分流；通用分支动态渲染模式/比例/音频开关
+- `next/src/app/(user)/video/page.tsx`：`buildVideoConfig` 与请求体构造改用 `panelType` / `provider`
+- `next/src/services/api/video.ts`：`createVideoRequestBody` 改用 `panelType` / `provider` 判断 Kling / Motion Control / Seedance / Grok 分支
+- `next/src/app/(user)/canvas/components/canvas-video-settings-popover.tsx`：能力判断改用 resolve 函数
+- `next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`：视频首尾帧/音频生成/Kling V3 kie 判断改用 resolve 函数
+- `next/src/lib/video-model-capabilities.ts`：删除 `supportsVideoFrameReferences` / `supportsVideoAudioGeneration`
+- `next/src/lib/seedance-video.ts`：删除 `isSeedanceVideoConfig` / `isSeedanceVideoModel` / `isSeedanceFastOrMiniModel` / `isArkPlanBaseUrl`
+
+文档：
+- `docs/backend/backend-database.md`：`modelCapabilities` 字段说明同步新增视频面板字段
+- `docs/backend/video-exclusive-panels-params.md`：标记已接入后台控制的参数
+
+### 验证步骤
+
+1. 进入管理后台「模型开放与定价」，选一个视频模型，确认视频配置区出现「视频专属面板配置」区块
+2. 把某 Kling V26 模型的「面板类型」设为 `Kling V26`，保存；进入视频工作台选该模型，确认走 Kling V26 专属面板（模式 std/pro、比例 16:9/9:16/1:1、秒数 Slider）
+3. 把某 Kling V3 模型的「面板类型」设为 `Kling V3`、「厂商」设为 `apimart`，保存；进视频工作台选该模型，确认走 Kling V3 面板（模式 std/pro/4k、多镜头、元素列表）
+4. 把上一步模型「厂商」改为 `kie`，保存；确认负面提示词栏隐藏、请求体走 kie 格式（看网络面板 `multi_prompt`/`element_list` 为 kie 格式）
+5. 把某 Seedance 模型的「面板类型」设为 `Seedance`、勾选「智能时长(-1)」，保存；进视频工作台选该模型，确认秒数保留 `-1` 智能选项
+6. 把某 Grok 视频模型的「面板类型」设为 `Grok`，配置 `videoModes`（fun/normal/spicy），保存；进视频工作台选该模型，确认通用面板出现模式 OptionPill
+7. 把某通用视频模型的「视频比例」勾选 `16:9`/`9:16`，保存；进视频工作台选该模型，确认比例栏只显示这两个按钮（不再走默认 sizeOptions）
+8. 把某模型勾选「音频生成」+ 填「需要模式 = pro」「最大参考图 = 1」，保存；进视频工作台选该模型，确认音频生成开关仅在 `pro` 模式下可用且参考图 ≤1
+9. 把某模型「面板类型」清空（通用），保存；确认视频工作台走通用面板（默认 sizeOptions、无模式选择、无音频开关除非勾选）
+10. 进入画布，新建视频节点，确认节点设置弹窗与画布 Agent 视频生成按 `ModelCapability` 配置走对应面板与能力开关
+11. 确认前端代码中 `isSeedanceVideoConfig` / `isSeedanceVideoModel` / `supportsVideoFrameReferences` / `supportsVideoAudioGeneration` 等硬编码函数已删除，无残留引用
+
+## 模型能力配置拆分与任务数量移除
+
+把「模型能力」单卡片拆为「图片模型能力」和「视频模型能力」两个独立卡片；修复视频能力配置保存后能力开关丢失的问题；移除视频创作台任务数量输入框。
+
+### 可测试变更
+
+- 管理后台「模型开放与定价」原「模型能力」卡片拆为两张：
+  - 「图片模型能力」：仅展示图片模型，配置图片比例、图片档位
+  - 「视频模型能力」：仅展示视频模型，配置视频分辨率、秒数范围、请求体格式、厂商、视频比例、视频模式、能力开关、音频限制
+- 修复 `normalizeModelCapabilities` 仅保留 `imageAspects`/`imageTiers`/`videoResolutions` 三个字段导致保存后 `videoPanelType`/`videoProvider`/`videoModes`/`videoRatios`/`videoSecondsSmart`/`supportsXxx`/`audioRequiresMode`/`audioMaxReferences` 全部丢失的问题；现在归一化时保留全部字段
+- 视频能力配置删除「秒数预设档位」Select（与秒数范围冲突，统一只用 Slider 拉动条），删除对应 `setModelCapabilityPresets` 辅助函数
+- `VideoSettingsPanel` 移除 OptionPill + NumberInput 秒数分支，统一走 `SecondsSlider`；删除未使用的 `NumberInput` 组件与 `resolveVideoSecondsPresets` resolve 函数
+- 视频创作台移除「任务数量」输入框：
+  - 删除 `TaskCountControl` 组件、`QuickNumber` 组件、`clampQuickNumberValue`、`normalizeVideoCount` 函数
+  - 删除 `taskCount` state、`onTaskCountChange` prop 及其在 `WorkbenchMain` / `WorkbenchBottomBar` / `WorkbenchCompactBar` 三处子组件的传参
+  - 删除底部 QuickNumber「任务」快捷按钮与「任务数量」WorkbenchSection
+  - `buildRequestSnapshot` 内部 `taskCount` 固定为 1，日志/结果对象的 `taskCount` 字段保留兼容（恒为 1）
+
+### 涉及文件
+
+- `next/src/app/(admin)/admin/settings-shared.ts`：`normalizeModelCapabilities` 保留全部字段
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：拆分图片/视频能力卡片；删除秒数预设档位 UI 与 `setModelCapabilityPresets`
+- `next/src/components/video-settings-panel.tsx`：秒数统一走 Slider；删除 `NumberInput` 组件
+- `next/src/stores/use-config-store.ts`：删除 `resolveVideoSecondsPresets`
+- `next/src/app/(user)/video/page.tsx`：删除任务数量 UI、`TaskCountControl`、`QuickNumber`、`normalizeVideoCount`、`taskCount` state 与相关 prop
+
+### 验证步骤
+
+1. 进入管理后台「模型开放与定价」，确认页面分别出现「图片模型能力」和「视频模型能力」两张卡片，图片模型只出现在图片卡片、视频模型只出现在视频卡片
+2. 在视频能力卡片勾选某模型的「首尾帧」「音频生成」「多镜头」等多个能力开关，点击保存；刷新页面重新进入，确认勾选状态全部保留（不再丢失）
+3. 在视频能力卡片配置某模型的「视频模式」（添加 2-3 个模式）、「请求体格式」、勾选「智能时长(-1)」，保存后刷新，确认全部保留
+4. 确认视频能力卡片不再显示「秒数预设档位」配置项
+5. 进入视频创作台，确认底部工具栏和侧边栏都不再有「任务数量」输入框或「任务」QuickNumber 按钮
+6. 在视频创作台发起一次生成，确认日志/结果卡片中「数量」标签显示为 1，生成流程正常
+7. 进入画布视频节点设置弹窗，确认秒数为 Slider 拉动条（不再有 OptionPill 按钮组），范围按 `videoSecondsMin`/`videoSecondsMax` 配置
+
+## 图像/视频设置面板修复
+
+修复画布图像节点分辨率档位消失、生成数量输入框显示与实际值不一致、视频比例中文标签三个问题。
+
+### 可测试变更
+
+- 画布图像节点设置弹窗分辨率档位（标准/2K/4K）消失修复：`ImageSettingsPanel` 的 `effectiveTiers` / `effectiveAspects` 逻辑调整为「`capabilities` 未传或对应字段为空数组 = 未配置，走默认全部；传入非空数组 = 按配置过滤」。此前 `imageTiers` 为空数组时会隐藏档位 Segmented，现在空数组视为未配置，显示全部 3 档
+- 「生成张数」改名为「生成数量」
+- 生成数量输入框显示值与实际值不一致修复：`ImageSettingsPanel` 的 `count` 变量此前被 `Math.min(maxCount, ...)` 截断传给 `CountInput` 的 `value`，导致输入超过 `maxCount`（默认 15）时显示回退到 15 但 `onConfigChange` 传原始值。现在 `count` 不再做 `maxCount` 截断，输入框显示用户实际输入值
+- 画布 `getGenerationCount` 上限从 15 提升到 50，允许生成超过 15 张
+- 视频比例标签从中文（横屏/竖屏/方形/宽屏/长图/宽银幕）改为比例格式（16:9/9:16/1:1/4:3/3:4/21:9），与图片比例提示一致；`sizeOptions` 和 `seedanceRatioOptions` 同步修改
+
+### 涉及文件
+
+- `next/src/components/image-settings-panel.tsx`：`effectiveTiers`/`effectiveAspects` 空数组视为未配置；`count` 不再截断；「生成张数」→「生成数量」
+- `next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`：`getGenerationCount` 上限 15 → 50
+- `next/src/components/video-settings-panel.tsx`：`sizeOptions` 标签改比例格式
+- `next/src/lib/seedance-video.ts`：`seedanceRatioOptions` 标签改比例格式
+
+### 验证步骤
+
+1. 进入画布，选中图像节点，打开设置弹窗，确认「比例」行右侧出现「标准/2K/4K」三档切换按钮（不再消失）
+2. 在画布图像节点设置弹窗点击「4K」档位，确认下方比例按钮切换为 4K 尺寸选项
+3. 在「生成数量」输入框输入 20，确认输入框显示 20（不再回退到 15）；发起生成，确认实际生成数量与输入一致
+4. 确认「生成数量」标题已从「生成张数」改为「生成数量」
+5. 进入视频工作台或画布视频节点设置弹窗，确认比例按钮标签为「16:9」「9:16」「1:1」等比例格式（不再显示「横屏」「竖屏」「方形」）
+6. 确认画布视频设置弹窗底部状态栏的比例显示也为比例格式（如「16:9」而非「横屏」）
+
+## 图像档位查找与视频比例显示修复
+
+修复画布图像节点档位 Segmented 不显示、视频比例按钮显示像素尺寸两个问题。
+
+### 可测试变更
+
+- 画布图像节点设置弹窗 `capabilities` 查找模型字段从 `config.imageModel` 改为 `config.imageModel || config.model`：画布节点切换图片模型时只更新 `model` 字段，`imageModel` 可能为空，导致 `modelCapabilities.find` 返回 `undefined`；现在优先用 `imageModel`，回退到 `model`，确保找到对应模型的能力配置
+- 视频比例按钮删除副标签（此前会显示 `seedancePixelLabel` 计算的像素尺寸如「1280x720」），现在只显示比例主标签（如「16:9」）
+- 画布视频设置弹窗底部状态栏 `videoSizeLabel` 改为新增的 `videoSizeRatioLabel`：把像素尺寸（如「1280x720」）统一映射为比例字符串（如「16:9」），不再显示像素尺寸
+- 删除不再使用的 `videoSizeLabel` 函数和 `seedancePixelLabel` import
+
+### 涉及文件
+
+- `next/src/app/(user)/canvas/components/canvas-image-settings-popover.tsx`：`capabilities` 查找用 `imageModel || model`
+- `next/src/app/(user)/canvas/components/canvas-video-settings-popover.tsx`：状态栏用 `videoSizeRatioLabel`
+- `next/src/components/video-settings-panel.tsx`：删除比例按钮副标签；`videoSizeLabel` 改名为 `videoSizeRatioLabel` 并简化逻辑；删除 `seedancePixelLabel` import
+
+### 验证步骤
+
+1. 进入画布，选中图片模型节点，打开设置弹窗，确认「比例」行右侧出现「标准/2K/4K」三档切换按钮
+2. 切换不同图片模型，确认档位 Segmented 始终显示
+3. 进入视频工作台或画布视频节点设置弹窗，确认比例按钮只显示比例（如「16:9」），下方不再显示像素尺寸（如「1280x720」）
+4. 确认画布视频设置弹窗底部状态栏显示「720p · 16:9 · 6s」格式，比例部分不再显示像素尺寸
+
 

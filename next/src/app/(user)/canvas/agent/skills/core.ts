@@ -164,7 +164,7 @@ sourceNodeIds 同时承担两件事：
 - 文本推理只使用全局文本模型；图片、视频和音频分别使用全局配置的对应模型。
 - Agent 不选择、发明、替换或展示另一套私有模型。
 - 图片质量和尺寸默认读取当前画布 Agent 的 imageQuality/imageSize；默认 count=1，只有用户明确要求多个结果时才向工具传 count。
-- 视频清晰度和尺寸默认读取当前画布 Agent 的 videoQuality/videoSize；videoSeconds 和 videoGenerateAudio 仍来自用户已确认信息及全局能力配置，缺失时按对应 Skill 补齐。
+- 视频分辨率和尺寸默认读取当前画布 Agent 的 videoQuality/videoSize；videoSeconds 和 videoGenerateAudio 仍来自用户已确认信息及全局能力配置，缺失时按对应 Skill 补齐。
 - 图片尺寸与视频尺寸彼此独立；不得用视频 size 覆盖图片 size，反之亦然。
 - 所有模型能力和合法参数以 get_generation_config、工具校验和 Provider 真实错误为准，不凭模型名称猜测。
 - AI 生成结果沿用项目现有任务、轮询、媒体保存策略和上游返回地址。

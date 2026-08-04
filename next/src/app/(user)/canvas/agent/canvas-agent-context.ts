@@ -1,5 +1,4 @@
-import { supportsVideoAudioGeneration } from "@/lib/video-model-capabilities";
-import type { AiConfig } from "@/stores/use-config-store";
+import { findModelCapability, resolveSupportsAudioGeneration, type AiConfig } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasAgentState, type CanvasConnection, type CanvasNodeData } from "../types";
 
 export type CanvasAgentContextNode = {
@@ -117,7 +116,7 @@ export function buildCanvasAgentContext(input: BuildCanvasAgentContextInput): Ca
             imageCount: input.config.canvasImageCount || input.config.count,
             videoSeconds: input.config.videoSeconds,
             videoGenerateAudio: input.config.videoGenerateAudio,
-            videoSupportsAudio: supportsVideoAudioGeneration(videoModel),
+            videoSupportsAudio: resolveSupportsAudioGeneration(findModelCapability(input.config, videoModel)) === true,
             audioVoice: input.config.audioVoice,
             audioFormat: input.config.audioFormat,
         },

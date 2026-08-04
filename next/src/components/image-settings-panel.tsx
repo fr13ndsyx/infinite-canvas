@@ -1,19 +1,11 @@
 "use client";
 
 import { useEffect, type ReactNode, useState } from "react";
-import { ConfigProvider, Segmented, Switch } from "antd";
+import { ConfigProvider, Segmented } from "antd";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AdminModelCapability } from "@/services/api/admin";
 import type { AiConfig } from "@/stores/use-config-store";
-
-const qualityOptions = [
-    { value: "auto", label: "自动" },
-    { value: "high", label: "高" },
-    { value: "medium", label: "中" },
-    { value: "low", label: "低" },
-];
-const DIMENSION_STEP = 16;
 
 const aspectOptions = [
     { value: "1:1", label: "1:1", width: 1024, height: 1024, icon: "square", tier: "standard" as const },
@@ -57,7 +49,7 @@ function tierOfAspect(value: string): "standard" | "2k" | "4k" {
 
 type ImageSettingsPanelProps = {
     config: AiConfig;
-    onConfigChange: (key: "quality" | "size" | "count", value: string) => void;
+    onConfigChange: (key: "size" | "count", value: string) => void;
     theme: CanvasTheme;
     capabilities?: AdminModelCapability;
     showTitle?: boolean;
@@ -69,22 +61,19 @@ type ImageSettingsPanelProps = {
 };
 
 export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities, showTitle = true, showSize = true, showCount = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 10 }: ImageSettingsPanelProps) {
-    const [snapDimensionToStep, setSnapDimensionToStep] = useState(true);
     const [resolutionTier, setResolutionTier] = useState<"standard" | "2k" | "4k">(() => tierOfAspect(config.size || "auto"));
-    const quality = config.quality || "auto";
-    const count = Math.max(1, Math.min(maxCount, Math.floor(Math.abs(Number(config.count)) || 1)));
+    const count = Math.max(1, Math.floor(Math.abs(Number(config.count)) || 1));
     const activeSize = config.size || "auto";
     const selectedAspect = aspectOptions.find((item) => (item.size || item.value) === activeSize || item.value === activeSize);
-    const dimensions = readSizeDimensions(activeSize, selectedAspect || aspectOptions[0]);
 
-    // 模型能力过滤：capabilities 未传（undefined）时保持原行为（全部 3 档 + 所有比例）；
-    // 传入后：空 imageTiers = 无档位可选（Segmented 隐藏，只剩 auto）；空 imageAspects = 无比例可选（只剩 auto）。
-    const effectiveTiers: ("standard" | "2k" | "4k")[] = !capabilities
+    // 模型能力过滤：capabilities 未传（undefined）或对应字段为空数组 = 未配置，走默认全部；
+    // 传入非空数组 = 按配置过滤。
+    const effectiveTiers: ("standard" | "2k" | "4k")[] = !capabilities || !capabilities.imageTiers || capabilities.imageTiers.length === 0
         ? ["standard", "2k", "4k"]
-        : capabilities.imageTiers || [];
-    const effectiveAspects: string[] | null = !capabilities
+        : capabilities.imageTiers;
+    const effectiveAspects: string[] | null = !capabilities || !capabilities.imageAspects || capabilities.imageAspects.length === 0
         ? null
-        : capabilities.imageAspects || [];
+        : capabilities.imageAspects;
     const tierOptions = resolutionTierOptions.filter((item) => effectiveTiers.includes(item.value as "standard" | "2k" | "4k"));
     const effectiveResolutionTier = effectiveTiers.includes(resolutionTier) ? resolutionTier : effectiveTiers[0];
     useEffect(() => {
@@ -104,12 +93,6 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
         setResolutionTier(next);
         if (activeSize !== "auto" && tierOfAspect(activeSize) !== next) onConfigChange("size", "auto");
     };
-    const updateDimension = (key: "width" | "height", value: number | null) => {
-        const next = Math.max(1, Math.floor(value || dimensions[key] || 1024));
-        const width = key === "width" ? next : dimensions.width;
-        const height = key === "height" ? next : dimensions.height;
-        onConfigChange("size", `${alignDimension(width, snapDimensionToStep)}x${alignDimension(height, snapDimensionToStep)}`);
-    };
 
     return (
         <ImageSettingsTheme theme={theme}>
@@ -123,71 +106,41 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                 }}
             >
                 {showTitle ? <div className="text-lg font-semibold">图像设置</div> : null}
-                <div className="space-y-2.5">
-                    <SettingTitle color={theme.node.muted}>质量</SettingTitle>
-                    <div className="grid grid-cols-4 gap-2.5">
-                        {qualityOptions.map((item) => (
-                            <OptionPill key={item.value} selected={quality === item.value} theme={theme} onClick={() => onConfigChange("quality", item.value)}>
-                                {item.label}
-                            </OptionPill>
-                        ))}
-                    </div>
-                </div>
                 {showSize ? (
-                    <>
-                        <div className="space-y-2.5">
-                            <div className="flex items-center justify-between gap-3">
-                                <SettingTitle color={theme.node.muted}>尺寸</SettingTitle>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium" style={{ color: theme.node.muted }}>
-                                        16倍数对齐
-                                    </span>
-                                    <span title="输入完成后自动向上补成 16 的倍数" onMouseDown={(event) => event.stopPropagation()}>
-                                        <Switch size="small" checked={snapDimensionToStep} onChange={setSnapDimensionToStep} />
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5">
-                                <DimensionInput prefix="W" value={dimensions.width} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("width", value)} />
-                                <span className="text-lg opacity-45">↔</span>
-                                <DimensionInput prefix="H" value={dimensions.height} disabled={activeSize === "auto"} theme={theme} alignToStep={snapDimensionToStep} onChange={(value) => updateDimension("height", value)} />
-                            </div>
+                    <div className="space-y-2.5">
+                        <div className="flex items-center justify-between gap-3">
+                            <SettingTitle color={theme.node.muted}>比例</SettingTitle>
+                            {tierOptions.length >= 2 ? (
+                                <span onMouseDown={(event) => event.stopPropagation()}>
+                                    <Segmented
+                                        size="small"
+                                        value={effectiveResolutionTier}
+                                        onChange={(value) => changeResolutionTier(value as "standard" | "2k" | "4k")}
+                                        options={tierOptions}
+                                    />
+                                </span>
+                            ) : null}
                         </div>
-                        <div className="space-y-2.5">
-                            <div className="flex items-center justify-between gap-3">
-                                <SettingTitle color={theme.node.muted}>比例</SettingTitle>
-                                {tierOptions.length >= 2 ? (
-                                    <span onMouseDown={(event) => event.stopPropagation()}>
-                                        <Segmented
-                                            size="small"
-                                            value={effectiveResolutionTier}
-                                            onChange={(value) => changeResolutionTier(value as "standard" | "2k" | "4k")}
-                                            options={tierOptions}
-                                        />
-                                    </span>
-                                ) : null}
-                            </div>
-                            <div className="grid grid-cols-4 gap-2.5">
-                                {visibleAspects.map((item) => (
-                                    <button
-                                        key={item.value}
-                                        type="button"
-                                        className="flex h-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border bg-transparent text-xs transition hover:opacity-80"
-                                        style={{ borderColor: selectedAspect?.value === item.value ? theme.node.text : theme.node.stroke, background: "transparent", color: theme.node.text }}
-                                        onMouseDown={(event) => event.stopPropagation()}
-                                        onClick={() => selectAspect(item.value)}
-                                    >
-                                        <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
-                                        <span>{item.label}</span>
-                                    </button>
-                                ))}
-                            </div>
+                        <div className="grid grid-cols-4 gap-2.5">
+                            {visibleAspects.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    className="flex h-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border bg-transparent text-xs transition hover:opacity-80"
+                                    style={{ borderColor: selectedAspect?.value === item.value ? theme.node.text : theme.node.stroke, background: "transparent", color: theme.node.text }}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    onClick={() => selectAspect(item.value)}
+                                >
+                                    <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
+                                    <span>{item.label}</span>
+                                </button>
+                            ))}
                         </div>
-                    </>
+                    </div>
                 ) : null}
                 {showCount ? (
                     <div className="space-y-2.5">
-                        <SettingTitle color={theme.node.muted}>生成张数</SettingTitle>
+                        <SettingTitle color={theme.node.muted}>生成数量</SettingTitle>
                         <div className="grid grid-cols-4 gap-2.5">
                             {Array.from({ length: quickCount }, (_, index) => index + 1).map((value) => (
                                 <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
@@ -216,10 +169,6 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
     );
 }
 
-export function imageQualityLabel(value: string) {
-    return ({ auto: "自动", high: "高", medium: "中", low: "低" } as Record<string, string>)[value] || value;
-}
-
 export function imageSizeLabel(size: string) {
     return aspectOptions.find((item) => (item.size || item.value) === size || item.value === size)?.label || size;
 }
@@ -235,35 +184,6 @@ function OptionPill({ selected, theme, onClick, children }: { selected: boolean;
         >
             {children}
         </button>
-    );
-}
-
-function DimensionInput({ prefix, value, disabled, theme, alignToStep, onChange }: { prefix: string; value: number; disabled: boolean; theme: CanvasTheme; alignToStep: boolean; onChange: (value: number | null) => void }) {
-    const commit = (input: HTMLInputElement) => {
-        const next = alignDimension(Math.max(1, Math.floor(Number(input.value) || value || 1024)), alignToStep);
-        input.value = String(next);
-        onChange(next);
-    };
-
-    return (
-        <label className="flex h-9 overflow-hidden rounded-md border text-sm" style={{ borderColor: theme.node.stroke, color: theme.node.text, opacity: disabled ? 0.55 : 1 }}>
-            <span className="grid w-9 place-items-center" style={{ color: theme.node.muted }}>
-                {prefix}
-            </span>
-            <input
-                type="number"
-                min={1}
-                disabled={disabled}
-                className="min-w-0 flex-1 bg-transparent px-2 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                defaultValue={value || ""}
-                key={`${prefix}-${value}`}
-                onBlur={(event) => commit(event.currentTarget)}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
-            />
-        </label>
     );
 }
 
@@ -302,18 +222,6 @@ function SettingTitle({ children, color }: { children: string; color: string }) 
             {children}
         </div>
     );
-}
-
-function readSizeDimensions(size: string, fallback: { width: number; height: number }) {
-    const match = size?.match(/^(\d+)x(\d+)$/);
-    return {
-        width: match ? Number(match[1]) : fallback.width,
-        height: match ? Number(match[2]) : fallback.height,
-    };
-}
-
-function alignDimension(value: number, enabled: boolean) {
-    return enabled ? Math.ceil(value / DIMENSION_STEP) * DIMENSION_STEP : value;
 }
 
 export function imageFormatLabel(format: string) {
