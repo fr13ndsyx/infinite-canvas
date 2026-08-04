@@ -200,3 +200,39 @@
 
 ### 待办（todo.md）
 - 无新增待办（原有「生图/视频模型能力配置」剩余项不变：Seedance 分辨率/参考素材限制后台化、后端 apimartImageConfig/kieModelInputConfig 配置优先改造）
+
+## 2026-08-04 合并 feat/model-capabilities-finalize → main（commit 8fd68bd）
+
+### 完成的工作
+
+完成「生图/视频模型能力配置」剩余 2 项收尾，让模型能力后台化重构形成完整闭环。任务 3（后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置）本轮跳过。
+
+**任务 1：Seedance 分辨率改读 `videoResolutions`**（实际 UI 早已走配置，本轮清理死代码 + 补默认档位）
+- `next/src/components/video-settings-panel.tsx`：默认 `resolutionOptions` 从 `720p/480p` 两档补为 `480p/720p/1080p` 三档，与底部栏 `quickResolutionOptions` 和任务要求「未配置=默认三档」对齐
+- `next/src/lib/seedance-video.ts`：删除 5 个死代码成员（`seedanceResolutionOptions` / `seedancePixels` / `normalizeSeedanceResolution` / `normalizeResolutionToken` / `seedancePixelLabel`），它们仅互相引用，全仓无外部调用方
+
+**任务 2：Seedance 参考素材数量限制改后台配置**（字节限制 30MB/50MB/15MB 保持硬编码不动）
+- 后端 `Go/model/setting.go`：`ModelCapability` 新增 `MaxImageReferences` / `MaxVideoReferences` / `MaxAudioReferences` 三个 int 字段，`0=走前端默认`
+- 前端 `next/src/services/api/admin.ts`：`AdminModelCapability` 新增三个可选字段
+- 前端 `next/src/app/(admin)/admin/settings-shared.ts`：`normalizeModelCapabilities` 透传三个新字段
+- 前端 `next/src/app/(admin)/admin/model-pricing/page.tsx`：视频能力卡片新增「参考素材数量上限（0=默认）」区块，含图片/视频/音频三个 `InputNumber`；`setModelCapabilityNumber` 的 field 联合类型扩展
+- 前端 `next/src/stores/use-config-store.ts`：新增 `resolveMaxImageReferences` / `resolveMaxVideoReferences` / `resolveMaxAudioReferences` 三个 resolve 函数
+- 前端 `next/src/app/(user)/video/page.tsx`：主组件新增 `referenceLimits` 对象（从 `klingWorkbenchCap` 解析数量上限，0 回退 `SEEDANCE_REFERENCE_LIMITS` 默认值），`addReferences` / `addReferencesFromClipboard` / `addVideoReferencesFromClipboard` / `addAudioReferencesFromClipboard` / `insertPickedAsset` 中所有数量引用改用 `referenceLimits`，字节引用保持 `SEEDANCE_REFERENCE_LIMITS`
+
+### 涉及文件（12 个）
+- 后端：`Go/model/setting.go`
+- 前端类型/store：`next/src/services/api/admin.ts`、`next/src/app/(admin)/admin/settings-shared.ts`、`next/src/stores/use-config-store.ts`
+- 后台配置 UI：`next/src/app/(admin)/admin/model-pricing/page.tsx`
+- 工作台：`next/src/app/(user)/video/page.tsx`、`next/src/components/video-settings-panel.tsx`、`next/src/lib/seedance-video.ts`
+- 文档：`docs/backend/backend-database.md`、`docs/backend/video-exclusive-panels-params.md`、`docs/progress/pending-test.md`、`docs/progress/todo.md`
+
+### 待验证（pending-test.md）
+- Seedance 分辨率按后台 `videoResolutions` 配置显示（未配置=默认三档）
+- 后台「参考素材数量上限」三个 InputNumber 配置后视频工作台上传参考素材按配置限制
+- 配置 0/空时回退默认值（图片 9/视频 3/音频 3）
+- Kling V26 不受新字段影响（固定图片 2）
+- 字节限制（30MB/50MB/15MB）保持硬编码不变
+- 死代码已删除无残留引用
+
+### 待办（todo.md）
+- 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造（任务 3，本轮跳过）
