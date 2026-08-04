@@ -1,6 +1,7 @@
 "use client";
 
 import { type CSSProperties, type ReactNode } from "react";
+import { Film, Sparkles } from "lucide-react";
 import { Input, Slider, Switch } from "antd";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
@@ -34,10 +35,11 @@ type VideoSettingsPanelProps = {
     className?: string;
     hideNegativePrompt?: boolean;
     visualOnly?: boolean;
+    variant?: "default" | "canvas";
 };
 
 // 通用视频设置面板：所有功能由 ModelCapability 能力开关驱动渲染，不再按面板类型分流。
-export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, capabilities, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", hideNegativePrompt = false, visualOnly = false }: VideoSettingsPanelProps) {
+export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, capabilities, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", hideNegativePrompt = false, visualOnly = false, variant = "default" }: VideoSettingsPanelProps) {
     const size = normalizeVideoSizeValue(config.size);
     const resolution = normalizeVideoResolutionValue(config.vquality);
     const secondsRange = resolveVideoSecondsRange(capabilities);
@@ -75,6 +77,85 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
     const watermark = boolConfig(config.videoWatermark, false);
     const audioRequiresMode = resolveAudioRequiresMode(capabilities);
     const audioHint = audioRequiresMode ? `仅 ${audioRequiresMode} 模式可用` : undefined;
+
+    if (variant === "canvas") {
+        return (
+            <ImageSettingsTheme theme={theme}>
+                <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
+                    {showTitle ? <div className="text-lg font-semibold">视频设置</div> : null}
+                    {showNegativePrompt ? (
+                        <CanvasSection title="负面提示词">
+                            <Input.TextArea
+                                value={config.videoNegativePrompt || ""}
+                                placeholder="描述不希望出现在视频中的内容"
+                                autoSize={{ minRows: 3, maxRows: 6 }}
+                                className="rounded-xl placeholder:!text-[var(--canvas-placeholder)] placeholder:!opacity-55"
+                                style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text, "--canvas-placeholder": theme.node.placeholder } as CSSProperties}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onChange={(event) => onConfigChange("videoNegativePrompt", event.target.value)}
+                            />
+                        </CanvasSection>
+                    ) : null}
+                    {!visualOnly && modes.length > 0 ? (
+                        <CanvasSection title="视频生成方式">
+                            <div className="flex gap-1.5">
+                                {modes.map((item) => (
+                                    <SegmentedPill key={item.value} selected={currentMode === item.value} theme={theme} icon={modeIcon(item.value)} onClick={() => onConfigChange("videoMode", item.value)}>
+                                        {item.label}
+                                    </SegmentedPill>
+                                ))}
+                            </div>
+                        </CanvasSection>
+                    ) : null}
+                    <CanvasSection title="选择比例">
+                        <div className="flex flex-wrap gap-1.5">
+                            {ratioButtons.map((item) => {
+                                const isSmart = item.value === "auto" || item.value === "adaptive";
+                                return (
+                                    <RatioChip key={item.value} selected={selectedSize === item.value} theme={theme} width={item.width} height={item.height} isSmart={isSmart} onClick={() => onConfigChange("size", item.value)}>
+                                        {isSmart ? "智能" : item.label}
+                                    </RatioChip>
+                                );
+                            })}
+                        </div>
+                    </CanvasSection>
+                    <CanvasSection title="选择分辨率">
+                        <div className="flex flex-wrap gap-1.5">
+                            {resolutionOptionsForRender.map((item) => (
+                                <TextChip key={item.value} selected={resolution === item.value} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
+                                    {item.label}
+                                </TextChip>
+                            ))}
+                            {showCustomResolutionInput ? <ResolutionInput value={resolution} theme={theme} onChange={(value) => onConfigChange("vquality", value)} /> : null}
+                        </div>
+                    </CanvasSection>
+                    {!visualOnly ? (
+                        <>
+                            <CanvasSection title="生成时长">
+                                <SecondsSlider value={secondsValue} min={secondsRange.min} max={secondsRange.max} theme={theme} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
+                            </CanvasSection>
+                            {audioGenerationEnabled ? (
+                                <CanvasSection title="生成音频">
+                                    <div className="flex gap-1.5">
+                                        <SegmentedPill selected={!generateAudio} theme={theme} onClick={() => onConfigChange("videoGenerateAudio", "false")}>关闭</SegmentedPill>
+                                        <SegmentedPill selected={generateAudio} theme={theme} onClick={() => onConfigChange("videoGenerateAudio", "true")}>开启</SegmentedPill>
+                                    </div>
+                                    {audioHint ? <div className="mt-1 text-[11px] leading-4 opacity-55">{audioHint}</div> : null}
+                                </CanvasSection>
+                            ) : null}
+                            {watermarkEnabled ? (
+                                <CanvasSection title="输出">
+                                    <div className="rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
+                                        <SwitchRow label="添加水印" checked={watermark} theme={theme} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} />
+                                    </div>
+                                </CanvasSection>
+                            ) : null}
+                        </>
+                    ) : null}
+                </div>
+            </ImageSettingsTheme>
+        );
+    }
 
     return (
         <ImageSettingsTheme theme={theme}>
@@ -231,9 +312,21 @@ function SecondsSlider({ value, min, max, theme, onChange }: { value: number; mi
 function SizePreview({ width, height, color }: { width: number; height: number; color: string }) {
     if (!width || !height) return null;
     const longSide = Math.max(width, height);
-    const previewWidth = Math.max(8, Math.round((width / longSide) * 20));
-    const previewHeight = Math.max(8, Math.round((height / longSide) * 20));
-    return <span className="rounded-[3px] border-2" style={{ width: previewWidth, height: previewHeight, borderColor: color }} />;
+    const previewWidth = Math.max(6, Math.round((width / longSide) * 18));
+    const previewHeight = Math.max(6, Math.round((height / longSide) * 18));
+    return <span className="rounded-[3px] border-[1.5px]" style={{ width: previewWidth, height: previewHeight, borderColor: color }} />;
+}
+
+function SmartRatioIcon({ color }: { color: string }) {
+    return (
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
+            <rect x="4" y="4" width="10" height="10" rx="2" stroke={color} strokeWidth="1.5" />
+            <path d="M2 5V3C2 2.44772 2.44772 2 3 2H5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M16 5V3C16 2.44772 15.5523 2 15 2H13" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M2 13V15C2 15.5523 2.44772 16 3 16H5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M16 13V15C16 15.5523 15.5523 16 15 16H13" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    );
 }
 
 function ratioPreview(ratio: string) {
@@ -268,4 +361,62 @@ function AudioGenerationSetting({ checked, hint, theme, onChange }: { checked: b
             </div>
         </SettingGroup>
     );
+}
+
+function CanvasSection({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <div className="space-y-2">
+            <div className="text-[11px] font-medium opacity-55">{title}</div>
+            {children}
+        </div>
+    );
+}
+
+function SegmentedPill({ selected, theme, icon, onClick, children }: { selected: boolean; theme: CanvasTheme; icon?: ReactNode; onClick: () => void; children: ReactNode }) {
+    return (
+        <button
+            type="button"
+            className="flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border px-3 text-[13px] transition hover:opacity-80"
+            style={{ background: selected ? theme.toolbar.activeBg : "transparent", borderColor: selected ? theme.toolbar.activeBg : theme.node.stroke, color: selected ? theme.toolbar.activeText : theme.node.text }}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={onClick}
+        >
+            {icon ? <span className="shrink-0">{icon}</span> : null}
+            <span className="truncate">{children}</span>
+        </button>
+    );
+}
+
+function RatioChip({ selected, theme, width, height, isSmart, onClick, children }: { selected: boolean; theme: CanvasTheme; width: number; height: number; isSmart?: boolean; onClick: () => void; children: ReactNode }) {
+    return (
+        <button
+            type="button"
+            className="inline-flex min-w-[40px] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] leading-3 transition hover:opacity-80"
+            style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: selected ? theme.toolbar.activeText : theme.node.text }}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={onClick}
+        >
+            {isSmart ? <SmartRatioIcon color={selected ? theme.toolbar.activeText : theme.node.text} /> : <SizePreview width={width} height={height} color={selected ? theme.toolbar.activeText : theme.node.text} />}
+            <span className="truncate">{children}</span>
+        </button>
+    );
+}
+
+function TextChip({ selected, theme, onClick, children }: { selected: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
+    return (
+        <button
+            type="button"
+            className="cursor-pointer rounded-[10px] border px-3 py-1.5 text-xs transition hover:opacity-80"
+            style={{ background: selected ? theme.toolbar.activeBg : "transparent", borderColor: selected ? theme.toolbar.activeBg : theme.node.stroke, color: selected ? theme.toolbar.activeText : theme.node.text }}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={onClick}
+        >
+            {children}
+        </button>
+    );
+}
+
+function modeIcon(value: string) {
+    if (/frame|first|last/i.test(value)) return <Film className="size-3.5" />;
+    return <Sparkles className="size-3.5" />;
 }

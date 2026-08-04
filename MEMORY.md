@@ -7,9 +7,17 @@
 - 计费：平台渠道（后端预扣算力点→转发→失败返还）vs 用户自定义渠道（浏览器直连，不收费）
 
 ## 本机环境坑（重要）
-- 无系统 Go/bun；Go SDK 在 `C:\Users\Administrator\go-sdk\`，前端用 managed node 22.22.2 + npm
-- `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动时须 `NODE_OPTIONS=""`
+- Go 在 `C:\Users\Administrator\go-sdk\go\bin\go.exe`；bun 在 `C:\Users\Administrator\.bun\bin\bun.exe`（两者均未进 Bash 沙箱 PATH，须用全路径调用；本机确实已安装，勿再尝试下载）。前端 node_modules 由 npm 安装，但可用 bun 启动
+- 启动后端：`cd Go && GOPROXY=https://goproxy.cn,direct go run .`（godotenv 从 Go/ 目录读 `Go/.env`；首次跑会拉模块+编译，约十几秒后 `Listening on :8080`）
+- 启动前端：`cd next && NODE_OPTIONS="" bun run dev`（dev 脚本 `next dev --webpack -H 0.0.0.0 -p 3000`，约 2s `Ready`）
+- `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
+
+## UI 重构优化约定（2026-08-04，用户明确）
+- 参考截图/设计图**只看 UI 布局与结构**，不要照搬颜色
+- 画布 UI 颜色一律用 `canvasThemes` 主题 token（light/dark 两套），选中态高亮用 `toolbar.activeBg`/`activeText`/`activeStroke`，禁止硬编码 orange/black/stone 等固定色
+- 改动只动画布视频节点设置 UI（`canvas-video-settings-popover.tsx` + `video-settings-panel.tsx` 增加 `variant="canvas"`），不影响工作台默认样式
+- 待确认：3:2 比例是否需要补 + 后端是否下发；"全能参考"模式是否已是后台配置的 videoMode；影响范围是否含工作台 /video 页
 - Bash 工具每条命令 cwd 重置为仓库根目录 → 命令内必须显式 `cd`
 - Git Bash 下 curl `-o` 须用 Windows 路径（`C:\...`），POSIX 路径会 error 23
 - git push/pull 走 https 时 schannel 报 CRYPT_E_REVOCATION_OFFLINE（吊销服务器不可达，schannelCheckRevoke=false 也无效）→ 用 `git -c http.sslBackend=openssl push` 绕过
@@ -236,3 +244,25 @@
 
 ### 待办（todo.md）
 - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造（任务 3，本轮跳过）
+
+## 2026-08-04 合并 ui重构优化 → main（画布视频节点设置 UI 重构）
+
+### 完成的工作（仅改 UI 样式/布局，参数逻辑不动，后端已有）
+- 入口胶囊去掉外层按钮框，改为无框扁平文本条：`✦ 模型名 · 模式 · 比例 · 分辨率 · 时长 · 🔊`，字段各自独立可点、用 `·` 分隔
+- 模型选择：删除侧栏/底部栏独立 `ModelPicker`（视频模式），改为点击胶囊「模型名」弹出模型下拉（复用 `filterModelsByCapability`/`normalizeLocalChannels`）；删掉 ✕ 关闭按钮
+- 设置弹窗 `video-settings-panel.tsx` 增加 `variant="canvas"`：模式→横向分段胶囊(带图标)、比例→图标在上的纵向 chip 行(含"智能"扫描框图标)、分辨率→文字 chip、时长→Slider、音频→开启/关闭两胶囊
+- 摄像机触发按钮由带框 antd Button 改为无框纯 `<button>`；底部栏生成按钮高度 10→8、胶囊字段间距放宽
+- 颜色全部走 `canvasThemes` 主题 token（`toolbar.activeBg/activeText`），未硬编码
+- README「本地非 Docker 开发运行」段修正：`cd web`→`cd next`，并说明后端须在 `Go/` 目录运行 + env 复制到 `Go/.env`
+- 运行时修复：`boolConfig` 来源应为 `@/lib/seedance-video`（非 use-config-store）；补回被误删的 `Input` import
+
+### 涉及文件
+- 画布：`next/src/app/(user)/canvas/components/canvas-video-settings-popover.tsx`、`canvas-config-node-panel.tsx`、`canvas-node-prompt-panel.tsx`、`canvas-camera-control.tsx`
+- 面板：`next/src/components/video-settings-panel.tsx`
+- 文档：`README.md`、`MEMORY.md`
+
+### 待验证
+- 画布视频节点入口胶囊为无框文本条、字段可点、点模型名下拉
+- 弹窗比例选择图标在上文字在下、智能用扫描框图标
+- 摄像机/生成按钮无框、底部栏更紧凑
+- user 自测即可（本项目 `tsc --noEmit` 整体有预存错误，dev 用 SWC 不影响运行）

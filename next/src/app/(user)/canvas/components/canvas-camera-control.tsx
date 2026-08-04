@@ -114,19 +114,16 @@ export function CanvasCameraControl({ value, onChange, buttonClassName }: Canvas
     return (
         <>
             <span ref={buttonRef} className="inline-flex min-w-0" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
-                <Button
-                    icon={<Camera className="size-4" />}
-                    className={buttonClassName || "!h-10 !min-w-[92px] !justify-start !rounded-full !px-3"}
-                    style={{
-                        background: value?.enabled ? theme.toolbar.activeBg : theme.node.fill,
-                        borderColor: value?.enabled ? theme.node.activeStroke : theme.node.stroke,
-                        color: value?.enabled ? theme.toolbar.activeText : theme.node.text,
-                    }}
+                <button
+                    type="button"
+                    className={["inline-flex items-center gap-1 border-0 bg-transparent text-[11px] transition hover:opacity-60", buttonClassName || ""].join(" ")}
+                    style={{ color: value?.enabled ? theme.toolbar.activeText : theme.node.text }}
                     aria-expanded={open}
                     onClick={() => setOpen((current) => !current)}
                 >
-                    摄像机
-                </Button>
+                    <Camera className="size-3.5 shrink-0" />
+                    <span>摄像机</span>
+                </button>
             </span>
 
             {open && buttonRect && panelStyle

@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, Fragment, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { FileText, Image as ImageIcon, Music2, Plus, Settings2, Trash2, Video as VideoIcon, X } from "lucide-react";
-import { Button, Switch } from "antd";
+import { FileText, Image as ImageIcon, Music2, Plus, Sparkles, Trash2, Video as VideoIcon, Volume2, X } from "lucide-react";
+import { Input, Switch } from "antd";
 
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
+import { boolConfig } from "@/lib/seedance-video";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { findModelCapability, resolveSupportsElementList, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
+import { filterModelsByCapability, findModelCapability, normalizeLocalChannels, resolveSupportsElementList, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveVideoModes, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
 import type { CanvasNodeMetadata } from "../types";
 
 export type CanvasVideoFrameOption = { nodeId: string; label: string; previewUrl?: string };
@@ -24,18 +25,34 @@ type CanvasVideoSettingsPopoverProps = {
     lastFrameNodeId?: string;
     onFrameChange?: (patch: { firstFrameNodeId?: string; lastFrameNodeId?: string }) => void;
     onMetadataChange?: (patch: Partial<CanvasNodeMetadata>) => void;
-    buttonClassName?: string;
     buttonIcon?: ReactNode;
+    onModelChange?: (model: string, channelId?: string) => void;
     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
     visualOnly?: boolean;
 };
 
-export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOptions = [], resourceOptions = [], metadata, firstFrameNodeId, lastFrameNodeId, onFrameChange, onMetadataChange, buttonClassName, buttonIcon, placement = "topLeft", visualOnly = false }: CanvasVideoSettingsPopoverProps) {
+export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOptions = [], resourceOptions = [], metadata, firstFrameNodeId, lastFrameNodeId, onFrameChange, onMetadataChange, buttonIcon, onModelChange, placement = "topLeft", visualOnly = false }: CanvasVideoSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const model = config.model || config.videoModel || "";
+    const cap = findModelCapability(config, model);
+    const modes = resolveVideoModes(cap);
+    const currentMode = modes.length > 0 ? (modes.some((item) => item.value === config.videoMode) ? config.videoMode : modes[0].value) : "";
+    const modeLabel = modes.find((item) => item.value === currentMode)?.label || "";
+    const audioOn = boolConfig(config.videoGenerateAudio, false);
+    const ratioLabel = (value: string) => (value === "auto" || value === "adaptive" ? "智能比例" : videoSizeRatioLabel(value));
+    const modelOptions = useMemo(() => {
+        const channels = config.channelMode === "remote"
+            ? config.publicChannels.map((channel) => ({ id: channel.id, name: channel.name || "云端渠道", baseUrl: channel.baseUrl, models: channel.models }))
+            : normalizeLocalChannels(config).map((channel) => ({ id: channel.id, name: channel.name || "本地渠道", baseUrl: channel.baseUrl, models: channel.models }));
+        const items = channels.flatMap((channel) => (channel.models ?? []).map((m) => ({ key: `${channel.id}::${m}`, channelId: channel.id, channelName: channel.name, model: m })));
+        return items.filter((item) => filterModelsByCapability([item.model], "video").length > 0);
+    }, [config]);
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
+    const [modelOpen, setModelOpen] = useState(false);
+    const modelRef = useRef<HTMLSpanElement>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -58,17 +75,80 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOption
         };
     }, [open]);
 
+    useEffect(() => {
+        if (!modelOpen) return;
+        const closeOnOutside = (event: PointerEvent) => {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (modelRef.current?.contains(target)) return;
+            setModelOpen(false);
+        };
+        window.addEventListener("pointerdown", closeOnOutside, true);
+        return () => window.removeEventListener("pointerdown", closeOnOutside, true);
+    }, [modelOpen]);
+
     const panel = open && buttonRect ? <VideoSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} frameOptions={frameOptions} resourceOptions={resourceOptions} metadata={metadata} firstFrameNodeId={firstFrameNodeId} lastFrameNodeId={lastFrameNodeId} onFrameChange={onFrameChange} onMetadataChange={onMetadataChange} visualOnly={visualOnly} /> : null;
+
+    const segments: { key: string; label: ReactNode }[] = [
+        { key: "model", label: model || "模型" },
+        ...(modeLabel ? [{ key: "mode", label: modeLabel }] : []),
+        { key: "ratio", label: ratioLabel(config.size) },
+        { key: "res", label: videoResolutionLabel(config.vquality) },
+        { key: "dur", label: videoSecondsLabel(config.videoSeconds) },
+        ...(audioOn ? [{ key: "audio", label: <Volume2 className="size-3.5 shrink-0 opacity-80" /> }] : []),
+    ];
 
     return (
         <>
-            <span ref={buttonRef} className="inline-flex min-w-0">
-                <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"} style={{ background: theme.node.fill, color: theme.node.text }} icon={buttonIcon || <Settings2 className="size-3.5" />} onClick={() => setOpen((current) => !current)}>
-                    <span className="truncate">
-                        {videoResolutionLabel(config.vquality)} · {videoSizeRatioLabel(config.size)}
-                        {visualOnly ? null : <> · {videoSecondsLabel(config.videoSeconds)}</>}
-                    </span>
-                </Button>
+            <span ref={buttonRef} className="inline-flex min-w-0 max-w-full">
+                <div
+                    className="flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 text-xs"
+                    style={{ color: theme.node.text }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                >
+                    {buttonIcon || <Sparkles className="size-3.5 shrink-0 opacity-70" />}
+                    {segments.map((seg, index) => (
+                        <Fragment key={seg.key}>
+                            {index > 0 ? <span className="shrink-0 opacity-30">·</span> : null}
+                            {seg.key === "model" ? (
+                                <span ref={modelRef} className="relative inline-flex">
+                                    <button
+                                        type="button"
+                                        className="cursor-pointer truncate rounded px-0.5 transition hover:opacity-60"
+                                        onClick={(event) => { event.stopPropagation(); setOpen(false); setModelOpen((current) => !current); }}
+                                    >
+                                        {seg.label}
+                                    </button>
+                                    {modelOpen ? (
+                                        <div className="absolute left-0 top-[calc(100%+6px)] z-[1300] max-h-64 min-w-[200px] overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}>
+                                            {modelOptions.length ? (
+                                                modelOptions.map((opt) => {
+                                                    const active = opt.model === model;
+                                                    return (
+                                                        <button key={opt.key} type="button" className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition" style={{ background: active ? theme.toolbar.activeBg : "transparent", color: active ? theme.toolbar.activeText : theme.node.text }} onClick={(event) => { event.stopPropagation(); onModelChange?.(opt.model, opt.channelId); setModelOpen(false); }}>
+                                                            <span className="min-w-0 flex-1 truncate">{opt.model}</span>
+                                                            <span className="shrink-0 truncate opacity-55">{opt.channelName}</span>
+                                                        </button>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="px-2 py-3 text-center text-xs opacity-55">请先到配置里拉取模型列表</div>
+                                            )}
+                                        </div>
+                                    ) : null}
+                                </span>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="cursor-pointer truncate rounded px-0.5 transition hover:opacity-60"
+                                    onClick={(event) => { event.stopPropagation(); setModelOpen(false); setOpen((current) => !current); }}
+                                >
+                                    {seg.label}
+                                </button>
+                            )}
+                        </Fragment>
+                    ))}
+                </div>
             </span>
             {panel}
         </>
@@ -122,7 +202,7 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
                         </div>
                     </CanvasSettingGroup>
                 ) : null}
-                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-4" visualOnly={visualOnly} capabilities={cap} />
+                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-3" variant="canvas" visualOnly={visualOnly} capabilities={cap} />
             </div>
         </div>,
         document.body,

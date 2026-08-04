@@ -62,11 +62,13 @@ docker compose up -d --build
 
 本地非 Docker 开发运行：
 ```bash
-cp .env.example .env
+# 后端：在 Go/ 目录下运行（godotenv 从该目录读取 Go/.env）
+cp .env.example Go/.env
+cd Go
 go run .
 
-# 另开一个终端窗口
-cd web
+# 另开一个终端窗口，前端目录为 next/
+cd next
 bun install
 bun run dev
 ```
