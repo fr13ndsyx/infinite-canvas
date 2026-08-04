@@ -294,7 +294,7 @@ description: 当前后端主要数据表与字段说明
 | `allowCustomChannel` | bool | 是否允许登录用户自定义渠道，默认允许，关闭后登录用户只能走云端渠道或本地直连 |
 | `allowUserRemoteChannel` | bool | 是否允许普通用户使用云端渠道，默认关闭，关闭后普通用户只能使用本地直连；管理员不受此限制 |
 | `allowGuestConfig` | bool | 是否允许未登录用户使用配置功能，默认允许，关闭后未登录用户看不到顶栏配置入口，也无法通过模型选择器等入口触发配置弹窗 |
-| `modelCapabilities` | object[] | 模型能力配置，按模型设置支持的图片比例、图片档位和视频清晰度；空字段走默认值（生图全比例+仅标准档，视频 480p/720p/1080p） |
+| `modelCapabilities` | object[] | 模型能力配置，按模型设置支持的图片比例、图片档位、视频清晰度、视频面板类型/厂商/模式/比例/能力开关等；空字段走默认值（生图全比例+仅标准档，视频 480p/720p/1080p，秒数 4-20，面板=通用） |
 
 `modelCosts` 每项字段：
 
@@ -311,8 +311,33 @@ description: 当前后端主要数据表与字段说明
 | `imageAspects` | string[] | 支持的图片比例，如 `["1:1","16:9"]`；空=支持全部标准比例 |
 | `imageTiers` | string[] | 支持的图片清晰度档位，取值 `standard`/`2k`/`4k`；空=仅标准档 |
 | `videoResolutions` | string[] | 支持的视频清晰度，如 `["720p","1080p"]`；空=480p/720p/1080p 三档 |
+| `videoSecondsMin` | int | 视频秒数下限，空=默认 4 |
+| `videoSecondsMax` | int | 视频秒数上限，空=默认 20 |
+| `videoPanelType` | string | 视频面板类型，空=通用面板；`kling-v26`/`kling-v3`/`seedance`/`grok`/`motion-control`/`agnes`，替代前端按模型名+渠道硬编码判断面板和请求体格式 |
+| `videoProvider` | string | 视频厂商，空=不区分；`apimart`/`kie`（仅 `kling-v3`/`motion-control` 需要区分请求体格式） |
+| `videoModes` | object[] | 视频模式选项（Kling `std`/`pro`/`4k`、Grok `fun`/`normal`/`spicy`），空=不支持模式选择；每项含 `value`/`label`/`desc` |
+| `videoRatios` | string[] | 视频比例选项，如 `["16:9","9:16","1:1","adaptive"]`；空=通用面板走默认 sizeOptions |
+| `videoSecondsPresets` | int[] | 秒数预设档位，如 `[5,10]`；空=连续 Slider，有值=按档位显示 OptionPill |
+| `videoSecondsSmart` | bool | 是否支持 `-1` 智能时长（Seedance） |
+| `supportsNegativePrompt` | bool | 是否支持负面提示词 |
+| `supportsFirstLastFrame` | bool | 是否支持首尾帧参考 |
+| `supportsMotionControl` | bool | 是否支持运动控制 |
+| `supportsAudioGeneration` | bool | 是否支持音频生成 |
+| `supportsWatermark` | bool | 是否支持水印开关 |
+| `supportsMultiShot` | bool | 是否支持多镜头分镜 |
+| `supportsElementList` | bool | 是否支持元素列表 |
+| `audioRequiresMode` | string | 音频生成所需模式，如 Kling V26 要求 `pro`；空=不限 |
+| `audioMaxReferences` | int | 音频生成最大参考图数量，如 Kling V26 要求 `1`；空/0=不限 |
 
-管理员未配置的模型走默认值策略：生图=全比例+仅标准档，视频=480p/720p/1080p。前端工作台按当前所选模型的能力动态渲染比例和档位按钮，切换模型时若当前选项不在新模型支持范围内则自动回退。
+`videoModes` 每项字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `value` | string | 模式值，如 `std`/`pro`/`4k`/`fun`/`normal`/`spicy` |
+| `label` | string | 模式显示名，如「标准模式」/「专业模式」/「4K」 |
+| `desc` | string | 补充说明，如「720P 无声」/「1080P 音频」 |
+
+管理员未配置的模型走默认值策略：生图=全比例+仅标准档，视频=480p/720p/1080p、秒数 4-20、面板=通用。能力开关未配置（`undefined`）时前端走默认硬编码兜底，有值则按配置控制 UI 显隐与请求体字段。前端工作台按当前所选模型的能力动态渲染比例、档位、模式、面板，切换模型时若当前选项不在新模型支持范围内则自动回退。
 
 `auth.linuxDo` 当前字段：
 

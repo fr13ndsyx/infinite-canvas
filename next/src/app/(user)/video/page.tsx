@@ -3,7 +3,7 @@ import axios from "axios";
 
 import { AlertCircle, ArrowLeft, ArrowRight, BookOpen, CheckSquare, ChevronDown, ChevronUp, ClipboardPaste, CloudUpload, Copy, Download, FolderPlus, History, LoaderCircle, Music2, Plus, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { App, Button, Checkbox, Empty, Input, Modal, Switch, Tag, Typography } from "antd";
+import { App, Button, Checkbox, Empty, Input, Modal, Slider, Switch, Tag, Typography } from "antd";
 import localforage from "localforage";
 import { nanoid } from "nanoid";
 import { saveAs } from "file-saver";
@@ -15,14 +15,14 @@ import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
-import { boolConfig, isSeedanceVideoConfig, normalizeSeedanceRatio, seedanceReferenceLabel, seedanceVideoReferenceError, seedanceVideoReferenceHint, SEEDANCE_REFERENCE_LIMITS } from "@/lib/seedance-video";
-import { modelKey, supportsVideoAudioGeneration, supportsVideoFrameReferences } from "@/lib/video-model-capabilities";
+import { boolConfig, normalizeSeedanceRatio, seedanceReferenceLabel, seedanceVideoReferenceError, seedanceVideoReferenceHint, SEEDANCE_REFERENCE_LIMITS } from "@/lib/seedance-video";
+import { modelKey } from "@/lib/video-model-capabilities";
 import { deleteStoredMedia, downloadRemoteMedia, resolveMediaUrl, uploadMediaFile, uploadRemoteMediaToServer } from "@/services/file-storage";
 import { deleteStoredImages, resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { deleteVideoGenerationLogs, fetchVideoGenerationLogs, saveVideoGenerationLogs } from "@/services/api/generation-logs";
 import { createVideoGenerationTask, deleteVideoGenerationTask, listVideoGenerationTasks, pollVideoGenerationTaskStatus, VIDEO_POLL_INTERVAL_MS, VideoRequestError, type VideoResponse } from "@/services/api/video";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { normalizeLocalChannels, useConfigStore, useEffectiveConfig, type AiConfig, type VideoElementItem, type VideoElementReference } from "@/stores/use-config-store";
+import { findModelCapability, normalizeLocalChannels, resolveAudioMaxReferences, resolveAudioRequiresMode, resolveSupportsAudioGeneration, resolveSupportsElementList, resolveSupportsFirstLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveSupportsNegativePrompt, resolveSupportsWatermark, resolveVideoPanelType, resolveVideoProvider, resolveVideoSecondsRange, useConfigStore, useEffectiveConfig, type AiConfig, type VideoElementItem, type VideoElementReference } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { ReferenceImage } from "@/types/image";
@@ -101,14 +101,6 @@ const quickResolutionOptions = [
     { value: "720", label: "720p" },
     { value: "1080", label: "1080p" },
 ];
-const quickSizeOptions = [
-    { value: "1280x720", label: "1280x720" },
-    { value: "720x1280", label: "720x1280" },
-    { value: "1024x1024", label: "1024x1024" },
-    { value: "1792x1024", label: "1792x1024" },
-    { value: "1024x1792", label: "1024x1792" },
-    { value: "auto", label: "auto" },
-];
 
 export default function VideoPage() {
     const { message } = App.useApp();
@@ -152,7 +144,6 @@ export default function VideoPage() {
     const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
     const [previewLog, setPreviewLog] = useState<GenerationLog | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-    const [taskCount, setTaskCount] = useState(1);
     const [syncingVideoIds, setSyncingVideoIds] = useState<string[]>([]);
     const pollingLogIdsRef = useRef(new Set<string>());
     const logsRef = useRef<GenerationLog[]>([]);
@@ -161,10 +152,11 @@ export default function VideoPage() {
     const model = effectiveConfig.videoModel || effectiveConfig.model;
     const canGenerate = Boolean(prompt.trim());
     const pendingCount = results.filter((item) => item.status === "pending").length;
-    const klingWorkbench = resolveKlingWorkbenchConfig(videoConfig, model);
-    const klingWorkbenchVariant = klingWorkbench?.variant || "";
-    const klingWorkbenchProvider = klingWorkbench?.provider || "apimart";
-    const isKlingWorkbench = Boolean(klingWorkbench);
+    const klingWorkbenchCap = findModelCapability(videoConfig, model);
+    const klingWorkbenchPanelType = resolveVideoPanelType(klingWorkbenchCap);
+    const isKlingWorkbench = klingWorkbenchPanelType === "kling-v26" || klingWorkbenchPanelType === "kling-v3";
+    const klingWorkbenchVariant = klingWorkbenchPanelType === "kling-v3" ? "v3" : klingWorkbenchPanelType === "kling-v26" ? "v26" : "";
+    const klingWorkbenchProvider = klingWorkbenchPanelType === "kling-v3" && resolveVideoProvider(klingWorkbenchCap) === "kie" ? "kie" : "apimart";
     const pendingLogCount = logs.filter((log) => log.status === "生成中" && log.task && !log.video).length;
     const usesBackendVideoTasks = (value: AiConfig) => value.channelMode === "remote" || (value.channelMode === "local" && Boolean(token));
 
@@ -555,11 +547,13 @@ export default function VideoPage() {
         await submitGenerationSnapshot(snapshot);
     };
 
-    const buildRequestSnapshot = ({ promptText = prompt, negativePromptText, referenceItems = references, firstFrameItem = firstFrame, lastFrameItem = lastFrame, videoReferenceItems = videoReferences, audioReferenceItems = audioReferences, taskCountValue = taskCount, configValue = videoConfig, modelValue = model }: { promptText?: string; negativePromptText?: string; referenceItems?: ReferenceImage[]; firstFrameItem?: ReferenceImage | null; lastFrameItem?: ReferenceImage | null; videoReferenceItems?: ReferenceVideo[]; audioReferenceItems?: ReferenceAudio[]; taskCountValue?: number; configValue?: AiConfig; modelValue?: string } = {}) => {
+    const buildRequestSnapshot = ({ promptText = prompt, negativePromptText, referenceItems = references, firstFrameItem = firstFrame, lastFrameItem = lastFrame, videoReferenceItems = videoReferences, audioReferenceItems = audioReferences, configValue = videoConfig, modelValue = model }: { promptText?: string; negativePromptText?: string; referenceItems?: ReferenceImage[]; firstFrameItem?: ReferenceImage | null; lastFrameItem?: ReferenceImage | null; videoReferenceItems?: ReferenceVideo[]; audioReferenceItems?: ReferenceAudio[]; configValue?: AiConfig; modelValue?: string } = {}) => {
         const text = promptText.trim();
         const currentNegativePrompt = (negativePromptText ?? configValue.videoNegativePrompt ?? negativePrompt).trim();
-        const klingV26 = isAPIMartKlingV26Config(configValue, modelValue);
-        const klingV3 = isKlingV3Config(configValue, modelValue);
+        const cap = findModelCapability(configValue, modelValue);
+        const panelType = resolveVideoPanelType(cap);
+        const klingV26 = panelType === "kling-v26";
+        const klingV3 = panelType === "kling-v3";
         const kling = klingV26 || klingV3;
         if (!text) {
             message.error("请输入视频提示词");
@@ -598,8 +592,8 @@ export default function VideoPage() {
                 return null;
             }
         }
-        const frameReferencesEnabled = !kling && supportsVideoFrameReferences(modelValue);
-        return { text, model: modelValue, config: buildVideoConfig({ ...configValue, videoNegativePrompt: currentNegativePrompt }, modelValue), references: [...referenceItems].slice(0, kling ? 2 : referenceItems.length), firstFrame: frameReferencesEnabled ? firstFrameItem : null, lastFrame: frameReferencesEnabled ? lastFrameItem : null, videoReferences: kling ? [] : [...videoReferenceItems], audioReferences: kling ? [] : [...audioReferenceItems], taskCount: normalizeVideoCount(taskCountValue) };
+        const frameReferencesEnabled = !kling && resolveSupportsFirstLastFrame(cap) === true;
+        return { text, model: modelValue, config: buildVideoConfig({ ...configValue, videoNegativePrompt: currentNegativePrompt }, modelValue), references: [...referenceItems].slice(0, kling ? 2 : referenceItems.length), firstFrame: frameReferencesEnabled ? firstFrameItem : null, lastFrame: frameReferencesEnabled ? lastFrameItem : null, videoReferences: kling ? [] : [...videoReferenceItems], audioReferences: kling ? [] : [...audioReferenceItems], taskCount: 1 };
     };
 
     const submitGenerationSnapshot = async (snapshot: { text: string; model: string; config: AiConfig; references: ReferenceImage[]; firstFrame?: ReferenceImage | null; lastFrame?: ReferenceImage | null; videoReferences: ReferenceVideo[]; audioReferences: ReferenceAudio[]; taskCount: number }) => {
@@ -651,7 +645,7 @@ export default function VideoPage() {
 
     const retryResult = (result: GenerationResult) => {
         const retryChannelId = videoTaskChannelId(result.task);
-        const snapshot = buildRequestSnapshot({ promptText: result.prompt, negativePromptText: result.config.videoNegativePrompt || "", referenceItems: result.references, firstFrameItem: result.firstFrame, lastFrameItem: result.lastFrame, videoReferenceItems: result.videoReferences, audioReferenceItems: result.audioReferences, taskCountValue: 1, configValue: { ...videoConfig, ...result.config, ...(retryChannelId ? { videoChannelId: retryChannelId, activeChannelId: retryChannelId } : {}), model: result.model, videoModel: result.model }, modelValue: result.model });
+        const snapshot = buildRequestSnapshot({ promptText: result.prompt, negativePromptText: result.config.videoNegativePrompt || "", referenceItems: result.references, firstFrameItem: result.firstFrame, lastFrameItem: result.lastFrame, videoReferenceItems: result.videoReferences, audioReferenceItems: result.audioReferences, configValue: { ...videoConfig, ...result.config, ...(retryChannelId ? { videoChannelId: retryChannelId, activeChannelId: retryChannelId } : {}), model: result.model, videoModel: result.model }, modelValue: result.model });
         if (!snapshot) return;
         setResults((value) => value.filter((item) => item.id !== result.id));
         void submitGenerationSnapshot(snapshot);
@@ -998,7 +992,7 @@ export default function VideoPage() {
 
     const retryGenerationLog = (log: GenerationLog) => {
         const retryChannelId = videoTaskChannelId(log.task);
-        const snapshot = buildRequestSnapshot({ promptText: log.prompt, negativePromptText: log.config.videoNegativePrompt || "", referenceItems: log.references || [], firstFrameItem: log.firstFrame || null, lastFrameItem: log.lastFrame || null, videoReferenceItems: log.videoReferences || [], audioReferenceItems: log.audioReferences || [], taskCountValue: 1, configValue: { ...videoConfig, ...log.config, ...(retryChannelId ? { videoChannelId: retryChannelId, activeChannelId: retryChannelId } : {}), model: log.model, videoModel: log.model }, modelValue: log.model });
+        const snapshot = buildRequestSnapshot({ promptText: log.prompt, negativePromptText: log.config.videoNegativePrompt || "", referenceItems: log.references || [], firstFrameItem: log.firstFrame || null, lastFrameItem: log.lastFrame || null, videoReferenceItems: log.videoReferences || [], audioReferenceItems: log.audioReferences || [], configValue: { ...videoConfig, ...log.config, ...(retryChannelId ? { videoChannelId: retryChannelId, activeChannelId: retryChannelId } : {}), model: log.model, videoModel: log.model }, modelValue: log.model });
         if (!snapshot) return;
         void submitGenerationSnapshot(snapshot);
     };
@@ -1020,8 +1014,6 @@ export default function VideoPage() {
                                 canGenerate={canGenerate}
                                 running={running}
                                 pendingCount={pendingCount}
-                                taskCount={taskCount}
-                                onTaskCountChange={setTaskCount}
                                 updateConfig={updateVideoConfig}
                                 openConfigDialog={openConfigDialog}
                                 onPromptChange={setPrompt}
@@ -1055,8 +1047,6 @@ export default function VideoPage() {
                             canGenerate={canGenerate}
                             running={running}
                             pendingCount={pendingCount}
-                            taskCount={taskCount}
-                            onTaskCountChange={setTaskCount}
                             updateConfig={updateVideoConfig}
                             openConfigDialog={openConfigDialog}
                             onPromptChange={setPrompt}
@@ -1148,8 +1138,6 @@ export default function VideoPage() {
                             canGenerate={canGenerate}
                             running={running}
                             pendingCount={pendingCount}
-                            taskCount={taskCount}
-                            onTaskCountChange={setTaskCount}
                             updateConfig={updateVideoConfig}
                             openConfigDialog={openConfigDialog}
                             onPromptChange={setPrompt}
@@ -1243,8 +1231,6 @@ function WorkbenchPanel({
     canGenerate,
     running,
     pendingCount,
-    taskCount,
-    onTaskCountChange,
     updateConfig,
     openConfigDialog,
     onPromptChange,
@@ -1283,8 +1269,6 @@ function WorkbenchPanel({
     canGenerate: boolean;
     running: boolean;
     pendingCount: number;
-    taskCount: number;
-    onTaskCountChange: (value: number) => void;
     updateConfig: UpdateAiConfig;
     openConfigDialog: (shouldPromptContinue?: boolean) => void;
     onPromptChange: (value: string) => void;
@@ -1310,33 +1294,27 @@ function WorkbenchPanel({
     bottomSettingsCollapsed?: boolean;
     setBottomSettingsCollapsed?: (value: boolean) => void;
 }) {
-    const frameReferencesEnabled = supportsVideoFrameReferences(model);
-    const audioGenerationEnabled = supportsVideoAudioGeneration(model);
+    const cap = findModelCapability(config, model);
+    const panelType = resolveVideoPanelType(cap);
+    const frameReferencesEnabled = resolveSupportsFirstLastFrame(cap) === true;
+    const audioGenerationEnabled = resolveSupportsAudioGeneration(cap) === true;
     const generateAudio = boolConfig(config.videoGenerateAudio, false);
-    const klingBottomConfig = resolveKlingWorkbenchConfig(config, model);
-    const klingBottomVariant = klingBottomConfig?.variant || "";
-    const klingBottomProvider = klingBottomConfig?.provider || "apimart";
-    const klingBottom = Boolean(klingBottomConfig);
+    const klingBottom = panelType === "kling-v26" || panelType === "kling-v3";
+    const klingBottomVariant = panelType === "kling-v3" ? "v3" : panelType === "kling-v26" ? "v26" : "";
+    const klingBottomProvider = panelType === "kling-v3" && resolveVideoProvider(cap) === "kie" ? "kie" : "apimart";
     const showAudioSwitch = klingBottom || audioGenerationEnabled;
-    const motionControl = isAPIMartKlingMotionControlConfig(config, model) || isKIEKlingMotionControlConfig(config, model);
+    const motionControl = resolveSupportsMotionControl(cap) === true;
     // 模型能力过滤：capabilities 未传（undefined）= 默认三档 480p/720p/1080p；
-    // 传了但 videoResolutions 空 = 不显示清晰度选择；有值 = 按配置生成选项。
-    const videoCap = config.modelCapabilities?.find((item) => item.model === model);
-    const capResolutions = videoCap?.videoResolutions;
+    // 传了但 videoResolutions 空 = 不显示分辨率选择；有值 = 按配置生成选项。
+    const secondsRange = resolveVideoSecondsRange(cap);
+    const capResolutions = cap?.videoResolutions;
     const bottomResolutionOptions = !capResolutions
         ? quickResolutionOptions
         : capResolutions.map((r) => ({ value: r.replace(/p$/, ""), label: r }));
     const showBottomResolution = !capResolutions || capResolutions.length > 0;
     const bottomSettingsGridClass = motionControl
-        ? showAudioSwitch ? "lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.7fr_0.8fr_0.8fr_0.7fr_auto_auto]" : "lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.7fr_0.8fr_0.7fr_auto_auto]"
-        : showAudioSwitch ? "lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.7fr_0.8fr_0.7fr_auto_auto]" : "lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.7fr_0.7fr_auto_auto]";
-    const initializedKlingV3BottomSecondsRef = useRef(false);
-
-    useEffect(() => {
-        if (klingBottomVariant !== "v3" || initializedKlingV3BottomSecondsRef.current) return;
-        initializedKlingV3BottomSecondsRef.current = true;
-        if (String(config.videoSeconds || "").trim() === "6") updateConfig("videoSeconds", "3");
-    }, [config.videoSeconds, klingBottomVariant, updateConfig]);
+        ? showAudioSwitch ? "lg:grid-cols-[1.3fr_0.8fr_1fr_0.8fr_0.8fr_0.7fr_auto_auto]" : "lg:grid-cols-[1.3fr_0.8fr_1fr_0.8fr_0.7fr_auto_auto]"
+        : showAudioSwitch ? "lg:grid-cols-[1.3fr_0.8fr_1fr_0.8fr_0.7fr_auto_auto]" : "lg:grid-cols-[1.3fr_0.8fr_1fr_0.7fr_auto_auto]";
 
     if (layout === "bottom") {
         return (
@@ -1379,17 +1357,15 @@ function WorkbenchPanel({
                                 <ModelPicker config={config} value={model} channelId={config.videoChannelId} onChange={(value, channelId) => { updateConfig("videoModel", value); if (channelId) updateConfig("videoChannelId", channelId); }} capability="video" className="canvas-compact-control !h-11 !rounded-xl" onMissingConfig={() => openConfigDialog(false)} fullWidth />
                             </label>
                             {klingBottom ? (
-                                <KlingV26BottomSettings config={config} updateConfig={updateConfig} generateAudio={generateAudio} isKlingV3={klingBottomVariant === "v3"} />
+                                <KlingV26BottomSettings config={config} updateConfig={updateConfig} generateAudio={generateAudio} isKlingV3={klingBottomVariant === "v3"} secondsRange={secondsRange} />
                             ) : (
                                 <>
-                                    {showBottomResolution ? <QuickSelect label="清晰度" value={normalizeVideoResolutionValue(config.vquality)} options={bottomResolutionOptions} onChange={(value) => updateConfig("vquality", value)} /> : null}
-                                    <QuickSelect label="尺寸" value={normalizeVideoSizeValue(config.size)} options={quickSizeOptions} onChange={(value) => updateConfig("size", value)} />
-                                    <QuickNumber label="秒数" value={normalizeVideoSeconds(config.videoSeconds)} min={1} max={30} onChange={(value) => updateConfig("videoSeconds", value)} />
+                                    {showBottomResolution ? <QuickSelect label="分辨率" value={normalizeVideoResolutionValue(config.vquality)} options={bottomResolutionOptions} onChange={(value) => updateConfig("vquality", value)} /> : null}
+                                    <QuickSlider label="秒数" value={Math.max(secondsRange.min, Math.min(secondsRange.max, Math.floor(Number(config.videoSeconds) || secondsRange.min)))} min={secondsRange.min} max={secondsRange.max} onChange={(value) => updateConfig("videoSeconds", String(value))} />
                                     {audioGenerationEnabled ? <QuickSwitch label="生成音频" checked={generateAudio} onChange={(checked) => updateConfig("videoGenerateAudio", String(checked))} /> : null}
                                     {motionControl ? <QuickSelect label="角色朝向参考" value={normalizeCharacterOrientation(config.videoCharacterOrientation)} options={characterOrientationOptions} onChange={(value) => updateConfig("videoCharacterOrientation", value)} /> : null}
                                 </>
                             )}
-                            <QuickNumber label="任务" value={String(taskCount)} min={1} max={6} onChange={(value) => onTaskCountChange(normalizeVideoCount(value))} />
                             <ReferenceQuickActions imageCount={references.length} videoCount={videoReferences.length} audioCount={audioReferences.length} onPasteReferences={onPasteReferences} onUploadReferences={onUploadReferences} />
                             <Button type="primary" className="hidden h-11 min-w-28 items-center justify-center gap-1.5 rounded-xl lg:flex" icon={<Sparkles className="size-4" />} disabled={!canGenerate} onClick={onGenerate}>
                                 {pendingCount ? `${pendingCount} 生成中` : "开始创作"}
@@ -1463,9 +1439,6 @@ function WorkbenchPanel({
                 </WorkbenchSection>
                 {motionControl ? <CharacterOrientationSetting value={config.videoCharacterOrientation} onChange={(value) => updateConfig("videoCharacterOrientation", value)} /> : null}
                 <GenerationSettings config={config} model={model} updateConfig={updateConfig} openConfigDialog={openConfigDialog} />
-                <WorkbenchSection title="任务数量">
-                    <TaskCountControl value={taskCount} onChange={onTaskCountChange} />
-                </WorkbenchSection>
             </div>
             <div className="shrink-0 border-t border-stone-200 p-4 dark:border-stone-800">
                 <Button type="primary" size="large" block icon={<Sparkles className="size-4" />} disabled={!canGenerate} onClick={onGenerate}>
@@ -1619,12 +1592,6 @@ function ReferenceQuickActions({ imageCount, videoCount, audioCount, onPasteRefe
     );
 }
 
-function TaskCountControl({ value, onChange }: { value: number; onChange: (value: number) => void }) {
-    return (
-        <input className="h-9 w-full rounded-md border border-stone-200 bg-transparent px-3 text-sm text-stone-900 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:border-stone-800 dark:text-stone-100" type="number" min={1} max={6} value={value} onChange={(event) => onChange(normalizeVideoCount(event.target.value))} />
-    );
-}
-
 function CharacterOrientationSetting({ value, onChange }: { value: string; onChange: (value: string) => void }) {
     const current = normalizeCharacterOrientation(value);
     return (
@@ -1662,28 +1629,29 @@ function QuickSelect({ label, value, options, onChange }: { label: string; value
     );
 }
 
-function QuickNumber({ label, value, min, max, onChange, clampOnChange = true }: { label: string; value: string; min: number; max: number; onChange: (value: string) => void; clampOnChange?: boolean }) {
+function QuickSlider({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (value: number) => void }) {
     return (
         <label className="grid gap-1 text-xs text-stone-500 dark:text-stone-400">
-            {label}
-            <input className="h-11 min-w-0 rounded-md border border-stone-200 bg-background px-3 text-sm text-stone-900 outline-none dark:border-stone-800 dark:text-stone-100" type="number" min={min} max={max} value={value} onChange={(event) => onChange(clampOnChange ? clampQuickNumberValue(event.target.value, min, max) : event.target.value)} onBlur={(event) => onChange(clampQuickNumberValue(event.target.value, min, max))} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
+            <span className="flex items-center justify-between gap-2">
+                <span>{label}</span>
+                <span className="text-sm font-medium text-stone-900 dark:text-stone-100">{value}s</span>
+            </span>
+            <span className="flex h-11 items-center rounded-md border border-stone-200 bg-background px-3 dark:border-stone-800">
+                <Slider className="!w-full !m-0 !p-0 !flex-1" min={min} max={max} step={step} value={value} onChange={onChange} tooltip={{ open: false }} />
+            </span>
         </label>
     );
 }
 
-function clampQuickNumberValue(value: string, min: number, max: number) {
-    const number = Math.floor(Number(value) || min);
-    return String(Math.max(min, Math.min(max, number)));
-}
-
-function KlingV26BottomSettings({ config, updateConfig, generateAudio, isKlingV3 }: { config: AiConfig; updateConfig: UpdateAiConfig; generateAudio: boolean; isKlingV3: boolean }) {
+function KlingV26BottomSettings({ config, updateConfig, generateAudio, isKlingV3, secondsRange }: { config: AiConfig; updateConfig: UpdateAiConfig; generateAudio: boolean; isKlingV3: boolean; secondsRange: { min: number; max: number } }) {
     const mode = isKlingV3 && config.videoMode === "4k" ? "4k" : config.videoMode === "pro" ? "pro" : "std";
     const modeOptions = isKlingV3 ? [{ value: "std", label: "720P" }, { value: "pro", label: "1080P" }, { value: "4k", label: "4K" }] : [{ value: "std", label: "标准(720P 无声)" }, { value: "pro", label: "专业(1080P 音频)" }];
+    const seconds = Math.max(secondsRange.min, Math.min(secondsRange.max, Math.floor(Number(config.videoSeconds) || secondsRange.min)));
     return (
         <>
             <QuickSelect label="模式选择" value={mode} options={modeOptions} onChange={(value) => updateConfig("videoMode", value)} />
-            <QuickSelect label="尺寸" value={klingBottomSizeValue(config.size)} options={[{ value: "16:9", label: "16:9" }, { value: "9:16", label: "9:16" }, { value: "1:1", label: "1:1" }]} onChange={(value) => updateConfig("size", value === "1:1" ? "1024x1024" : value)} />
-            <QuickNumber label="秒数" value={isKlingV3 ? String(config.videoSeconds ?? "") : normalizeKlingV26Seconds(config.videoSeconds)} min={isKlingV3 ? 3 : 5} max={isKlingV3 ? 15 : 10} onChange={(value) => updateConfig("videoSeconds", isKlingV3 ? value : normalizeKlingV26Seconds(value))} clampOnChange={!isKlingV3} />
+            <QuickSelect label="比例" value={klingBottomSizeValue(config.size)} options={[{ value: "16:9", label: "16:9" }, { value: "9:16", label: "9:16" }, { value: "1:1", label: "1:1" }]} onChange={(value) => updateConfig("size", value === "1:1" ? "1024x1024" : value)} />
+            <QuickSlider label="秒数" value={seconds} min={secondsRange.min} max={secondsRange.max} onChange={(value) => updateConfig("videoSeconds", String(value))} />
             <QuickSwitch label="生成音频" checked={generateAudio} onChange={(checked) => updateConfig("videoGenerateAudio", String(checked))} />
         </>
     );
@@ -2707,10 +2675,13 @@ function buildLog({ prompt, model, config, references, firstFrame, lastFrame, vi
 }
 
 function buildVideoConfig(config: AiConfig, model: string): AiConfig {
-    const seedance = isSeedanceVideoConfig({ ...config, model });
-    const klingV26 = isAPIMartKlingV26Config(config, model);
-    const apimartKlingV3 = isAPIMartKlingV3Config(config, model);
-    const kieKlingV3 = isKIEKlingV3Config(config, model);
+    const cap = findModelCapability(config, model);
+    const panelType = resolveVideoPanelType(cap);
+    const provider = resolveVideoProvider(cap);
+    const seedance = panelType === "seedance";
+    const klingV26 = panelType === "kling-v26";
+    const apimartKlingV3 = panelType === "kling-v3" && provider !== "kie";
+    const kieKlingV3 = panelType === "kling-v3" && provider === "kie";
     const klingV3 = apimartKlingV3 || kieKlingV3;
     const kling = klingV26 || klingV3;
     const videoChannelId = resolveVideoChannelId(config, model, config.videoChannelId, config.activeChannelId);
@@ -2749,53 +2720,6 @@ function resolveVideoChannelId(config: AiConfig, model: string, ...preferredIds:
         if (channelId && channels.some((channel) => channel.id === channelId && channel.models.includes(model))) return channelId;
     }
     return channels.find((channel) => channel.models.includes(model))?.id || "";
-}
-
-function isAPIMartKlingV26Config(config: AiConfig, model: string) {
-    return isAPIMartKlingModelConfig(config, model, "kling-v2-6");
-}
-
-function isAPIMartKlingV3Config(config: AiConfig, model: string) {
-    return isAPIMartKlingModelConfig(config, model, "kling-v3");
-}
-
-function isKIEKlingV3Config(config: AiConfig, model: string) {
-    return isKIEKlingModelConfig(config, model, "kling-3-0-video");
-}
-
-function isKlingV3Config(config: AiConfig, model: string) {
-    return isAPIMartKlingV3Config(config, model) || isKIEKlingV3Config(config, model);
-}
-
-function isAPIMartKlingMotionControlConfig(config: AiConfig, model: string) {
-    return isAPIMartKlingModelConfig(config, model, "kling-v2-6-motion-control");
-}
-
-function isKIEKlingMotionControlConfig(config: AiConfig, model: string) {
-    return isKIEKlingModelConfig(config, model, "kling-2-6-motion-control") || isKIEKlingModelConfig(config, model, "kling-3-0-motion-control");
-}
-
-function resolveKlingWorkbenchConfig(config: AiConfig, model: string): { provider: "apimart" | "kie"; variant: "v26" | "v3" } | null {
-    if (isAPIMartKlingV26Config(config, model)) return { provider: "apimart", variant: "v26" };
-    if (isAPIMartKlingV3Config(config, model)) return { provider: "apimart", variant: "v3" };
-    if (isKIEKlingV3Config(config, model)) return { provider: "kie", variant: "v3" };
-    return null;
-}
-
-function isAPIMartKlingModelConfig(config: AiConfig, model: string, key: string) {
-    return modelKey(model) === key && videoChannelText(config, model).includes("apimart");
-}
-
-function isKIEKlingModelConfig(config: AiConfig, model: string, key: string) {
-    return modelKey(model) === key && videoChannelText(config, model).includes("kie");
-}
-
-function videoChannelText(config: AiConfig, model: string) {
-    const channelId = resolveVideoChannelId(config, model, config.videoChannelId, config.activeChannelId);
-    const channels = config.channelMode === "remote" ? config.publicChannels : normalizeLocalChannels(config);
-    const channel = channels.find((item) => (item.id || "") === channelId && (item.models || []).includes(model)) || channels.find((item) => (item.models || []).includes(model)) || channels.find((item) => (item.id || "") === channelId);
-    const record = channel as { id?: string; name?: string; baseUrl?: string; remark?: string } | undefined;
-    return [record?.id, record?.name, record?.baseUrl, record?.remark].filter(Boolean).join(" ").toLowerCase();
 }
 
 const characterOrientationOptions = [{ value: "image", label: "图片" }, { value: "video", label: "视频" }];
@@ -2931,11 +2855,6 @@ function normalizeVideoSize(value: string) {
 
 function normalizeResolution(value: string) {
     return normalizeVideoResolutionValue(value);
-}
-
-function normalizeVideoCount(value: string | number) {
-    const count = Math.floor(Number(value) || 1);
-    return Math.max(1, Math.min(6, count));
 }
 
 function buildResumeVideoConfig(config: AiConfig, log: GenerationLog): AiConfig {

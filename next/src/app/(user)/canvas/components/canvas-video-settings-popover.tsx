@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { FileText, Image as ImageIcon, Music2, Plus, Settings2, Trash2, Video as VideoIcon, X } from "lucide-react";
-import { Button, Input, Switch } from "antd";
+import { Button, Switch } from "antd";
 
-import { VideoSettingsPanel, isAPIMartKlingMotionControlConfig, isKIEKlingMotionControlConfig, isAPIMartKlingV3Config, isKIEKlingV3Config, videoResolutionLabel, videoSecondsLabel, videoSizeLabel } from "@/components/video-settings-panel";
+import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
-import { supportsVideoFrameReferences } from "@/lib/video-model-capabilities";
 import { useThemeStore } from "@/stores/use-theme-store";
-import type { AiConfig } from "@/stores/use-config-store";
+import { findModelCapability, resolveSupportsElementList, resolveSupportsFirstLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
 import type { CanvasNodeMetadata } from "../types";
 
 export type CanvasVideoFrameOption = { nodeId: string; label: string; previewUrl?: string };
@@ -66,7 +65,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOption
             <span ref={buttonRef} className="inline-flex min-w-0">
                 <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[170px] !justify-start !rounded-full !px-2.5"} style={{ background: theme.node.fill, color: theme.node.text }} icon={buttonIcon || <Settings2 className="size-3.5" />} onClick={() => setOpen((current) => !current)}>
                     <span className="truncate">
-                        {videoResolutionLabel(config.vquality)} · {videoSizeLabel(config.size)}
+                        {videoResolutionLabel(config.vquality)} · {videoSizeRatioLabel(config.size)}
                         {visualOnly ? null : <> · {videoSecondsLabel(config.videoSeconds)}</>}
                     </span>
                 </Button>
@@ -86,11 +85,18 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
     const topPlacement = placement?.startsWith("top");
     const style = { position: "fixed", zIndex: 1200, width, left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)), ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }), background: theme.toolbar.panel, borderRadius: 18, boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)", padding: 18, overflowY: "auto", color: theme.node.text } as const;
     const model = config.model || config.videoModel || "";
-    const isAPIMartKlingV3 = isAPIMartKlingV3Config(config, model);
-    const isKIEKlingV3 = isKIEKlingV3Config(config, model);
-    const isKlingMotionControl = isAPIMartKlingMotionControlConfig(config, model) || isKIEKlingMotionControlConfig(config, model);
-    const isKlingV3 = isAPIMartKlingV3 || isKIEKlingV3;
-    const frameReferencesEnabled = !isKlingV3 && supportsVideoFrameReferences(model);
+    const cap = findModelCapability(config, model);
+    const panelType = resolveVideoPanelType(cap);
+    const provider = resolveVideoProvider(cap);
+    const supportsMultiShot = resolveSupportsMultiShot(cap) === true;
+    const supportsElementList = resolveSupportsElementList(cap) === true;
+    const supportsFirstLastFrame = resolveSupportsFirstLastFrame(cap) === true;
+    const supportsMotionControl = resolveSupportsMotionControl(cap) === true;
+    // 首尾帧存储格式：kling-v3 请求体使用 klingImageNodeIds 元数据；其他使用 firstFrameNodeId/lastFrameNodeId
+    const useKlingFrameStorage = panelType === "kling-v3";
+    const useKlingMultiShotBehavior = panelType === "kling-v3" && provider === "kie";
+    const showAdvancedSections = !visualOnly && (supportsMultiShot || supportsElementList || (supportsFirstLastFrame && useKlingFrameStorage));
+    const showGenericFrameReferences = !visualOnly && supportsFirstLastFrame && !useKlingFrameStorage;
     const optionIds = useMemo(() => new Set(frameOptions.map((item) => item.nodeId)), [frameOptions]);
     const firstFrameValue = firstFrameNodeId && optionIds.has(firstFrameNodeId) ? firstFrameNodeId : "";
     const lastFrameValue = lastFrameNodeId && optionIds.has(lastFrameNodeId) ? lastFrameNodeId : "";
@@ -99,9 +105,9 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
         <div ref={panelRef} className="canvas-image-settings-popover" style={style} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
             <div className="space-y-4">
                 <div className="text-lg font-semibold">视频设置</div>
-                {!visualOnly && isKlingMotionControl ? <CharacterOrientationSetting value={config.videoCharacterOrientation} theme={theme} onChange={(value) => onConfigChange("videoCharacterOrientation", value)} /> : null}
-                {!visualOnly && isKlingV3 ? <KlingV3AdvancedSettings config={config} metadata={metadata} resourceOptions={resourceOptions} theme={theme} isKIEKlingV3={isKIEKlingV3} onConfigChange={onConfigChange} onMetadataChange={onMetadataChange} /> : null}
-                {!visualOnly && frameReferencesEnabled ? (
+                {!visualOnly && supportsMotionControl ? <CharacterOrientationSetting value={config.videoCharacterOrientation} theme={theme} onChange={(value) => onConfigChange("videoCharacterOrientation", value)} /> : null}
+                {showAdvancedSections ? <AdvancedVideoSettings metadata={metadata} resourceOptions={resourceOptions} theme={theme} supportsMultiShot={supportsMultiShot} supportsElementList={supportsElementList} supportsFirstLastFrame={supportsFirstLastFrame && useKlingFrameStorage} useKlingMultiShotBehavior={useKlingMultiShotBehavior} onMetadataChange={onMetadataChange} /> : null}
+                {showGenericFrameReferences ? (
                     <CanvasSettingGroup title="首尾帧" color={theme.node.muted}>
                         <div className="grid gap-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                             <FrameReferencePicker label="首帧" value={firstFrameValue} options={frameOptions} theme={theme} onChange={(value) => onFrameChange?.({ firstFrameNodeId: value || undefined })} />
@@ -109,7 +115,7 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
                         </div>
                     </CanvasSettingGroup>
                 ) : null}
-                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-4" hideNegativePrompt={isKlingV3} visualOnly={visualOnly} capabilities={config.modelCapabilities?.find((item) => item.model === (config.videoModel || config.model))} />
+                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-4" visualOnly={visualOnly} capabilities={cap} />
             </div>
         </div>,
         document.body,
@@ -128,7 +134,7 @@ function CharacterOrientationSetting({ value, theme, onChange }: { value?: strin
     );
 }
 
-function KlingV3AdvancedSettings({ config, metadata, resourceOptions, theme, isKIEKlingV3, onConfigChange, onMetadataChange }: { config: AiConfig; metadata?: CanvasNodeMetadata; resourceOptions: CanvasVideoResourceOption[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; isKIEKlingV3: boolean; onConfigChange: CanvasVideoSettingsPopoverProps["onConfigChange"]; onMetadataChange?: CanvasVideoSettingsPopoverProps["onMetadataChange"] }) {
+function AdvancedVideoSettings({ metadata, resourceOptions, theme, supportsMultiShot, supportsElementList, supportsFirstLastFrame, useKlingMultiShotBehavior, onMetadataChange }: { metadata?: CanvasNodeMetadata; resourceOptions: CanvasVideoResourceOption[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; supportsMultiShot: boolean; supportsElementList: boolean; supportsFirstLastFrame: boolean; useKlingMultiShotBehavior: boolean; onMetadataChange?: CanvasVideoSettingsPopoverProps["onMetadataChange"] }) {
     const multiShot = boolValue(metadata?.multiShot);
     const shotType = metadata?.shotType === "customize" ? "customize" : "intelligence";
     const multiPrompt = normalizeKlingMultiPrompt(metadata?.klingMultiPrompt);
@@ -142,30 +148,33 @@ function KlingV3AdvancedSettings({ config, metadata, resourceOptions, theme, isK
 
     return (
         <>
-            <CanvasSettingGroup title="多镜头分镜" color={theme.node.muted}>
-                <div className="grid gap-1 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
-                    <SwitchRow label="多镜头分镜" hint="是否启用多镜头分镜模式" checked={multiShot} theme={theme} onChange={(checked) => onMetadataChange?.(isKIEKlingV3 ? { multiShot: String(checked) } : { multiShot: String(checked), shotType: checked ? shotType : "intelligence" })} />
-                </div>
-            </CanvasSettingGroup>
-            {multiShot && !isKIEKlingV3 ? (
-                <CanvasSettingGroup title="分镜模式" color={theme.node.muted}>
-                    <div className="grid grid-cols-2 gap-2.5">
-                        <OptionPill selected={shotType === "customize"} theme={theme} onClick={() => onMetadataChange?.({ shotType: "customize" })}>自定义</OptionPill>
-                        <OptionPill selected={shotType === "intelligence"} theme={theme} onClick={() => onMetadataChange?.({ shotType: "intelligence" })}>智能分镜</OptionPill>
+            {supportsMultiShot ? (
+                <>
+                    <CanvasSettingGroup title="多镜头分镜" color={theme.node.muted}>
+                        <div className="grid gap-1 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
+                            <SwitchRow label="多镜头分镜" hint="是否启用多镜头分镜模式" checked={multiShot} theme={theme} onChange={(checked) => onMetadataChange?.(useKlingMultiShotBehavior ? { multiShot: String(checked) } : { multiShot: String(checked), shotType: checked ? shotType : "intelligence" })} />
+                        </div>
+                    </CanvasSettingGroup>
+                    {multiShot && !useKlingMultiShotBehavior ? (
+                        <CanvasSettingGroup title="分镜模式" color={theme.node.muted}>
+                            <div className="grid grid-cols-2 gap-2.5">
+                                <OptionPill selected={shotType === "customize"} theme={theme} onClick={() => onMetadataChange?.({ shotType: "customize" })}>自定义</OptionPill>
+                                <OptionPill selected={shotType === "intelligence"} theme={theme} onClick={() => onMetadataChange?.({ shotType: "intelligence" })}>智能分镜</OptionPill>
+                            </div>
+                        </CanvasSettingGroup>
+                    ) : null}
+                    {multiShot && (useKlingMultiShotBehavior || shotType === "customize") ? <KlingMultiPromptSection items={multiPrompt} options={textOptions} theme={theme} onChange={updateMultiPrompt} /> : null}
+                </>
+            ) : null}
+            {supportsFirstLastFrame ? (
+                <CanvasSettingGroup title="首尾帧" color={theme.node.muted}>
+                    <div className="grid gap-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
+                        <ResourceSinglePicker label="首帧" value={imageNodeIds[0] || ""} options={imageOptions} placeholder="不指定" emptyText="暂无已连接图片" theme={theme} onChange={(value) => onMetadataChange?.({ klingImageNodeIds: [value, imageNodeIds[1]].filter(Boolean) })} />
+                        <ResourceSinglePicker label="尾帧" value={imageNodeIds[1] || ""} options={imageOptions} placeholder="不指定" emptyText="暂无已连接图片" theme={theme} onChange={(value) => onMetadataChange?.({ klingImageNodeIds: [imageNodeIds[0], value].filter(Boolean) })} />
                     </div>
                 </CanvasSettingGroup>
             ) : null}
-            {!isKIEKlingV3 ? <CanvasSettingGroup title="负面提示词" color={theme.node.muted}>
-                <Input.TextArea value={config.videoNegativePrompt || ""} placeholder="描述不希望出现在视频中的内容" autoSize={{ minRows: 3, maxRows: 6 }} className="rounded-xl placeholder:!text-[var(--canvas-placeholder)] placeholder:!opacity-55" style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text, "--canvas-placeholder": theme.node.placeholder } as CSSProperties} onMouseDown={(event) => event.stopPropagation()} onChange={(event) => onConfigChange("videoNegativePrompt", event.target.value)} />
-            </CanvasSettingGroup> : null}
-            {multiShot && (isKIEKlingV3 || shotType === "customize") ? <KlingMultiPromptSection items={multiPrompt} options={textOptions} theme={theme} onChange={updateMultiPrompt} /> : null}
-            <CanvasSettingGroup title="首尾帧" color={theme.node.muted}>
-                <div className="grid gap-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
-                    <ResourceSinglePicker label="首帧" value={imageNodeIds[0] || ""} options={imageOptions} placeholder="不指定" emptyText="暂无已连接图片" theme={theme} onChange={(value) => onMetadataChange?.({ klingImageNodeIds: [value, imageNodeIds[1]].filter(Boolean) })} />
-                    <ResourceSinglePicker label="尾帧" value={imageNodeIds[1] || ""} options={imageOptions} placeholder="不指定" emptyText="暂无已连接图片" theme={theme} onChange={(value) => onMetadataChange?.({ klingImageNodeIds: [imageNodeIds[0], value].filter(Boolean) })} />
-                </div>
-            </CanvasSettingGroup>
-            <KlingElementListSection items={elementList} options={mediaOptions} theme={theme} onChange={updateElementList} />
+            {supportsElementList ? <KlingElementListSection items={elementList} options={mediaOptions} theme={theme} onChange={updateElementList} /> : null}
         </>
     );
 }

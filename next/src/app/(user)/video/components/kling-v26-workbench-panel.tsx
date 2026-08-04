@@ -1,10 +1,10 @@
 import { ArrowLeft, ArrowRight, Plus, BookOpen, ClipboardPaste, FolderPlus, Music2, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
-import { App, Button, Input, Switch, Tag } from "antd";
-import { useEffect, useRef, type ReactNode } from "react";
+import { App, Button, Input, Slider, Switch, Tag } from "antd";
+import { type ReactNode } from "react";
 
 import { ModelPicker } from "@/components/model-picker";
 import { boolConfig } from "@/lib/seedance-video";
-import type { AiConfig, VideoElementItem, VideoElementReference, VideoMultiPromptItem } from "@/stores/use-config-store";
+import { resolveVideoSecondsRange, type AiConfig, type VideoElementItem, type VideoElementReference, type VideoMultiPromptItem } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
@@ -124,7 +124,8 @@ export function KlingV26WorkbenchPanel({
 }) {
     const { message } = App.useApp();
     const mode = isKlingV3 && config.videoMode === "4k" ? "4k" : config.videoMode === "pro" ? "pro" : "std";
-    const seconds = isKlingV3 ? String(config.videoSeconds ?? "") : config.videoSeconds === "10" ? "10" : "5";
+    const secondsRange = resolveVideoSecondsRange(config.modelCapabilities?.find((item) => item.model === config.videoModel));
+    const seconds = Math.max(secondsRange.min, Math.min(secondsRange.max, Math.floor(Number(config.videoSeconds) || secondsRange.min)));
     const ratio = klingRatioValue(config.size);
     const generateAudio = boolConfig(config.videoGenerateAudio, false);
     const audioDisabled = !isKlingV3 && (mode !== "pro" || references.length > 1);
@@ -133,13 +134,6 @@ export function KlingV26WorkbenchPanel({
     const shotType = config.videoShotType === "customize" ? "customize" : "intelligence";
     const multiPrompts = normalizeMultiPrompts(config.videoMultiPrompt);
     const elementList = normalizeElementList(config.videoElementList);
-    const initializedV3SecondsRef = useRef(false);
-
-    useEffect(() => {
-        if (!isKlingV3 || initializedV3SecondsRef.current) return;
-        initializedV3SecondsRef.current = true;
-        if (String(config.videoSeconds || "").trim() === "6") updateConfig("videoSeconds", "3");
-    }, [config.videoSeconds, isKlingV3, updateConfig]);
 
     const setMode = (value: string) => {
         updateConfig("videoMode", value);
@@ -309,18 +303,10 @@ export function KlingV26WorkbenchPanel({
                     <OptionGrid columns={3} options={[{ value: "16:9", label: "16:9" }, { value: "9:16", label: "9:16" }, { value: "1:1", label: "1:1" }]} value={ratio} onChange={(value) => updateConfig("size", value === "1:1" ? "1024x1024" : value)} />
                 </KlingSection>
                 <KlingSection title={TEXT.seconds}>
-                    {isKlingV3 ? (
-                        <div className="grid grid-cols-3 gap-2.5">
-                            {[{ value: "3", label: "3s" }, { value: "15", label: "15s" }].map((item) => (
-                                <button key={item.value} type="button" className={optionClass(seconds === item.value)} onClick={() => updateConfig("videoSeconds", item.value)}>
-                                    {item.label}
-                                </button>
-                            ))}
-                            <KlingNumberInput value={seconds} min={3} max={15} onChange={(value) => updateConfig("videoSeconds", value)} />
-                        </div>
-                    ) : (
-                        <OptionGrid options={[{ value: "5", label: "5s" }, { value: "10", label: "10s" }]} value={seconds} onChange={(value) => updateConfig("videoSeconds", value)} />
-                    )}
+                    <div className="flex items-center gap-3 py-1">
+                        <Slider className="!flex-1 !m-0" min={secondsRange.min} max={secondsRange.max} step={1} value={seconds} onChange={(value) => updateConfig("videoSeconds", String(value))} tooltip={{ open: false }} />
+                        <span className="min-w-[2.5rem] text-sm font-medium text-stone-900 dark:text-stone-100">{seconds}s</span>
+                    </div>
                 </KlingSection>
                 <KlingSection title={TEXT.audioTitle}>
                     <div className="grid gap-2 rounded-xl border border-stone-200 p-2.5 dark:border-stone-800">

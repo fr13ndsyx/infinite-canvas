@@ -180,11 +180,34 @@ export type AdminModelCost = {
     credits: number;
 };
 
+export type AdminVideoModeOption = {
+    value: string;
+    label: string;
+    desc?: string;
+};
+
 export type AdminModelCapability = {
     model: string;
     imageAspects?: string[];
     imageTiers?: ("standard" | "2k" | "4k")[];
     videoResolutions?: string[];
+    videoSecondsMin?: number;
+    videoSecondsMax?: number;
+    videoPanelType?: string;
+    videoProvider?: string;
+    videoModes?: AdminVideoModeOption[];
+    videoRatios?: string[];
+    videoSecondsPresets?: number[];
+    videoSecondsSmart?: boolean;
+    supportsNegativePrompt?: boolean;
+    supportsFirstLastFrame?: boolean;
+    supportsMotionControl?: boolean;
+    supportsAudioGeneration?: boolean;
+    supportsWatermark?: boolean;
+    supportsMultiShot?: boolean;
+    supportsElementList?: boolean;
+    audioRequiresMode?: string;
+    audioMaxReferences?: number;
 };
 
 export type AdminPublicModelChannelInfo = {

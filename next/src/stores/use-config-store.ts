@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { apiGet } from "@/services/api/request";
-import type { AdminModelCapability, AdminPublicSettings } from "@/services/api/admin";
+import type { AdminModelCapability, AdminPublicSettings, AdminVideoModeOption } from "@/services/api/admin";
 import { useUserStore } from "@/stores/use-user-store";
 
 export type LocalModelChannel = {
@@ -208,7 +208,86 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
         apiMode: effectiveApiMode,
         size: resolveEffectiveImageSize(config.size, imageCap),
         vquality: resolveEffectiveVideoQuality(config.vquality, videoCap),
+        videoSeconds: resolveEffectiveVideoSeconds(config.videoSeconds, videoCap),
     };
+}
+
+// 视频秒数范围：未配置 = 默认 4-20；min/max 为 0 或负数视为未配置走默认。
+export function resolveVideoSecondsRange(cap: AdminModelCapability | undefined): { min: number; max: number } {
+    const min = cap?.videoSecondsMin && cap.videoSecondsMin > 0 ? cap.videoSecondsMin : 4;
+    const max = cap?.videoSecondsMax && cap.videoSecondsMax > 0 ? cap.videoSecondsMax : 20;
+    return { min: Math.min(min, max), max: Math.max(min, max) };
+}
+
+// 视频面板类型：空=通用面板；kling-v26/kling-v3/seedance/grok/motion-control/agnes。
+export function resolveVideoPanelType(cap: AdminModelCapability | undefined): string {
+    return cap?.videoPanelType || "";
+}
+
+// 视频厂商：空=不区分；apimart/kie。
+export function resolveVideoProvider(cap: AdminModelCapability | undefined): string {
+    return cap?.videoProvider || "";
+}
+
+// 视频模式选项。空=不支持模式选择。
+export function resolveVideoModes(cap: AdminModelCapability | undefined): AdminVideoModeOption[] {
+    return cap?.videoModes || [];
+}
+
+// 视频比例选项。空=通用面板走默认 sizeOptions。
+export function resolveVideoRatios(cap: AdminModelCapability | undefined): string[] {
+    return cap?.videoRatios || [];
+}
+
+// 是否支持 -1 智能时长（Seedance）。
+export function resolveVideoSecondsSmart(cap: AdminModelCapability | undefined): boolean {
+    return Boolean(cap?.videoSecondsSmart);
+}
+
+// 能力开关：未配置（undefined）= 走前端默认硬编码兜底；有值 = 按配置。
+export function resolveSupportsNegativePrompt(cap: AdminModelCapability | undefined): boolean | undefined {
+    return cap?.supportsNegativePrompt;
+}
+export function resolveSupportsFirstLastFrame(cap: AdminModelCapability | undefined): boolean | undefined {
+    return cap?.supportsFirstLastFrame;
+}
+export function resolveSupportsMotionControl(cap: AdminModelCapability | undefined): boolean | undefined {
+    return cap?.supportsMotionControl;
+}
+export function resolveSupportsAudioGeneration(cap: AdminModelCapability | undefined): boolean | undefined {
+    return cap?.supportsAudioGeneration;
+}
+export function resolveSupportsWatermark(cap: AdminModelCapability | undefined): boolean | undefined {
+    return cap?.supportsWatermark;
+}
+export function resolveSupportsMultiShot(cap: AdminModelCapability | undefined): boolean | undefined {
+    return cap?.supportsMultiShot;
+}
+export function resolveSupportsElementList(cap: AdminModelCapability | undefined): boolean | undefined {
+    return cap?.supportsElementList;
+}
+
+// 音频生成限制。
+export function resolveAudioRequiresMode(cap: AdminModelCapability | undefined): string {
+    return cap?.audioRequiresMode || "";
+}
+export function resolveAudioMaxReferences(cap: AdminModelCapability | undefined): number {
+    return cap?.audioMaxReferences || 0;
+}
+
+// 按模型名查找 ModelCapability。
+export function findModelCapability(config: AiConfig, model: string): AdminModelCapability | undefined {
+    return (config.modelCapabilities || []).find((item) => item.model === model);
+}
+
+// 切换模型时若当前秒数不在新模型范围内，回退到 min。
+// 保留 -1（Seedance 智能时长）原值不动。
+function resolveEffectiveVideoSeconds(seconds: string, cap: AdminModelCapability | undefined): string {
+    if (String(seconds).trim() === "-1") return seconds;
+    const { min, max } = resolveVideoSecondsRange(cap);
+    const value = Math.floor(Number(seconds) || min);
+    if (value < min || value > max) return String(min);
+    return String(value);
 }
 
 // 切换模型时若当前 size 的比例不在新模型能力内，回退到 auto。

@@ -74,6 +74,22 @@ export function normalizeModelCapabilities(items: Partial<AdminModelCapability>[
         imageAspects: uniqueModels(item.imageAspects || []),
         imageTiers: uniqueModels(item.imageTiers || []) as ("standard" | "2k" | "4k")[],
         videoResolutions: uniqueModels(item.videoResolutions || []),
+        videoRatios: uniqueModels(item.videoRatios || []),
+        videoSecondsMin: Number(item.videoSecondsMin) || undefined,
+        videoSecondsMax: Number(item.videoSecondsMax) || undefined,
+        videoPanelType: item.videoPanelType || "",
+        videoProvider: item.videoProvider || "",
+        videoModes: (item.videoModes || []).filter((mode) => mode.value || mode.label).map((mode) => ({ value: mode.value || "", label: mode.label || "", desc: mode.desc || "" })),
+        videoSecondsSmart: item.videoSecondsSmart === true,
+        supportsNegativePrompt: item.supportsNegativePrompt === true,
+        supportsFirstLastFrame: item.supportsFirstLastFrame === true,
+        supportsMotionControl: item.supportsMotionControl === true,
+        supportsAudioGeneration: item.supportsAudioGeneration === true,
+        supportsWatermark: item.supportsWatermark === true,
+        supportsMultiShot: item.supportsMultiShot === true,
+        supportsElementList: item.supportsElementList === true,
+        audioRequiresMode: item.audioRequiresMode || "",
+        audioMaxReferences: Number(item.audioMaxReferences) || 0,
     }));
 }
 
