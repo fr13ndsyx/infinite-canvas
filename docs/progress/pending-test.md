@@ -929,4 +929,126 @@ description: 当前版本已实现但仍需人工验证的变更项
 3. 进入视频工作台或画布视频节点设置弹窗，确认比例按钮只显示比例（如「16:9」），下方不再显示像素尺寸（如「1280x720」）
 4. 确认画布视频设置弹窗底部状态栏显示「720p · 16:9 · 6s」格式，比例部分不再显示像素尺寸
 
+## 画布图片节点分辨率档位显示修复（最终版）
+
+彻底修复画布图片节点设置弹窗中「标准/2K/4K」档位 Segmented 不显示的问题。前两次尝试（见上文「图像/视频设置面板修复」「图像档位查找与视频比例显示修复」）未解决根因，本次定位到两处真正根因并修复。
+
+### 可测试变更
+
+- 画布图片设置弹窗 `canvas-image-settings-popover.tsx` 能力查找模型字段从 `config.imageModel || config.model` 改为 `config.model`：画布节点的 `config.imageModel` 始终是全局默认图片模型（非空），`config.model` 才是用户在节点上通过 ModelPicker 选中的模型。原 `||` 写法永远解析到 `config.imageModel`，导致能力查找用的是全局默认模型而不是节点选中模型；如果全局默认模型配置的 `imageTiers` 少于 2 项，Segmented 就不显示
+- `ImageSettingsPanel` 第 113 行渲染条件从 `tierOptions.length >= 2` 改为 `tierOptions.length >= 1`：保证模型只配了 1 档（如 `["standard"]`）时 Segmented 仍渲染，保持视觉一致（虽然只有 1 项时点击无切换效果）
+
+### 涉及文件
+
+- `next/src/app/(user)/canvas/components/canvas-image-settings-popover.tsx`：`capabilities` 查找用 `config.model`
+- `next/src/components/image-settings-panel.tsx`：Segmented 渲染条件 `>= 2` → `>= 1`
+
+### 验证步骤
+
+1. 进入画布，新建或选中一个图片节点，点击节点打开设置弹窗
+2. 选择一个在管理后台配置了 `imageTiers = ["standard","2k","4k"]` 的图片模型，确认「比例」行右侧出现「标准/2K/4K」三档 Segmented
+3. 选择一个配置了 `imageTiers = ["standard","2k"]` 的模型，确认只出现「标准/2K」两档
+4. 选择一个配置了 `imageTiers = ["standard"]` 单档的模型，确认 Segmented 仍渲染（只有「标准」一项），不再整个消失
+5. 选择一个未在 `modelCapabilities` 里配置的模型，确认回退显示三档（标准/2K/4K）
+6. 切换不同图片模型，确认 Segmented 档位跟随模型能力配置变化
+7. 切换档位（如 4K），确认下方比例按钮跟随档位切换为 4K 尺寸选项
+
+## 顶栏算力图标补全与首尾帧能力拆分
+
+补全非画布页面顶栏的算力图标显示，并将视频首尾帧能力开关从单一 `supportsFirstLastFrame` 拆分为「首尾帧」+「首帧」两个独立选项，使后台可配置"仅支持首帧"的模型（如 minimax-hailuo-2-3、kling-3-0-turbo）。同时画布生图节点去掉图片数量选择，固定一个节点生成一张图。
+
+### 可测试变更
+
+- 顶栏 `UserStatusActions` 在非画布页面（default variant）也显示算力余额：`<CreditSymbol /> + {credits}`，与画布保持一致，使用 stone 配色适配浅色/深色主题
+- 后端 `ModelCapability` 新增 `SupportsFirstFrame bool` 字段（保留 `SupportsFirstLastFrame` 表示首尾帧都支持）
+- 前端 `AdminModelCapability` 类型新增 `supportsFirstFrame?: boolean`
+- 前端 `use-config-store` 新增 `resolveSupportsFirstFrame`（`supportsFirstFrame || supportsFirstLastFrame`，勾选「首尾帧」或「首帧」均显示首帧上传）和 `resolveSupportsLastFrame`（仅 `supportsFirstLastFrame`，勾选「首尾帧」才显示尾帧上传）
+- 管理后台「模型开放与定价」视频模型能力开关 Checkbox 拆为「首尾帧」+「首帧」两项
+- 画布视频节点设置弹窗：原「首尾帧」分组拆为「首帧」和「尾帧」两个独立分组，分别按 `resolveSupportsFirstFrame` / `resolveSupportsLastFrame` 能力开关显隐
+- 视频工作台：原「首尾帧」Section 拆为「首帧」和「尾帧」两个独立 Section，分别按能力开关显隐；`FrameReferenceStrip` 新增 `showFirst`/`showLast` 参数支持只显示一个 slot
+- 视频工作台 `buildRequestSnapshot` 去掉 `!kling` 守卫，首帧/尾帧是否传参完全由能力开关决定
+- 画布 `canvas-client-page.tsx` 视频生成与重试逻辑：`frameReferencesEnabled` 拆为 `firstFrameEnabled` / `lastFrameEnabled`，不支持的那一侧图片合并进普通参考图下发
+- `video.ts` 请求体构造去掉 `!kling` 守卫，只要 `input.firstFrame` / `input.lastFrame` 存在就传 `first_frame_url` / `last_frame_url`
+- 画布生图节点去掉图片数量选择：`CanvasImageSettingsPopover` 的 `showCount` 默认改为 `false`（画布中图片节点和配置节点均不显示数量选择）；画布图片生成和全景图生成时 `count` 固定为 1；配置节点和 prompt 面板的 credits 计算固定 count=1
+
+### 涉及文件
+
+后端：
+- `Go/model/setting.go`：`ModelCapability` 新增 `SupportsFirstFrame` 字段
+
+前端类型/store：
+- `next/src/services/api/admin.ts`：`AdminModelCapability` 新增 `supportsFirstFrame`
+- `next/src/app/(admin)/admin/settings-shared.ts`：`normalizeModelCapabilities` 保留 `supportsFirstFrame`
+- `next/src/stores/use-config-store.ts`：新增 `resolveSupportsFirstFrame` / `resolveSupportsLastFrame`
+
+顶栏算力图标：
+- `next/src/components/layout/user-status-actions.tsx`：default variant 也显示算力余额
+
+后台配置 UI：
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：Checkbox 拆为「首尾帧」+「首帧」
+
+画布视频弹窗：
+- `next/src/app/(user)/canvas/components/canvas-video-settings-popover.tsx`：首尾帧分组拆为两个独立分组，按能力开关显隐
+
+视频工作台：
+- `next/src/app/(user)/video/page.tsx`：Section 拆分 + `frameReferencesEnabled` 拆为 `firstFrameEnabled`/`lastFrameEnabled` + `FrameReferenceStrip` 新增 `showFirst`/`showLast`
+- `next/src/services/api/video.ts`：去掉首尾帧 `!kling` 守卫
+
+画布视频生成：
+- `next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`：两处 `frameReferencesEnabled` 拆为 `firstFrameEnabled`/`lastFrameEnabled`，不支持侧合并进普通参考图
+
+画布生图节点数量选择：
+- `next/src/app/(user)/canvas/components/canvas-image-settings-popover.tsx`：`showCount` 默认改为 `false`
+- `next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`：图片生成和全景图生成 `count` 固定为 1
+- `next/src/app/(user)/canvas/components/canvas-config-node-panel.tsx`：credits 计算固定 count=1
+- `next/src/app/(user)/canvas/components/canvas-node-prompt-panel.tsx`：credits 计算固定 count=1
+
+文档：
+- `docs/backend/backend-database.md`：`supportsFirstLastFrame` 字段说明调整 + 新增 `supportsFirstFrame`
+- `docs/backend/video-exclusive-panels-params.md`：首尾帧章节拆分说明 + 字段表新增 `supportsFirstFrame`
+
+### 验证步骤
+
+1. 登录后访问任意非画布页面（如首页、生图工作台、视频工作台），确认顶栏显示算力图标（闪电符号）+ 余额数字
+2. 进入画布页面，确认顶栏算力图标仍按画布主题色显示（不变）
+3. 切换浅色/深色主题，确认非画布顶栏算力图标颜色适配（stone 配色）
+4. 进入管理后台「模型开放与定价」，选一个视频模型，确认能力开关区出现「首尾帧」和「首帧」两个独立 Checkbox
+5. 勾选「首帧」不勾选「首尾帧」，保存后进入视频工作台选该模型，确认侧栏只出现「首帧」Section，无「尾帧」Section
+6. 勾选「首尾帧」不勾选「首帧」，保存后进入视频工作台选该模型，确认侧栏「首帧」和「尾帧」两个 Section 都出现（首尾帧包含首帧）
+7. 两个都不勾选，确认两个 Section 都不出现
+8. 进入画布视频节点设置弹窗，选一个仅勾选「首帧」的模型，确认只出现「首帧」分组，无「尾帧」分组
+9. 选一个勾选「首尾帧」的模型，确认「首帧」和「尾帧」分组都出现
+10. 在视频工作台选一个仅首帧的模型，上传首帧图片后发起生成，确认请求体只包含 `first_frame_url` 不含 `last_frame_url`
+11. 在画布视频节点选一个仅首帧的模型，连接首帧和尾帧图片节点，发起生成，确认首帧图片单独传 `first_frame_url`，尾帧图片合并进普通参考图 `input_reference[]`
+12. 进入画布图片节点或配置节点，打开图片设置弹窗，确认不显示图片数量选择（只有比例/尺寸档位），按钮上也不显示"X 张"
+13. 在画布图片节点发起生成，确认每次只生成 1 张图片节点（不再创建多个子节点）
+14. 进入生图工作台（非画布），确认仍保留图片数量选择功能
+
+## 生图并发保护与数量 UI 滑块化
+
+统一生图请求为并发多次单张调用，避免上游 `n` 参数限制导致任务失败；生图工作台数量选择改为 Slider 滑块，上限 10 张。
+
+### 可测试变更
+
+- `image.ts` 的 `requestImages` 去掉 `useConcurrentSingleRequests` 条件，所有 `n > 1` 的情况统一走 `Promise.allSettled` 并发多次单张请求（count=1），不再依赖上游是否支持 `n` 参数
+- `image.ts` 的 `createImageRequestParams` 中 `n` 上限从 15 调整为 10（对齐行业天花板 gpt-image-1）
+- `ImageSettingsPanel` 生成数量 UI 从「快捷选项网格 + 数字输入框」改为 antd `Slider` 滑块，右侧显示当前数值（如 "3 张"）
+- `ImageSettingsPanel` 的 `maxCount` 默认值从 15 改为 10，删除 `quickCount` 参数和未使用的 `OptionPill` / `CountInput` 组件
+- 生图工作台 `image/page.tsx` 已传 `maxCount={10}`，与默认值一致
+
+### 涉及文件
+
+- `next/src/services/api/image.ts`：`requestImages` 并发逻辑统一 + `n` 上限 15→10
+- `next/src/components/image-settings-panel.tsx`：Slider 滑块替换网格+输入框 + maxCount 默认 10 + 删除 OptionPill/CountInput
+
+### 验证步骤
+
+1. 进入生图工作台，确认生成数量区域显示为滑块（进度条样式），右侧显示当前数值
+2. 拖动滑块，确认数值在 1-10 范围内变化，右侧数值同步更新
+3. 确认滑块无法拖到超过 10
+4. 选择一个仅支持单张生成的模型（如 Grok Imagine），设置数量为 3 张，发起生成，确认 3 张图片正常返回（并发 3 次单张请求），不再因上游 `n` 限制失败
+5. 选择 gpt-image-1 模型，设置数量为 10 张，发起生成，确认 10 张图片正常返回（并发 10 次单张请求）
+6. 确认画布图片节点设置弹窗不显示数量滑块（showCount=false 不受影响）
+7. 确认画布生成仍固定 1 张
+
 

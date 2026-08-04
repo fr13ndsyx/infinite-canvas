@@ -62,7 +62,8 @@ type ModelCapability struct {
 
 	// 能力开关，控制 UI 功能显隐和请求体字段。
 	SupportsNegativePrompt  bool `json:"supportsNegativePrompt,omitempty"`
-	SupportsFirstLastFrame  bool `json:"supportsFirstLastFrame,omitempty"`
+	SupportsFirstLastFrame  bool `json:"supportsFirstLastFrame,omitempty"` // 兼容字段：首尾帧都支持时勾选；仅首帧用 SupportsFirstFrame
+	SupportsFirstFrame      bool `json:"supportsFirstFrame,omitempty"`     // 仅支持首帧（部分模型如 minimax-hailuo-2-3、kling-3-0-turbo）
 	SupportsMotionControl   bool `json:"supportsMotionControl,omitempty"`
 	SupportsAudioGeneration bool `json:"supportsAudioGeneration,omitempty"`
 	SupportsWatermark       bool `json:"supportsWatermark,omitempty"`

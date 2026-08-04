@@ -16,7 +16,8 @@
 | `videoSecondsPresets` | ✅ 已接入 | 秒数预设档位（Seedance 面板），空=走默认 seedanceDurationOptions |
 | `videoSecondsSmart` | ⚠️ 待接入 | 字段与 resolve 已定义，Seedance 面板仍硬编码显示 `-1` 智能选项 |
 | `supportsNegativePrompt` | ✅ 已接入 | 负面提示词显隐 |
-| `supportsFirstLastFrame` | ✅ 已接入 | 首尾帧显隐 |
+| `supportsFirstLastFrame` | ✅ 已接入 | 尾帧显隐（兼容字段：勾选=首尾帧都支持） |
+| `supportsFirstFrame` | ✅ 已接入 | 首帧显隐（仅首帧模型勾选；未配置时若 supportsFirstLastFrame=true 视为同时支持首帧） |
 | `supportsMotionControl` | ✅ 已接入 | 运动控制 |
 | `supportsAudioGeneration` | ✅ 已接入 | 音频生成开关 |
 | `supportsWatermark` | ✅ 已接入 | 水印开关（Seedance） |
@@ -144,12 +145,12 @@
 - 来源：`kling-v26-workbench-panel.tsx` L173-189，L506-509 `normalizeElementList`
 - 后台控制：✅ 已接入 `ModelCapability.supportsElementList`
 
-### 首尾帧（firstFrame / lastFrame）
+### 首帧 / 尾帧（firstFrame / lastFrame）
 
 - 取值：参考图对象
-- 显示条件：`resolveSupportsFirstLastFrame(cap) === true`（替代 `supportsVideoFrameReferences`，Kling V2.1 Pro / V2.5 Turbo 等在通用面板走此路径）
+- 显示条件：首帧 `resolveSupportsFirstFrame(cap) === true`，尾帧 `resolveSupportsLastFrame(cap) === true`（替代 `supportsVideoFrameReferences`，Kling V2.1 Pro / V2.5 Turbo 等在通用面板走此路径）
 - 来源：`next/src/lib/video-model-capabilities.ts` `supportsVideoFrameReferences`（已删除）
-- 后台控制：✅ 已接入 `ModelCapability.supportsFirstLastFrame`
+- 后台控制：✅ 已接入 `ModelCapability.supportsFirstFrame`（仅首帧）+ `ModelCapability.supportsFirstLastFrame`（尾帧，兼容字段：勾选=首尾帧都支持）
 
 ### 角色朝向参考（videoCharacterOrientation）— 仅 Motion Control
 
@@ -242,7 +243,8 @@ type ModelCapability struct {
 
     // 能力开关
     SupportsNegativePrompt     bool `json:"supportsNegativePrompt,omitempty"`
-    SupportsFirstLastFrame     bool `json:"supportsFirstLastFrame,omitempty"`
+    SupportsFirstLastFrame     bool `json:"supportsFirstLastFrame,omitempty"` // 兼容字段：首尾帧都支持
+    SupportsFirstFrame         bool `json:"supportsFirstFrame,omitempty"`     // 仅支持首帧
     SupportsMotionControl      bool `json:"supportsMotionControl,omitempty"`
     SupportsAudioGeneration    bool `json:"supportsAudioGeneration,omitempty"`
     SupportsWatermark          bool `json:"supportsWatermark,omitempty"`

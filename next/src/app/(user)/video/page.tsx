@@ -22,7 +22,7 @@ import { deleteStoredImages, resolveImageUrl, uploadImage } from "@/services/ima
 import { deleteVideoGenerationLogs, fetchVideoGenerationLogs, saveVideoGenerationLogs } from "@/services/api/generation-logs";
 import { createVideoGenerationTask, deleteVideoGenerationTask, listVideoGenerationTasks, pollVideoGenerationTaskStatus, VIDEO_POLL_INTERVAL_MS, VideoRequestError, type VideoResponse } from "@/services/api/video";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { findModelCapability, normalizeLocalChannels, resolveAudioMaxReferences, resolveAudioRequiresMode, resolveSupportsAudioGeneration, resolveSupportsElementList, resolveSupportsFirstLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveSupportsNegativePrompt, resolveSupportsWatermark, resolveVideoPanelType, resolveVideoProvider, resolveVideoSecondsRange, useConfigStore, useEffectiveConfig, type AiConfig, type VideoElementItem, type VideoElementReference } from "@/stores/use-config-store";
+import { findModelCapability, normalizeLocalChannels, resolveAudioMaxReferences, resolveAudioRequiresMode, resolveSupportsAudioGeneration, resolveSupportsElementList, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveSupportsNegativePrompt, resolveSupportsWatermark, resolveVideoPanelType, resolveVideoProvider, resolveVideoSecondsRange, useConfigStore, useEffectiveConfig, type AiConfig, type VideoElementItem, type VideoElementReference } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { ReferenceImage } from "@/types/image";
@@ -592,8 +592,9 @@ export default function VideoPage() {
                 return null;
             }
         }
-        const frameReferencesEnabled = !kling && resolveSupportsFirstLastFrame(cap) === true;
-        return { text, model: modelValue, config: buildVideoConfig({ ...configValue, videoNegativePrompt: currentNegativePrompt }, modelValue), references: [...referenceItems].slice(0, kling ? 2 : referenceItems.length), firstFrame: frameReferencesEnabled ? firstFrameItem : null, lastFrame: frameReferencesEnabled ? lastFrameItem : null, videoReferences: kling ? [] : [...videoReferenceItems], audioReferences: kling ? [] : [...audioReferenceItems], taskCount: 1 };
+        const firstFrameEnabled = resolveSupportsFirstFrame(cap) === true;
+        const lastFrameEnabled = resolveSupportsLastFrame(cap) === true;
+        return { text, model: modelValue, config: buildVideoConfig({ ...configValue, videoNegativePrompt: currentNegativePrompt }, modelValue), references: [...referenceItems].slice(0, kling ? 2 : referenceItems.length), firstFrame: firstFrameEnabled ? firstFrameItem : null, lastFrame: lastFrameEnabled ? lastFrameItem : null, videoReferences: kling ? [] : [...videoReferenceItems], audioReferences: kling ? [] : [...audioReferenceItems], taskCount: 1 };
     };
 
     const submitGenerationSnapshot = async (snapshot: { text: string; model: string; config: AiConfig; references: ReferenceImage[]; firstFrame?: ReferenceImage | null; lastFrame?: ReferenceImage | null; videoReferences: ReferenceVideo[]; audioReferences: ReferenceAudio[]; taskCount: number }) => {
@@ -1296,7 +1297,8 @@ function WorkbenchPanel({
 }) {
     const cap = findModelCapability(config, model);
     const panelType = resolveVideoPanelType(cap);
-    const frameReferencesEnabled = resolveSupportsFirstLastFrame(cap) === true;
+    const firstFrameEnabled = resolveSupportsFirstFrame(cap) === true;
+    const lastFrameEnabled = resolveSupportsLastFrame(cap) === true;
     const audioGenerationEnabled = resolveSupportsAudioGeneration(cap) === true;
     const generateAudio = boolConfig(config.videoGenerateAudio, false);
     const klingBottom = panelType === "kling-v26" || panelType === "kling-v3";
@@ -1373,7 +1375,7 @@ function WorkbenchPanel({
                         </div>
                         {firstFrame || lastFrame || references.length || videoReferences.length || audioReferences.length ? (
                             <div className="grid gap-2">
-                                {firstFrame || lastFrame ? <FrameReferenceStrip firstFrame={firstFrame} lastFrame={lastFrame} compact onUploadFrame={onUploadFrame} onRemoveFrame={onRemoveFrame} /> : null}
+                                {firstFrame || lastFrame ? <FrameReferenceStrip firstFrame={firstFrame} lastFrame={lastFrame} compact showFirst={firstFrameEnabled} showLast={lastFrameEnabled} onUploadFrame={onUploadFrame} onRemoveFrame={onRemoveFrame} /> : null}
                                 {references.length ? <ReferenceImageStrip references={references} compact onRemoveReference={onRemoveReference} onMoveReference={onMoveReference} /> : null}
                                 {videoReferences.length ? <ReferenceVideoStrip references={videoReferences} compact onRemoveReference={onRemoveVideoReference} onMoveReference={onMoveVideoReference} /> : null}
                                 {audioReferences.length ? <ReferenceAudioStrip references={audioReferences} compact onRemoveReference={onRemoveAudioReference} onMoveReference={onMoveAudioReference} /> : null}
@@ -1402,9 +1404,14 @@ function WorkbenchPanel({
                         <Input.TextArea value={prompt} onChange={(event) => onPromptChange(event.target.value)} rows={6} placeholder="描述镜头运动、主体动作、场景氛围和画面风格" />
                     </div>
                 </WorkbenchSection>
-                {frameReferencesEnabled ? (
-                    <WorkbenchSection title="首尾帧" count={[firstFrame, lastFrame].filter(Boolean).length}>
-                        <FrameReferenceStrip firstFrame={firstFrame} lastFrame={lastFrame} onPasteFrame={onPasteFrame} onUploadFrame={onUploadFrame} onOpenAssetPicker={onOpenAssetPicker} onRemoveFrame={onRemoveFrame} />
+                {firstFrameEnabled ? (
+                    <WorkbenchSection title="首帧" count={firstFrame ? 1 : 0}>
+                        <FrameReferenceStrip firstFrame={firstFrame} lastFrame={null} showFirst onPasteFrame={onPasteFrame} onUploadFrame={onUploadFrame} onOpenAssetPicker={onOpenAssetPicker} onRemoveFrame={onRemoveFrame} />
+                    </WorkbenchSection>
+                ) : null}
+                {lastFrameEnabled ? (
+                    <WorkbenchSection title="尾帧" count={lastFrame ? 1 : 0}>
+                        <FrameReferenceStrip firstFrame={null} lastFrame={lastFrame} showLast onPasteFrame={onPasteFrame} onUploadFrame={onUploadFrame} onOpenAssetPicker={onOpenAssetPicker} onRemoveFrame={onRemoveFrame} />
                     </WorkbenchSection>
                 ) : null}
                 <WorkbenchSection title="参考图" count={references.length}>
@@ -1469,19 +1476,20 @@ function WorkbenchSection({ title, count, children }: { title: string; count?: n
     );
 }
 
-function FrameReferenceStrip({ firstFrame, lastFrame, compact = false, onPasteFrame, onUploadFrame, onOpenAssetPicker, onRemoveFrame }: { firstFrame: ReferenceImage | null; lastFrame: ReferenceImage | null; compact?: boolean; onPasteFrame?: (slot: "first" | "last") => void; onUploadFrame: (slot: "first" | "last") => void; onOpenAssetPicker?: (target?: AssetPickerTarget) => void; onRemoveFrame: (slot: "first" | "last") => void }) {
+function FrameReferenceStrip({ firstFrame, lastFrame, compact = false, showFirst = true, showLast = true, onPasteFrame, onUploadFrame, onOpenAssetPicker, onRemoveFrame }: { firstFrame: ReferenceImage | null; lastFrame: ReferenceImage | null; compact?: boolean; showFirst?: boolean; showLast?: boolean; onPasteFrame?: (slot: "first" | "last") => void; onUploadFrame: (slot: "first" | "last") => void; onOpenAssetPicker?: (target?: AssetPickerTarget) => void; onRemoveFrame: (slot: "first" | "last") => void }) {
     if (!compact) {
         return (
             <div className="space-y-2">
-                <FrameReferenceRow label="首帧" slot="first" reference={firstFrame} onPasteFrame={onPasteFrame} onUploadFrame={onUploadFrame} onOpenAssetPicker={onOpenAssetPicker} onRemoveFrame={onRemoveFrame} />
-                <FrameReferenceRow label="尾帧" slot="last" reference={lastFrame} onPasteFrame={onPasteFrame} onUploadFrame={onUploadFrame} onOpenAssetPicker={onOpenAssetPicker} onRemoveFrame={onRemoveFrame} />
+                {showFirst ? <FrameReferenceRow label="首帧" slot="first" reference={firstFrame} onPasteFrame={onPasteFrame} onUploadFrame={onUploadFrame} onOpenAssetPicker={onOpenAssetPicker} onRemoveFrame={onRemoveFrame} /> : null}
+                {showLast ? <FrameReferenceRow label="尾帧" slot="last" reference={lastFrame} onPasteFrame={onPasteFrame} onUploadFrame={onUploadFrame} onOpenAssetPicker={onOpenAssetPicker} onRemoveFrame={onRemoveFrame} /> : null}
             </div>
         );
     }
+    const showBoth = showFirst && showLast;
     return (
-        <div className={`grid grid-cols-2 gap-2 rounded-lg border border-dashed border-stone-300 p-2 dark:border-stone-700 ${compact ? "min-h-14" : "min-h-24"}`}>
-            <FrameReferenceSlot label="首帧" reference={firstFrame} compact={compact} onUpload={() => onUploadFrame("first")} onRemove={() => onRemoveFrame("first")} />
-            <FrameReferenceSlot label="尾帧" reference={lastFrame} compact={compact} onUpload={() => onUploadFrame("last")} onRemove={() => onRemoveFrame("last")} />
+        <div className={`grid ${showBoth ? "grid-cols-2" : "grid-cols-1"} gap-2 rounded-lg border border-dashed border-stone-300 p-2 dark:border-stone-700 ${compact ? "min-h-14" : "min-h-24"}`}>
+            {showFirst ? <FrameReferenceSlot label="首帧" reference={firstFrame} compact={compact} onUpload={() => onUploadFrame("first")} onRemove={() => onRemoveFrame("first")} /> : null}
+            {showLast ? <FrameReferenceSlot label="尾帧" reference={lastFrame} compact={compact} onUpload={() => onUploadFrame("last")} onRemove={() => onRemoveFrame("last")} /> : null}
         </div>
     );
 }

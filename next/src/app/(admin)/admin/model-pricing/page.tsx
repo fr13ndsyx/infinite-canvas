@@ -102,7 +102,7 @@ function setModelCapabilityValue(form: any, setModelCapabilities: (items: AdminM
     setModelCapabilities(next);
 }
 
-function setModelCapabilityBool(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "videoSecondsSmart" | "supportsNegativePrompt" | "supportsFirstLastFrame" | "supportsMotionControl" | "supportsAudioGeneration" | "supportsWatermark" | "supportsMultiShot" | "supportsElementList", value: boolean) {
+function setModelCapabilityBool(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "videoSecondsSmart" | "supportsNegativePrompt" | "supportsFirstLastFrame" | "supportsFirstFrame" | "supportsMotionControl" | "supportsAudioGeneration" | "supportsWatermark" | "supportsMultiShot" | "supportsElementList", value: boolean) {
     const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
     const index = current.findIndex((item) => item.model === model);
     const next = [...current];
@@ -511,6 +511,7 @@ export default function AdminModelPricingPage() {
                                                             <Space size={[16, 8]} wrap>
                                                                 <Checkbox checked={!!cap.supportsNegativePrompt} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsNegativePrompt", e.target.checked)}>负面提示词</Checkbox>
                                                                 <Checkbox checked={!!cap.supportsFirstLastFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstLastFrame", e.target.checked)}>首尾帧</Checkbox>
+                                                                <Checkbox checked={!!cap.supportsFirstFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstFrame", e.target.checked)}>首帧</Checkbox>
                                                                 <Checkbox checked={!!cap.supportsMotionControl} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMotionControl", e.target.checked)}>运动控制</Checkbox>
                                                                 <Checkbox checked={!!cap.supportsAudioGeneration} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsAudioGeneration", e.target.checked)}>音频生成</Checkbox>
                                                                 <Checkbox checked={!!cap.supportsWatermark} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsWatermark", e.target.checked)}>水印</Checkbox>

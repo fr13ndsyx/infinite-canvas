@@ -200,7 +200,8 @@ export type AdminModelCapability = {
     videoSecondsPresets?: number[];
     videoSecondsSmart?: boolean;
     supportsNegativePrompt?: boolean;
-    supportsFirstLastFrame?: boolean;
+    supportsFirstLastFrame?: boolean; // 兼容字段：首尾帧都支持时勾选
+    supportsFirstFrame?: boolean; // 仅支持首帧（部分模型只支持首帧）
     supportsMotionControl?: boolean;
     supportsAudioGeneration?: boolean;
     supportsWatermark?: boolean;
