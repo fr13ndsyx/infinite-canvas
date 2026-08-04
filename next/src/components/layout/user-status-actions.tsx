@@ -67,6 +67,14 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
                     </div>
                 </Tooltip>
             ) : null}
+            {variant !== "canvas" && user ? (
+                <Tooltip title="当前算力点余额" placement="bottom">
+                    <div className="flex h-8 shrink-0 items-center gap-1 px-1.5 text-xs font-medium tabular-nums text-stone-600 opacity-80 transition hover:opacity-100 dark:text-stone-300">
+                        <CreditSymbol className="size-3.5 leading-none" />
+                        <span>{credits.toLocaleString()}</span>
+                    </div>
+                </Tooltip>
+            ) : null}
             {!user && onOpenShortcuts ? (
                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={onOpenShortcuts} aria-label="快捷键" title="快捷键">
                     <Keyboard className="size-4" />

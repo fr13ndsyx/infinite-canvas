@@ -142,7 +142,7 @@ function resolveRequestSize(quality: string | undefined, size: string) {
 function createImageRequestParams(config: AiConfig): ImageRequestParams {
     const quality = normalizeQuality(config.quality);
     return {
-        n: normalizeBoundedInteger(config.count, 1, 1, 15),
+        n: normalizeBoundedInteger(config.count, 1, 1, 10),
         quality,
         size: resolveRequestSize(quality, config.size),
         timeoutSeconds: IMAGE_REQUEST_TIMEOUT_SECONDS,
@@ -763,8 +763,8 @@ async function requestAndParseImages(config: AiConfig, endpoint: string, request
 async function requestImages(config: AiConfig & { seedIndex?: number; seedCount?: number }, prompt: string, references: ReferenceImage[]): Promise<GeneratedImage[]> {
     const params = createImageRequestParams(config);
     const inputImageDataUrls = references.length ? await Promise.all(references.map((image) => imageToDataUrl(image))) : [];
-    const useConcurrentSingleRequests = config.apiMode === "responses" || config.codexCli || config.streamImages;
-    if (params.n > 1 && useConcurrentSingleRequests) {
+    // 统一并发多次单张请求，避免上游 n 参数限制导致任务失败（gpt-image-1 上限 10，多数模型仅支持 1）。
+    if (params.n > 1) {
         const results = await Promise.allSettled(Array.from({ length: params.n }, () => requestImages({ ...config, count: "1" }, prompt, references)));
         const images = results.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
         if (images.length) return images;

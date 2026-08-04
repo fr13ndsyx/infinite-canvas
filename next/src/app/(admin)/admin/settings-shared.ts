@@ -83,6 +83,7 @@ export function normalizeModelCapabilities(items: Partial<AdminModelCapability>[
         videoSecondsSmart: item.videoSecondsSmart === true,
         supportsNegativePrompt: item.supportsNegativePrompt === true,
         supportsFirstLastFrame: item.supportsFirstLastFrame === true,
+        supportsFirstFrame: item.supportsFirstFrame === true,
         supportsMotionControl: item.supportsMotionControl === true,
         supportsAudioGeneration: item.supportsAudioGeneration === true,
         supportsWatermark: item.supportsWatermark === true,

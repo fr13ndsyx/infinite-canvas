@@ -8,7 +8,7 @@ import { Button, Switch } from "antd";
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { findModelCapability, resolveSupportsElementList, resolveSupportsFirstLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
+import { findModelCapability, resolveSupportsElementList, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
 import type { CanvasNodeMetadata } from "../types";
 
 export type CanvasVideoFrameOption = { nodeId: string; label: string; previewUrl?: string };
@@ -90,13 +90,14 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
     const provider = resolveVideoProvider(cap);
     const supportsMultiShot = resolveSupportsMultiShot(cap) === true;
     const supportsElementList = resolveSupportsElementList(cap) === true;
-    const supportsFirstLastFrame = resolveSupportsFirstLastFrame(cap) === true;
+    const supportsFirstFrame = resolveSupportsFirstFrame(cap) === true;
+    const supportsLastFrame = resolveSupportsLastFrame(cap) === true;
     const supportsMotionControl = resolveSupportsMotionControl(cap) === true;
     // 首尾帧存储格式：kling-v3 请求体使用 klingImageNodeIds 元数据；其他使用 firstFrameNodeId/lastFrameNodeId
     const useKlingFrameStorage = panelType === "kling-v3";
     const useKlingMultiShotBehavior = panelType === "kling-v3" && provider === "kie";
-    const showAdvancedSections = !visualOnly && (supportsMultiShot || supportsElementList || (supportsFirstLastFrame && useKlingFrameStorage));
-    const showGenericFrameReferences = !visualOnly && supportsFirstLastFrame && !useKlingFrameStorage;
+    const showAdvancedSections = !visualOnly && (supportsMultiShot || supportsElementList || ((supportsFirstFrame || supportsLastFrame) && useKlingFrameStorage));
+    const showGenericFrameReferences = !visualOnly && (supportsFirstFrame || supportsLastFrame) && !useKlingFrameStorage;
     const optionIds = useMemo(() => new Set(frameOptions.map((item) => item.nodeId)), [frameOptions]);
     const firstFrameValue = firstFrameNodeId && optionIds.has(firstFrameNodeId) ? firstFrameNodeId : "";
     const lastFrameValue = lastFrameNodeId && optionIds.has(lastFrameNodeId) ? lastFrameNodeId : "";
@@ -106,11 +107,17 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
             <div className="space-y-4">
                 <div className="text-lg font-semibold">视频设置</div>
                 {!visualOnly && supportsMotionControl ? <CharacterOrientationSetting value={config.videoCharacterOrientation} theme={theme} onChange={(value) => onConfigChange("videoCharacterOrientation", value)} /> : null}
-                {showAdvancedSections ? <AdvancedVideoSettings metadata={metadata} resourceOptions={resourceOptions} theme={theme} supportsMultiShot={supportsMultiShot} supportsElementList={supportsElementList} supportsFirstLastFrame={supportsFirstLastFrame && useKlingFrameStorage} useKlingMultiShotBehavior={useKlingMultiShotBehavior} onMetadataChange={onMetadataChange} /> : null}
-                {showGenericFrameReferences ? (
-                    <CanvasSettingGroup title="首尾帧" color={theme.node.muted}>
+                {showAdvancedSections ? <AdvancedVideoSettings metadata={metadata} resourceOptions={resourceOptions} theme={theme} supportsMultiShot={supportsMultiShot} supportsElementList={supportsElementList} supportsFirstFrame={supportsFirstFrame && useKlingFrameStorage} supportsLastFrame={supportsLastFrame && useKlingFrameStorage} useKlingMultiShotBehavior={useKlingMultiShotBehavior} onMetadataChange={onMetadataChange} /> : null}
+                {showGenericFrameReferences && supportsFirstFrame ? (
+                    <CanvasSettingGroup title="首帧" color={theme.node.muted}>
                         <div className="grid gap-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                             <FrameReferencePicker label="首帧" value={firstFrameValue} options={frameOptions} theme={theme} onChange={(value) => onFrameChange?.({ firstFrameNodeId: value || undefined })} />
+                        </div>
+                    </CanvasSettingGroup>
+                ) : null}
+                {showGenericFrameReferences && supportsLastFrame ? (
+                    <CanvasSettingGroup title="尾帧" color={theme.node.muted}>
+                        <div className="grid gap-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                             <FrameReferencePicker label="尾帧" value={lastFrameValue} options={frameOptions} theme={theme} onChange={(value) => onFrameChange?.({ lastFrameNodeId: value || undefined })} />
                         </div>
                     </CanvasSettingGroup>
@@ -134,7 +141,7 @@ function CharacterOrientationSetting({ value, theme, onChange }: { value?: strin
     );
 }
 
-function AdvancedVideoSettings({ metadata, resourceOptions, theme, supportsMultiShot, supportsElementList, supportsFirstLastFrame, useKlingMultiShotBehavior, onMetadataChange }: { metadata?: CanvasNodeMetadata; resourceOptions: CanvasVideoResourceOption[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; supportsMultiShot: boolean; supportsElementList: boolean; supportsFirstLastFrame: boolean; useKlingMultiShotBehavior: boolean; onMetadataChange?: CanvasVideoSettingsPopoverProps["onMetadataChange"] }) {
+function AdvancedVideoSettings({ metadata, resourceOptions, theme, supportsMultiShot, supportsElementList, supportsFirstFrame, supportsLastFrame, useKlingMultiShotBehavior, onMetadataChange }: { metadata?: CanvasNodeMetadata; resourceOptions: CanvasVideoResourceOption[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; supportsMultiShot: boolean; supportsElementList: boolean; supportsFirstFrame: boolean; supportsLastFrame: boolean; useKlingMultiShotBehavior: boolean; onMetadataChange?: CanvasVideoSettingsPopoverProps["onMetadataChange"] }) {
     const multiShot = boolValue(metadata?.multiShot);
     const shotType = metadata?.shotType === "customize" ? "customize" : "intelligence";
     const multiPrompt = normalizeKlingMultiPrompt(metadata?.klingMultiPrompt);
@@ -166,10 +173,16 @@ function AdvancedVideoSettings({ metadata, resourceOptions, theme, supportsMulti
                     {multiShot && (useKlingMultiShotBehavior || shotType === "customize") ? <KlingMultiPromptSection items={multiPrompt} options={textOptions} theme={theme} onChange={updateMultiPrompt} /> : null}
                 </>
             ) : null}
-            {supportsFirstLastFrame ? (
-                <CanvasSettingGroup title="首尾帧" color={theme.node.muted}>
+            {supportsFirstFrame ? (
+                <CanvasSettingGroup title="首帧" color={theme.node.muted}>
                     <div className="grid gap-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                         <ResourceSinglePicker label="首帧" value={imageNodeIds[0] || ""} options={imageOptions} placeholder="不指定" emptyText="暂无已连接图片" theme={theme} onChange={(value) => onMetadataChange?.({ klingImageNodeIds: [value, imageNodeIds[1]].filter(Boolean) })} />
+                    </div>
+                </CanvasSettingGroup>
+            ) : null}
+            {supportsLastFrame ? (
+                <CanvasSettingGroup title="尾帧" color={theme.node.muted}>
+                    <div className="grid gap-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                         <ResourceSinglePicker label="尾帧" value={imageNodeIds[1] || ""} options={imageOptions} placeholder="不指定" emptyText="暂无已连接图片" theme={theme} onChange={(value) => onMetadataChange?.({ klingImageNodeIds: [imageNodeIds[0], value].filter(Boolean) })} />
                     </div>
                 </CanvasSettingGroup>

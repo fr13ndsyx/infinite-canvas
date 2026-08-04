@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode, useState } from "react";
-import { ConfigProvider, Segmented } from "antd";
+import { ConfigProvider, Segmented, Slider } from "antd";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AdminModelCapability } from "@/services/api/admin";
@@ -57,10 +57,9 @@ type ImageSettingsPanelProps = {
     showCount?: boolean;
     className?: string;
     maxCount?: number;
-    quickCount?: number;
 };
 
-export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities, showTitle = true, showSize = true, showCount = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 10 }: ImageSettingsPanelProps) {
+export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities, showTitle = true, showSize = true, showCount = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 10 }: ImageSettingsPanelProps) {
     const [resolutionTier, setResolutionTier] = useState<"standard" | "2k" | "4k">(() => tierOfAspect(config.size || "auto"));
     const count = Math.max(1, Math.floor(Math.abs(Number(config.count)) || 1));
     const activeSize = config.size || "auto";
@@ -110,7 +109,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                     <div className="space-y-2.5">
                         <div className="flex items-center justify-between gap-3">
                             <SettingTitle color={theme.node.muted}>比例</SettingTitle>
-                            {tierOptions.length >= 2 ? (
+                            {tierOptions.length >= 1 ? (
                                 <span onMouseDown={(event) => event.stopPropagation()}>
                                     <Segmented
                                         size="small"
@@ -140,14 +139,12 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                 ) : null}
                 {showCount ? (
                     <div className="space-y-2.5">
-                        <SettingTitle color={theme.node.muted}>生成数量</SettingTitle>
-                        <div className="grid grid-cols-4 gap-2.5">
-                            {Array.from({ length: quickCount }, (_, index) => index + 1).map((value) => (
-                                <OptionPill key={value} selected={count === value} theme={theme} onClick={() => onConfigChange("count", String(value))}>
-                                    {value} 张
-                                </OptionPill>
-                            ))}
-                            <CountInput value={count} max={maxCount} theme={theme} onChange={(value) => onConfigChange("count", String(value || 1))} />
+                        <div className="flex items-center justify-between gap-3">
+                            <SettingTitle color={theme.node.text}>生成数量</SettingTitle>
+                            <span className="text-xs tabular-nums" style={{ color: theme.node.text }}>{count} 张</span>
+                        </div>
+                        <div onMouseDown={(event) => event.stopPropagation()}>
+                            <Slider min={1} max={maxCount} value={count} onChange={(value) => onConfigChange("count", String(value))} tooltip={{ formatter: (value) => `${value} 张`, color: theme.node.text }} />
                         </div>
                     </div>
                 ) : null}
@@ -171,37 +168,6 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
 
 export function imageSizeLabel(size: string) {
     return aspectOptions.find((item) => (item.size || item.value) === size || item.value === size)?.label || size;
-}
-
-function OptionPill({ selected, theme, onClick, children }: { selected: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
-    return (
-        <button
-            type="button"
-            className="h-8 cursor-pointer rounded-md border px-2 text-xs transition hover:opacity-80"
-            style={{ background: "transparent", borderColor: selected ? theme.node.text : theme.node.stroke, color: theme.node.text }}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={onClick}
-        >
-            {children}
-        </button>
-    );
-}
-
-function CountInput({ value, max, theme, onChange }: { value: number; max: number; theme: CanvasTheme; onChange: (value: number | null) => void }) {
-    return (
-        <label className="col-span-2 flex h-8 overflow-hidden rounded-md border text-xs" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
-            <input
-                type="number"
-                min={1}
-                max={max}
-                className="min-w-0 flex-1 bg-transparent px-3 text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                style={{ color: theme.node.text, WebkitTextFillColor: theme.node.text }}
-                value={value || ""}
-                onChange={(event) => onChange(Number(event.target.value) || null)}
-                onMouseDown={(event) => event.stopPropagation()}
-            />
-        </label>
-    );
 }
 
 function AspectIcon({ type, width, height, color }: { type: string; width: number; height: number; color: string }) {

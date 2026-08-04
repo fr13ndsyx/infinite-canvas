@@ -251,6 +251,15 @@ export function resolveSupportsNegativePrompt(cap: AdminModelCapability | undefi
 export function resolveSupportsFirstLastFrame(cap: AdminModelCapability | undefined): boolean | undefined {
     return cap?.supportsFirstLastFrame;
 }
+// 是否支持首帧：勾选「首尾帧」或「首帧」时均为 true（首尾帧包含首帧）。
+export function resolveSupportsFirstFrame(cap: AdminModelCapability | undefined): boolean | undefined {
+    if (!cap) return undefined;
+    return cap.supportsFirstFrame === true || cap.supportsFirstLastFrame === true;
+}
+// 是否支持尾帧：仅勾选「首尾帧」时为 true（仅首帧模型不显示尾帧）。
+export function resolveSupportsLastFrame(cap: AdminModelCapability | undefined): boolean | undefined {
+    return cap?.supportsFirstLastFrame;
+}
 export function resolveSupportsMotionControl(cap: AdminModelCapability | undefined): boolean | undefined {
     return cap?.supportsMotionControl;
 }

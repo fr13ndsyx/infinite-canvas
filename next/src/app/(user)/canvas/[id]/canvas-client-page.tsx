@@ -11,7 +11,7 @@ import { deleteCanvasProjects, deleteCanvasTasks } from "@/services/api/canvas-t
 import { createCanvasImageTask, pollCanvasImageTaskStatus, requestImageQuestion, type CanvasImageTask } from "@/services/api/image";
 import { createCanvasAudioTask, pollCanvasAudioTaskStatus, type CanvasAudioTask } from "@/services/api/audio";
 import { createVideoGenerationTask, pollVideoGenerationTaskStatus, VIDEO_POLL_INTERVAL_MS, type VideoResponse } from "@/services/api/video";
-import { defaultConfig, findModelCapability, resolveSupportsAudioGeneration, resolveSupportsFirstLastFrame, resolveVideoPanelType, resolveVideoProvider, type AiConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
+import { defaultConfig, findModelCapability, resolveSupportsAudioGeneration, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveVideoPanelType, resolveVideoProvider, type AiConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { collectImageStorageKeys, deleteStoredImages, resolveImageUrl, uploadImage, uploadRemoteImageToServer, type UploadedImage } from "@/services/image-storage";
 import { resolveMediaUrl, uploadMediaFile, uploadRemoteMediaToServer, type UploadedFile } from "@/services/file-storage";
 import { nanoid } from "nanoid";
@@ -2488,7 +2488,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     const referenceImages = [...sourceReference, ...generationContext.referenceImages];
                     const panoramaPrompt = buildPanoramaPrompt(effectivePrompt, referenceImages.length > 0);
                     const panoramaGenerationConfig = { ...generationConfig, size: PANORAMA_IMAGE_SIZE };
-                    const count = getGenerationCount(panoramaGenerationConfig.count);
+                    const count = 1;
                     const isEmptyPanoramaNode = !sourceNode?.metadata?.content;
                     const panoramaNodeConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Panorama];
                     const parentPosition = sourceNode?.position || { x: 0, y: 0 };
@@ -2625,7 +2625,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                 }
 
                 if (mode === "image") {
-                    const count = getGenerationCount(generationConfig.count);
+                    const count = 1;
                     const isConfigNode = sourceNode?.type === CanvasNodeType.Config;
                     const isImageNode = sourceNode?.type === CanvasNodeType.Image;
                     const isEmptyImageNode = isImageNode && !sourceNode?.metadata?.content;
@@ -2785,10 +2785,13 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
 
                 if (mode === "video") {
                     const videoGenerationConfig = withCanvasVideoAdvancedConfig(generationConfig, generationContext);
-                    const frameReferencesEnabled = resolveSupportsFirstLastFrame(findModelCapability(videoGenerationConfig, videoGenerationConfig.model)) === true;
-                    const firstFrame = frameReferencesEnabled ? generationContext.firstFrame : null;
-                    const lastFrame = frameReferencesEnabled ? generationContext.lastFrame : null;
-                    const videoReferenceImages = frameReferencesEnabled ? generationContext.referenceImages : [...generationContext.referenceImages, ...[generationContext.firstFrame, generationContext.lastFrame].filter((image): image is ReferenceImage => Boolean(image))];
+                    const videoCap = findModelCapability(videoGenerationConfig, videoGenerationConfig.model);
+                    const firstFrameEnabled = resolveSupportsFirstFrame(videoCap) === true;
+                    const lastFrameEnabled = resolveSupportsLastFrame(videoCap) === true;
+                    const firstFrame = firstFrameEnabled ? generationContext.firstFrame : null;
+                    const lastFrame = lastFrameEnabled ? generationContext.lastFrame : null;
+                    const unsupportedFrameImages = [firstFrameEnabled ? null : generationContext.firstFrame, lastFrameEnabled ? null : generationContext.lastFrame].filter((image): image is ReferenceImage => Boolean(image));
+                    const videoReferenceImages = unsupportedFrameImages.length ? [...generationContext.referenceImages, ...unsupportedFrameImages] : generationContext.referenceImages;
                     const spec = nodeSizeFromRatio(videoGenerationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
                     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
                     const videoId = isEmptyVideoNode ? nodeId : nanoid();
@@ -3362,10 +3365,13 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                 }
                 if (node.type === CanvasNodeType.Video) {
                     const videoGenerationConfig = context ? withCanvasVideoAdvancedConfig(generationConfig, context) : generationConfig;
-                    const frameReferencesEnabled = resolveSupportsFirstLastFrame(findModelCapability(videoGenerationConfig, videoGenerationConfig.model)) === true;
-                    const firstFrame = frameReferencesEnabled ? context?.firstFrame || null : null;
-                    const lastFrame = frameReferencesEnabled ? context?.lastFrame || null : null;
-                    const references = frameReferencesEnabled ? retryImages : [...retryImages, ...[context?.firstFrame, context?.lastFrame].filter((image): image is ReferenceImage => Boolean(image))];
+                    const videoCap = findModelCapability(videoGenerationConfig, videoGenerationConfig.model);
+                    const firstFrameEnabled = resolveSupportsFirstFrame(videoCap) === true;
+                    const lastFrameEnabled = resolveSupportsLastFrame(videoCap) === true;
+                    const firstFrame = firstFrameEnabled ? context?.firstFrame || null : null;
+                    const lastFrame = lastFrameEnabled ? context?.lastFrame || null : null;
+                    const unsupportedFrameImages = [firstFrameEnabled ? null : context?.firstFrame, lastFrameEnabled ? null : context?.lastFrame].filter((image): image is ReferenceImage => Boolean(image));
+                    const references = unsupportedFrameImages.length ? [...retryImages, ...unsupportedFrameImages] : retryImages;
                     const created = await createVideoGenerationTask(videoGenerationConfig, requestPrompt, { references, firstFrame, lastFrame, videoReferences: context?.referenceVideos || [], audioReferences: context?.referenceAudios || [] }, undefined, { clientTaskId: retryVideoTaskId, source: "canvas", sourceId: node.id });
                     setNodes((prev) => applyCanvasVideoTaskUpdate(prev, node.id, created.task, videoGenerationConfig, retryStartedAt, { width: node.width, height: node.height }));
                     return;

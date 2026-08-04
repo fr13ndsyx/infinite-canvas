@@ -320,7 +320,8 @@ description: 当前后端主要数据表与字段说明
 | `videoSecondsPresets` | int[] | 秒数预设档位，如 `[5,10]`；空=连续 Slider，有值=按档位显示 OptionPill |
 | `videoSecondsSmart` | bool | 是否支持 `-1` 智能时长（Seedance） |
 | `supportsNegativePrompt` | bool | 是否支持负面提示词 |
-| `supportsFirstLastFrame` | bool | 是否支持首尾帧参考 |
+| `supportsFirstLastFrame` | bool | 是否支持尾帧（兼容字段：勾选=首尾帧都支持，仅首帧用 supportsFirstFrame） |
+| `supportsFirstFrame` | bool | 是否仅支持首帧（部分模型如 minimax-hailuo-2-3、kling-3-0-turbo） |
 | `supportsMotionControl` | bool | 是否支持运动控制 |
 | `supportsAudioGeneration` | bool | 是否支持音频生成 |
 | `supportsWatermark` | bool | 是否支持水印开关 |

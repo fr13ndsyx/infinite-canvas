@@ -231,8 +231,8 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
     if (resolveSupportsAudioGeneration(cap) === true) body.append("video_generate_audio", String(boolConfig(config.videoGenerateAudio, false)));
     const files = await Promise.all(input.references.slice(0, kling ? 2 : 9).map(imageReferenceToFormValue));
     files.forEach((file) => body.append("input_reference[]", file));
-    if (!kling && input.firstFrame) body.append("first_frame_url", await imageReferenceToFormValue(input.firstFrame));
-    if (!kling && input.lastFrame) body.append("last_frame_url", await imageReferenceToFormValue(input.lastFrame));
+    if (input.firstFrame) body.append("first_frame_url", await imageReferenceToFormValue(input.firstFrame));
+    if (input.lastFrame) body.append("last_frame_url", await imageReferenceToFormValue(input.lastFrame));
     const videoFiles = kling ? [] : await Promise.all(input.videoReferences.map(mediaReferenceToFormValue));
     videoFiles.forEach((file) => body.append("video_reference[]", file));
     const audioFiles = kling ? [] : await Promise.all(input.audioReferences.map(mediaReferenceToFormValue));
