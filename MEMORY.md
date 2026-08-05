@@ -13,6 +13,24 @@
 - `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
 
+## feat/canvas-ui-optimize 合并（2026-08-05）
+- 合并到 main，提交 a6910e9
+- 改动范围：画布所有节点底部助手栏 + 模型下拉 + 参数弹窗
+- 关键变更：
+  - 底部助手栏统一文字 10.8px、SVG 图标 size-3/size-2.5、字体栈 PingFang SC → HarmonyOS Sans → 微软雅黑
+  - 视频节点改用 ModelPicker 组件（之前独立 portal 下拉），所有节点模型选择统一
+  - ModelPicker 新增两行布局：图标 + 模型名 13px + 介绍占位 11px（待后端加字段填充）
+  - 图片/音频/视频参数弹窗统一：无阴影、无标题、居中定位、加 Settings2 前缀图标
+  - 参数按钮内部统一 inline-flex + span 分隔符（px-1 opacity-30）
+  - 底部助手栏改 flex 布局（justify-start + overflow-x-auto），内容靠左紧密排列，超出横向滚动
+  - 配置节点 grid 改 flex，避免参数换行
+  - 视频节点模型按钮改 antd Button + 无 hover，与其他节点一致
+  - 移除模型名 truncate，允许完整显示
+  - 配置节点默认宽度 440→460
+  - 修复未登录视频节点显示具体模型名而非"选择模型"
+- 新增文档：docs/canvas/canvas-assistant-bar-ui.md（底部助手栏 UI 规范）
+- 待验证：模型介绍字段后端未提供，ModelLabel 目前是占位 `&nbsp;`
+
 ## UI 重构优化约定（2026-08-04，用户明确）
 - 参考截图/设计图**只看 UI 布局与结构**，不要照搬颜色
 - 画布 UI 颜色一律用 `canvasThemes` 主题 token（light/dark 两套），选中态高亮用 `toolbar.activeBg`/`activeText`/`activeStroke`，禁止硬编码 orange/black/stone 等固定色
