@@ -134,6 +134,7 @@ export default function IndexPage() {
                             onOpenAssets={() => setAssetPickerOpen(true)}
                             onRemoveReference={(id) => setPendingAssets((current) => current.filter((asset) => asset.nodeId !== id))}
                             onPasteImage={(file) => void uploadFile(file)}
+                            showOptions={false}
                         />
                     </div>
                     <input ref={uploadInputRef} hidden type="file" accept="image/*,video/*,audio/*" onChange={onUploadInputChange} />

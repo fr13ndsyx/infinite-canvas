@@ -113,15 +113,17 @@ export function CanvasCameraControl({ value, onChange, buttonClassName }: Canvas
 
     return (
         <>
-            <span ref={buttonRef} className="inline-flex min-w-0" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+            <span ref={buttonRef} className="inline-flex min-w-0 shrink-0 whitespace-nowrap" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
                 <button
                     type="button"
-                    className={["inline-flex items-center gap-1 border-0 bg-transparent text-[11px] transition hover:opacity-60", buttonClassName || ""].join(" ")}
-                    style={{ color: value?.enabled ? theme.toolbar.activeText : theme.node.text }}
+                    className={["inline-flex items-center gap-1 border-0 bg-transparent !text-[10.8px] transition whitespace-nowrap", buttonClassName || ""].join(" ")}
+                    style={{ color: value?.enabled ? theme.toolbar.activeText : theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
+                    onMouseEnter={(event) => { event.currentTarget.style.background = theme.node.fill; }}
+                    onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                     aria-expanded={open}
                     onClick={() => setOpen((current) => !current)}
                 >
-                    <Camera className="size-3.5 shrink-0" />
+                    <Camera className="size-3 shrink-0" />
                     <span>摄像机</span>
                 </button>
             </span>

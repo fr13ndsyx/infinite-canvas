@@ -64,13 +64,13 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
 
     return (
         <>
-            <span ref={buttonRef} className="inline-flex min-w-0">
-                <Button size="small" type="text" className={buttonClassName || "!h-8 !max-w-[180px] !justify-start !rounded-full !px-2.5"} style={{ background: theme.node.fill, color: theme.node.text }} icon={buttonIcon || <Settings2 className="size-3.5" />} onClick={() => updateOpen(!open)}>
-                    <span className="truncate">
+            <span ref={buttonRef} className="inline-flex min-w-0 shrink-0">
+                <Button size="small" type="text" className={buttonClassName || "!h-8 !justify-start !rounded-full !px-2.5"} style={{ background: "transparent", color: theme.node.text }} icon={buttonIcon || <Settings2 className="size-3" />} onClick={() => updateOpen(!open)}>
+                    <span className="inline-flex items-center whitespace-nowrap">
                         {showSize ? (
                             <>
                                 {imageSizeLabel(activeSize)}
-                                {showCount ? <> · {count} 张</> : null}
+                                {showCount ? <><span className="shrink-0 px-1 opacity-30">·</span>{count} 张</> : null}
                             </>
                         ) : (
                             <>
@@ -107,9 +107,7 @@ function ImageSettingsPortal({
     const width = 356;
     const gap = 8;
     const margin = 12;
-    const alignRight = placement?.endsWith("Right");
-    const alignCenter = placement === "top" || placement === "bottom";
-    const left = alignCenter ? buttonRect.left + buttonRect.width / 2 - width / 2 : alignRight ? buttonRect.right - width : buttonRect.left;
+    const left = buttonRect.left + buttonRect.width / 2 - width / 2;
     const topPlacement = placement?.startsWith("top");
     const style = {
         position: "fixed",
@@ -119,7 +117,7 @@ function ImageSettingsPortal({
         ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }),
         background: theme.toolbar.panel,
         borderRadius: 18,
-        boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+        boxShadow: "none",
         padding: 18,
         overflowY: "auto",
         color: theme.node.text,

@@ -13,7 +13,7 @@ export const NODE_DEFAULT_SIZE = {
     [CanvasNodeType.Image]: { width: 340, height: 240, title: "图片生成" },
     [CanvasNodeType.Panorama]: { ...PANORAMA_NODE_SIZE, title: "全景图" },
     [CanvasNodeType.Text]: { width: 340, height: 240, title: "文本生成" },
-    [CanvasNodeType.Config]: { width: 440, height: 240, title: "配置节点" },
+    [CanvasNodeType.Config]: { width: 460, height: 240, title: "配置节点" },
     [CanvasNodeType.Video]: { width: 420, height: 236, title: "视频生成" },
     [CanvasNodeType.Audio]: { width: 340, height: 120, title: "音频参考" },
     [CanvasNodeType.Director]: { width: 360, height: 320, title: "3D 导演台" },

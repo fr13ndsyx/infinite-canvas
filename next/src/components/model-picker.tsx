@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
-import { App } from "antd";
-import { Cpu } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { App, Button } from "antd";
+import { Check, ChevronDown, Cpu } from "lucide-react";
 
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { canvasThemes } from "@/lib/canvas-theme";
 import { filterModelsByCapability, normalizeLocalChannels, useConfigStore, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
+import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 
 type ModelPickerProps = {
@@ -23,8 +25,11 @@ type ModelPickerProps = {
 
 export function ModelPicker({ config, value, channelId, capability, onChange, className, fullWidth = false, placeholder = "选择模型", onMissingConfig }: ModelPickerProps) {
     const { message } = App.useApp();
-    const pickerId = useId();
+    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const buttonRef = useRef<HTMLSpanElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
+    const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
     const publicSettings = useConfigStore((state) => state.publicSettings);
     const user = useUserStore((state) => state.user);
     const isGuestConfigDisabled = !user && publicSettings?.modelChannel?.allowGuestConfig === false;
@@ -44,97 +49,171 @@ export function ModelPicker({ config, value, channelId, capability, onChange, cl
     const options = channelOptions;
     // 当 value 不在任一渠道的模型列表中时（currentOption 为空），显示 placeholder 而非具体模型名
     const current = value && currentOption ? value : "";
-    const currentValue = current ? currentOption.key : "";
 
     useEffect(() => {
         if (value && currentOption?.channelId && channelId !== currentOption.channelId) onChange(value, currentOption.channelId);
     }, [channelId, currentOption?.channelId, onChange, value]);
 
     useEffect(() => {
-        const closeOtherPicker = (event: Event) => {
-            if ((event as CustomEvent<string>).detail !== pickerId) setOpen(false);
+        if (!open) return;
+        const syncPosition = () => setButtonRect(buttonRef.current?.getBoundingClientRect() || null);
+        const closeOnOutsidePointer = (event: PointerEvent) => {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+            setOpen(false);
         };
-        window.addEventListener("model-picker-open", closeOtherPicker);
-        return () => window.removeEventListener("model-picker-open", closeOtherPicker);
-    }, [pickerId]);
+        syncPosition();
+        window.addEventListener("resize", syncPosition);
+        window.addEventListener("scroll", syncPosition, true);
+        window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+        return () => {
+            window.removeEventListener("resize", syncPosition);
+            window.removeEventListener("scroll", syncPosition, true);
+            window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+        };
+    }, [open]);
+
+    const handleOpen = () => {
+        if (!options.length && config.channelMode === "local") {
+            // 未登录且后台关闭 allowGuestConfig 时，直接提示，不触发配置弹窗
+            if (isGuestConfigDisabled) {
+                message.info("请登录后使用配置功能");
+                return;
+            }
+            onMissingConfig?.();
+            return;
+        }
+        setOpen((current) => !current);
+    };
+
+    const handleSelect = (model: string, channelId?: string) => {
+        onChange(model, channelId);
+        setOpen(false);
+    };
 
     return (
-        <Select
-            open={open}
-            value={current ? currentValue : ""}
-            onOpenChange={(nextOpen) => {
-                if (nextOpen && !options.length && config.channelMode === "local") {
-                    // 未登录且后台关闭 allowGuestConfig 时，直接提示，不触发配置弹窗
-                    if (isGuestConfigDisabled) {
-                        message.info("请登录后使用配置功能");
-                        return;
-                    }
-                    onMissingConfig?.();
-                    return;
-                }
-                if (nextOpen) window.dispatchEvent(new CustomEvent("model-picker-open", { detail: pickerId }));
-                setOpen(nextOpen);
-            }}
-            onValueChange={(nextValue) => {
-                const option = options.find((item) => item.key === nextValue);
-                if (option) onChange(option.model, option.channelId);
-            }}
+        <>
+            <span ref={buttonRef} className="inline-flex min-w-0 shrink-0">
+                <Button
+                    size="small"
+                    type="text"
+                    className={cn(
+                        "!h-8 !min-w-0 !justify-start !rounded-md !px-1.5 !text-[10.8px] !whitespace-nowrap",
+                        fullWidth ? "!w-full" : "",
+                        className,
+                    )}
+                    style={{ background: "transparent", color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
+                    icon={<ModelIcon model={current} />}
+                    onClick={handleOpen}
+                    title={current || placeholder}
+                >
+                    <span className="flex min-w-0 items-center gap-1">
+                        <span className="whitespace-nowrap">{current || placeholder}</span>
+                        <ChevronDown className="size-2.5 shrink-0 opacity-50" />
+                    </span>
+                </Button>
+            </span>
+            {open && buttonRect ? createPortal(
+                <ModelPickerPortal
+                    buttonRect={buttonRect}
+                    panelRef={panelRef}
+                    theme={theme}
+                    options={options}
+                    currentModel={current}
+                    onSelect={handleSelect}
+                    emptyText={config.channelMode === "remote" ? "暂无可用模型" : "请先到配置里拉取模型列表"}
+                />,
+                document.body,
+            ) : null}
+        </>
+    );
+}
+
+function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel, onSelect, emptyText }: {
+    buttonRect: DOMRect;
+    panelRef: React.RefObject<HTMLDivElement | null>;
+    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+    options: { key: string; channelId: string; channelName?: string; model: string }[];
+    currentModel: string;
+    onSelect: (model: string, channelId?: string) => void;
+    emptyText: string;
+}) {
+    const width = 280;
+    const gap = 8;
+    const margin = 12;
+    const left = buttonRect.left + buttonRect.width / 2 - width / 2;
+    const style = {
+        position: "fixed",
+        zIndex: 1200,
+        width,
+        left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
+        top: buttonRect.bottom + gap,
+        maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2),
+        background: theme.toolbar.panel,
+        borderRadius: 18,
+        boxShadow: "none",
+        padding: 8,
+        overflowY: "auto",
+        color: theme.node.text,
+    } as const;
+
+    return createPortal(
+        <div
+            ref={panelRef}
+            className="canvas-model-picker-popover"
+            style={style}
+            onPointerDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
         >
-            <SelectTrigger
-                className={cn(
-                    "canvas-composer-model-picker h-8 w-fit max-w-full gap-2 rounded-md border border-input bg-transparent px-3 text-sm font-normal shadow-sm transition-colors",
-                    fullWidth ? "w-full min-w-0 justify-start" : "min-w-[9rem] justify-start",
-                    "data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/20",
-                    className,
-                )}
-                onMouseDown={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-                title={current || placeholder}
-            >
-                <ModelIcon model={current} />
-                <span className="canvas-model-picker-text min-w-0 flex-1 truncate text-left">{current || placeholder}</span>
-            </SelectTrigger>
-            <SelectContent
-                data-canvas-no-zoom
-                className="z-[1200] w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-24px)] rounded-xl border border-border/70 bg-popover p-1 shadow-xl"
-                position="popper"
-                align="start"
-                side="bottom"
-                sideOffset={6}
-                onPointerDown={(event) => event.stopPropagation()}
-                onMouseDown={(event) => event.stopPropagation()}
-            >
-                {options.length ? (
-                    options.map((option) => (
-                        <SelectItem key={option.key} value={option.key} textValue={`${option.model} ${option.channelName}`}>
-                            <ModelLabel model={option.model} channelName={option.channelName} />
-                        </SelectItem>
-                    ))
-                ) : (
-                    <SelectItem value="__empty__" disabled>
-                        {config.channelMode === "remote" ? "暂无可用模型" : "请先到配置里拉取模型列表"}
-                    </SelectItem>
-                )}
-            </SelectContent>
-        </Select>
+            {options.length ? (
+                <div className="flex flex-col gap-0.5">
+                    {options.map((option) => {
+                        const active = option.model === currentModel;
+                        return (
+                            <button
+                                key={option.key}
+                                type="button"
+                                className="flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left outline-none transition"
+                                style={{ color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
+                                onMouseEnter={(event) => { event.currentTarget.style.background = theme.node.subtleFill; }}
+                                onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
+                                onClick={(event) => { event.stopPropagation(); onSelect(option.model, option.channelId); }}
+                            >
+                                <ModelLabel model={option.model} />
+                                {active ? <Check className="size-3 shrink-0 opacity-70" /> : null}
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="px-2 py-3 text-center text-xs opacity-55">{emptyText}</div>
+            )}
+        </div>,
+        document.body,
     );
 }
 
 function ModelLabel({ model }: { model: string; channelName?: string }) {
     return (
-        <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 flex-1 items-center gap-2.5">
             <ModelIcon model={model} />
-            <span className="truncate">{model}</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate text-[13px] font-medium leading-[18px]">{model}</span>
+                {/* 模型介绍占位，后端加字段后填充 */}
+                <span className="truncate text-[11px] leading-[16px] opacity-50">&nbsp;</span>
+            </span>
         </span>
     );
 }
 
 function ModelIcon({ model }: { model: string }) {
     const icon = resolveModelIcon(model);
-    return icon ? <img src={icon} alt="" className="size-4 shrink-0 dark:invert" /> : <Cpu className="size-4 shrink-0 opacity-70" />;
+    return icon ? <img src={icon} alt="" className="size-3 shrink-0 dark:invert" /> : <Cpu className="size-3 shrink-0 opacity-70" />;
 }
 
-function resolveModelIcon(model: string) {
+export function resolveModelIcon(model: string) {
     const name = model.toLowerCase();
     if (name.includes("claude") || name.includes("anthropic")) return "/icons/claude.svg";
     if (name.includes("gemini") || name.includes("google")) return "/icons/gemini.svg";

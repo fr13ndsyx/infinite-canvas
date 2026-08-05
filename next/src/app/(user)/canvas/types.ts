@@ -88,6 +88,7 @@ export type CanvasNodeMetadata = {
     klingImageNodeIds?: string[];
     klingMultiPrompt?: { textNodeId?: string; duration?: string }[];
     klingElementList?: { name?: string; description?: string; nodeIds?: string[] }[];
+    klingActiveTab?: "frames" | "reference";
     cameraControl?: CameraControlOptions;
     panoramaSourcePrompt?: string;
     panoramaFinalPrompt?: string;

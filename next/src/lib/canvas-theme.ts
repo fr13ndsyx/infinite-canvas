@@ -13,6 +13,7 @@ export const canvasThemes = {
         node: {
             label: "#57534e",
             fill: "#e7e5df",
+            subtleFill: "rgba(0,0,0,0.04)",
             panel: "#fbfaf7",
             stroke: "#d6d3ca",
             activeStroke: "#1c1917",
@@ -41,6 +42,7 @@ export const canvasThemes = {
         node: {
             label: "#d6d3d1",
             fill: "#292524",
+            subtleFill: "rgba(255,255,255,0.04)",
             panel: "#1f1d1a",
             stroke: "#44403c",
             activeStroke: "#fafaf9",

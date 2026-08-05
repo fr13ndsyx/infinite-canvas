@@ -1,7 +1,7 @@
 "use client";
 
 import { type CSSProperties, type ReactNode } from "react";
-import { Film, Sparkles } from "lucide-react";
+import { Film, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { Input, Slider, Switch } from "antd";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
@@ -45,28 +45,35 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
     const secondsRange = resolveVideoSecondsRange(capabilities);
     const secondsValue = Math.max(secondsRange.min, Math.min(secondsRange.max, Math.floor(Number(config.videoSeconds) || secondsRange.min)));
 
-    // 分辨率：capabilities 未传=默认 480p/720p/1080p + 自定义输入；传了空数组=仅自定义输入；有值=按配置
+    // 分辨率：capabilities 未传=默认 480p/720p/1080p（不显示自定义输入）；传了空数组=仅自定义输入；有值=按配置
     const capResolutions = capabilities?.videoResolutions;
     const resolutionOptionsForRender = !capabilities
         ? resolutionOptions
         : (capResolutions || []).map((r) => ({ value: r.replace(/p$/, ""), label: r }));
-    const showCustomResolutionInput = !capabilities || resolutionOptionsForRender.length === 0;
+    const showCustomResolutionInput = !!capabilities && resolutionOptionsForRender.length === 0;
 
     // 模式：videoModes 有值时显示
     const modes = resolveVideoModes(capabilities);
     const currentMode = modes.length > 0 ? (modes.some((m) => m.value === config.videoMode) ? config.videoMode : modes[0].value) : "";
 
-    // 比例：videoRatios 有值时按配置，空=默认 sizeOptions
+    // 比例：videoRatios 有值时按配置，空=默认 sizeOptions（按 label 去重，避免 16:9/9:16 重复；始终保留智能项）
     const ratios = resolveVideoRatios(capabilities);
-    const ratioButtons = ratios.length > 0
+    const ratioButtonsRaw = ratios.length > 0
         ? ratios.map((r) => {
             const preview = ratioPreview(r);
             const label = seedanceRatioOptions.find((item) => item.value === r)?.label || r;
             return { value: r, label, width: preview.width, height: preview.height, ratio: true };
         })
         : sizeOptions.map((item) => ({ ...item, ratio: false }));
+    const ratioButtons = ratioButtonsRaw.filter((item, index, array) => {
+        if (item.value === "auto" || item.value === "adaptive") return true;
+        return array.findIndex((t) => t.label === item.label) === index;
+    });
+    if (!ratioButtons.some((item) => item.value === "auto" || item.value === "adaptive")) {
+        ratioButtons.unshift({ value: "adaptive", label: "自适应", width: 0, height: 0, ratio: true });
+    }
     const selectedSize = ratios.length > 0
-        ? (ratios.includes(normalizeSeedanceRatio(config.size)) ? normalizeSeedanceRatio(config.size) : (ratios[0] || ""))
+        ? ((config.size === "auto" || config.size === "adaptive") ? (ratioButtons.find((item) => item.value === "auto" || item.value === "adaptive")?.value || "") : (ratios.includes(normalizeSeedanceRatio(config.size)) ? normalizeSeedanceRatio(config.size) : (ratios[0] || "")))
         : size;
 
     // 能力开关
@@ -90,7 +97,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                 placeholder="描述不希望出现在视频中的内容"
                                 autoSize={{ minRows: 3, maxRows: 6 }}
                                 className="rounded-xl placeholder:!text-[var(--canvas-placeholder)] placeholder:!opacity-55"
-                                style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text, "--canvas-placeholder": theme.node.placeholder } as CSSProperties}
+                                style={{ background: theme.node.subtleFill, borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text, "--canvas-placeholder": theme.node.placeholder } as CSSProperties}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onChange={(event) => onConfigChange("videoNegativePrompt", event.target.value)}
                             />
@@ -108,24 +115,46 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                         </CanvasSection>
                     ) : null}
                     <CanvasSection title="选择比例">
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.subtleFill }}>
                             {ratioButtons.map((item) => {
                                 const isSmart = item.value === "auto" || item.value === "adaptive";
+                                const active = selectedSize === item.value;
+                                const iconColor = active ? theme.toolbar.activeText : theme.node.muted;
                                 return (
-                                    <RatioChip key={item.value} selected={selectedSize === item.value} theme={theme} width={item.width} height={item.height} isSmart={isSmart} onClick={() => onConfigChange("size", item.value)}>
-                                        {isSmart ? "智能" : item.label}
-                                    </RatioChip>
+                                    <button
+                                        key={item.value}
+                                        type="button"
+                                        className="flex flex-1 flex-col items-center justify-center gap-1 rounded-md py-1 text-[10.8px] leading-3 transition hover:opacity-80"
+                                        style={{ background: active ? theme.toolbar.panel : "transparent", color: active ? theme.toolbar.activeText : theme.node.muted }}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onClick={() => onConfigChange("size", item.value)}
+                                    >
+                                        <span className="flex h-4 items-center justify-center">
+                                            {isSmart ? <SmartRatioIcon color={iconColor} /> : <SizePreview width={item.width} height={item.height} color={iconColor} />}
+                                        </span>
+                                        <span className="h-3 leading-3">{isSmart ? "智能" : item.label}</span>
+                                    </button>
                                 );
                             })}
                         </div>
                     </CanvasSection>
                     <CanvasSection title="选择分辨率">
-                        <div className="flex flex-wrap gap-1.5">
-                            {resolutionOptionsForRender.map((item) => (
-                                <TextChip key={item.value} selected={resolution === item.value} theme={theme} onClick={() => onConfigChange("vquality", item.value)}>
-                                    {item.label}
-                                </TextChip>
-                            ))}
+                        <div className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.subtleFill }}>
+                            {resolutionOptionsForRender.map((item) => {
+                                const active = resolution === item.value;
+                                return (
+                                    <button
+                                        key={item.value}
+                                        type="button"
+                                        className="flex-1 rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
+                                        style={{ background: active ? theme.toolbar.panel : "transparent", color: active ? theme.toolbar.activeText : theme.node.muted }}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onClick={() => onConfigChange("vquality", item.value)}
+                                    >
+                                        {item.label}
+                                    </button>
+                                );
+                            })}
                             {showCustomResolutionInput ? <ResolutionInput value={resolution} theme={theme} onChange={(value) => onConfigChange("vquality", value)} /> : null}
                         </div>
                     </CanvasSection>
@@ -136,11 +165,32 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                             </CanvasSection>
                             {audioGenerationEnabled ? (
                                 <CanvasSection title="生成音频">
-                                    <div className="flex gap-1.5">
-                                        <SegmentedPill selected={!generateAudio} theme={theme} onClick={() => onConfigChange("videoGenerateAudio", "false")}>关闭</SegmentedPill>
-                                        <SegmentedPill selected={generateAudio} theme={theme} onClick={() => onConfigChange("videoGenerateAudio", "true")}>开启</SegmentedPill>
+                                    <div className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.subtleFill }}>
+                                        <button
+                                            type="button"
+                                            className="flex flex-1 items-center justify-center gap-1 rounded-md py-1 text-[10.8px] transition hover:opacity-80"
+                                            style={{ background: !generateAudio ? theme.toolbar.panel : "transparent", color: !generateAudio ? theme.toolbar.activeText : theme.node.muted }}
+                                            onMouseDown={(event) => event.stopPropagation()}
+                                            onClick={() => onConfigChange("videoGenerateAudio", "false")}
+                                        >
+                                            <VolumeX className="size-3.5" />
+                                            <span>关闭</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="flex flex-1 items-center justify-center gap-1 rounded-md py-1 text-[10.8px] transition hover:opacity-80"
+                                            style={{ background: generateAudio ? theme.toolbar.panel : "transparent", color: generateAudio ? theme.toolbar.activeText : theme.node.muted }}
+                                            onMouseDown={(event) => event.stopPropagation()}
+                                            onClick={() => onConfigChange("videoGenerateAudio", "true")}
+                                        >
+                                            <Volume2 className="size-3.5" />
+                                            <span>开启</span>
+                                        </button>
                                     </div>
-                                    {audioHint ? <div className="mt-1 text-[11px] leading-4 opacity-55">{audioHint}</div> : null}
+                                    <div className="mt-1 flex items-center gap-1 text-[10.8px] leading-4" style={{ color: theme.node.muted }}>
+                                        {generateAudio ? <Volume2 className="size-3 shrink-0" /> : <VolumeX className="size-3 shrink-0" />}
+                                        <span>{generateAudio ? "音频将随视频同步生成" : audioHint || "不会生成音频"}</span>
+                                    </div>
                                 </CanvasSection>
                             ) : null}
                             {watermarkEnabled ? (
@@ -168,7 +218,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                             placeholder="描述不希望出现在视频中的内容"
                             autoSize={{ minRows: 3, maxRows: 6 }}
                             className="rounded-xl placeholder:!text-[var(--canvas-placeholder)] placeholder:!opacity-55"
-                            style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text, "--canvas-placeholder": theme.node.placeholder } as CSSProperties}
+                            style={{ background: theme.node.subtleFill, borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text, "--canvas-placeholder": theme.node.placeholder } as CSSProperties}
                             onMouseDown={(event) => event.stopPropagation()}
                             onChange={(event) => onConfigChange("videoNegativePrompt", event.target.value)}
                         />
@@ -241,7 +291,8 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
 }
 
 export function videoResolutionLabel(value: string) {
-    return `${normalizeVideoResolutionValue(value)}p`;
+    const normalized = normalizeVideoResolutionValue(value);
+    return /k$/i.test(normalized) ? normalized : `${normalized}p`;
 }
 
 export function videoSizeRatioLabel(value: string) {
@@ -365,8 +416,8 @@ function AudioGenerationSetting({ checked, hint, theme, onChange }: { checked: b
 
 function CanvasSection({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <div className="space-y-2">
-            <div className="text-[11px] font-medium opacity-55">{title}</div>
+        <div className="space-y-1.5">
+            <div className="text-[10.8px] font-medium opacity-55">{title}</div>
             {children}
         </div>
     );

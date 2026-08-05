@@ -5,6 +5,71 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+## 视频节点底部输入条按钮分区调整
+
+按用户要求，将视频节点底部提示词面板（`canvas-node-prompt-panel.tsx` video 模式）的底部行调整为 5 个按钮分区：提示词库、模型选择、参数选择、摄像机、提交按钮。仅调整 `CanvasVideoSettingsPopover` 的触发区结构，不改 props 与数据流。
+
+### 可测试变更
+
+- `next/src/components/model-picker.tsx`：导出 `resolveModelIcon` 函数，供视频设置 popover 复用模型自带图标
+- `next/src/app/(user)/canvas/components/canvas-video-settings-popover.tsx`：
+  - 触发区由「Sparkles 图标 + 所有 segments 用 `·` 分隔平铺」改为两个独立按钮
+  - **模型按钮**：带模型自带图标（`resolveModelIcon`，如 glm/gpt/claude 等）+ 模型名，图标与模型名一体，点击弹模型下拉；无模型自带图标时回退到原 `buttonIcon` 或 `Sparkles`
+  - **参数按钮**：把非模型 segments（模式 · 比例 · 分辨率 · 时长 · 音频）合并成一个整体按钮，文字用 `·` 拼接，无外框（无边框无背景，仅 `theme.node.muted` 文字色），点击弹出原视频设置面板
+  - 移除不再使用的 `Fragment` import
+- `CanvasPromptLibrary`（提示词库）、`CanvasCameraControl`（摄像机）、提交按钮：本次未改动
+
+### 验证步骤
+
+1. 进入画布，创建视频节点，确认底部输入条从左到右：提示词库图标、模型按钮（带模型图标+模型名）、参数按钮（模式 · 比例 · 分辨率 · 时长...）、摄像机、提交按钮
+2. 确认模型按钮的图标随模型变化（如选 GLM 显示 glm.svg，选无图标模型回退 Sparkles）
+3. 点击模型按钮，确认弹出模型下拉，选择后模型名和图标更新
+4. 点击参数按钮，确认弹出视频设置面板（模式/比例/分辨率/时长等），修改后参数按钮文字更新
+5. 确认参数按钮无外框（无边框无背景），仅文字
+6. 确认摄像机、提交按钮功能不受影响
+7. 切换浅色/深色主题，确认模型按钮、参数按钮颜色适配
+
+## 画布底部助手输入条 UI 优化（可灵风格）
+
+参考可灵 Canvas 底部输入条样式，重做画布助手输入条为单行紧凑布局 + 可灵风格设置弹窗，仅改样式与布局，不修改 props 接口和数据流。
+
+### 可测试变更
+
+- 助手输入框高度从 `h-20` 缩减为 `h-16`
+- 底部操作行改为可灵风格单行紧凑布局（`min-h-8`，`gap-1.5`）：
+  - 左侧：`+` 添加素材按钮（图标化，去掉原 antd `Button` 圆形样式）+ 三个配置 chip
+  - 三个配置 chip：图片比例（`imageSizeLabel`）/ 视频比例（`videoSizeRatioLabel`）/ 视频清晰度（`videoResolutionLabel`），点击对应 chip 弹出设置弹窗
+  - 右侧：发送按钮改为可灵风格胶囊形（`rounded-full` + `px-3 py-1.5`），闪电图标 + 上箭头，主题反色（`background: theme.node.text`，`color: theme.toolbar.panel`）
+- 新增 `ComposerOptionChip` + `ComposerOptionPopover` 两个内部组件实现可灵风格弹窗：
+  - 弹窗浮在 chip 上方（`fixed` 定位，`createPortal` 到 body）
+  - 灰底 list 容器（`theme.node.fill`，圆角）+ 选项横向排列
+  - 选中项高亮：`theme.toolbar.activeText` + `theme.toolbar.panel` 背景
+  - 点击外部自动关闭，滚动/resize 自动同步位置
+- 所有颜色使用 `canvasThemes` token，不硬编码，适配浅色/深色主题
+- 配置 chip 选项常量内联在文件中（图片比例 9 项 / 视频比例 5 项 / 视频清晰度 3 项），选中后通过现有 `onAgentConfigChange` 写入 `agentConfig`
+- 移除未使用的 `useEffectiveConfig` / `useMemo` / `CanvasImageSettingsPopover` / `CanvasVideoSettingsPopover` / `Button` / `Upload` / `FolderOpen` / `Menu` 等 import 和死代码 `imageConfig` / `videoConfig`
+- `CanvasAssistantComposerProps` 接口完全不变，`agentConfig` 数据结构不变，调用方无需改动
+
+### 涉及文件
+
+- `next/src/app/(user)/canvas/components/canvas-assistant-composer.tsx`：重写主组件 + 新增 `ComposerOptionChip` / `ComposerOptionPopover` 内部组件
+
+### 验证步骤
+
+1. 进入画布，展开右侧助手面板，确认底部输入条为可灵风格单行紧凑布局
+2. 确认输入框高度比之前略小（`h-16`），placeholder 正常显示
+3. 确认底部行从左到右：`+` 添加素材按钮、图片比例 chip、视频比例 chip、视频清晰度 chip、占位、发送按钮（胶囊形 + 闪电 + 上箭头）
+4. 点击 `+` 按钮，确认弹出"上传文件 / 我的素材"菜单，功能正常
+5. 点击图片比例 chip，确认上方弹出可灵风格弹窗（灰底 list + 横向选项），当前选中项高亮
+6. 选择不同比例，确认弹窗关闭，chip 文字更新为所选比例
+7. 点击视频比例 chip / 视频清晰度 chip，确认弹窗正常弹出和选择
+8. 点击弹窗外部，确认弹窗自动关闭
+9. 拖动画布或滚动，确认已打开的弹窗位置自动跟随 chip
+10. 输入框为空时发送按钮 disabled（半透明），输入文字后可点击发送
+11. 运行中发送按钮变为停止按钮（方块图标）
+12. 切换浅色/深色主题，确认输入条、chip、弹窗、发送按钮颜色全部适配主题（无硬编码黑白）
+13. 确认引用素材 chip（`AssistantReferenceChip`）仍正常显示和删除
+
 ## 文本节点自动弹出 AI 输入框
 
 让右键新建文本节点与图片/视频节点行为一致，自动弹出下方 AI 输入框；输入框 placeholder 根据节点内是否有内容动态变化，空内容时提示用户可生成或在上方直接编辑。
