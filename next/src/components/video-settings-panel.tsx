@@ -11,9 +11,9 @@ import type { AdminModelCapability } from "@/services/api/admin";
 import { resolveAudioRequiresMode, resolveSupportsAudioGeneration, resolveSupportsNegativePrompt, resolveSupportsWatermark, resolveVideoModes, resolveVideoRatios, resolveVideoSecondsRange, type AiConfig } from "@/stores/use-config-store";
 
 const resolutionOptions = [
-    { value: "480", label: "480p" },
-    { value: "720", label: "720p" },
-    { value: "1080", label: "1080p" },
+    { value: "480", label: "480P" },
+    { value: "720", label: "720P" },
+    { value: "1080", label: "1080P" },
 ];
 
 const sizeOptions = [
@@ -49,7 +49,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
     const capResolutions = capabilities?.videoResolutions;
     const resolutionOptionsForRender = !capabilities
         ? resolutionOptions
-        : (capResolutions || []).map((r) => ({ value: r.replace(/p$/, ""), label: r }));
+        : (capResolutions || []).map((r) => ({ value: r.replace(/p$/i, ""), label: /p$/i.test(r) ? r.replace(/p$/i, "P") : r }));
     const showCustomResolutionInput = !!capabilities && resolutionOptionsForRender.length === 0;
 
     // 模式：videoModes 有值时显示
@@ -115,31 +115,31 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                         </CanvasSection>
                     ) : null}
                     <CanvasSection title="选择比例">
-                        <div className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.subtleFill }}>
+                        <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                             {ratioButtons.map((item) => {
                                 const isSmart = item.value === "auto" || item.value === "adaptive";
                                 const active = selectedSize === item.value;
-                                const iconColor = active ? theme.toolbar.activeText : theme.node.muted;
+                                const iconColor = theme.node.text;
                                 return (
                                     <button
                                         key={item.value}
                                         type="button"
-                                        className="flex flex-1 flex-col items-center justify-center gap-1 rounded-md py-1 text-[10.8px] leading-3 transition hover:opacity-80"
-                                        style={{ background: active ? theme.toolbar.panel : "transparent", color: active ? theme.toolbar.activeText : theme.node.muted }}
+                                        className="flex flex-1 flex-col items-center justify-center gap-1.5 rounded-md py-1 text-[9.6px] leading-3 transition hover:opacity-80"
+                                        style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                         onMouseDown={(event) => event.stopPropagation()}
                                         onClick={() => onConfigChange("size", item.value)}
                                     >
-                                        <span className="flex h-4 items-center justify-center">
-                                            {isSmart ? <SmartRatioIcon color={iconColor} /> : <SizePreview width={item.width} height={item.height} color={iconColor} />}
+                                        <span className="flex h-5 items-center justify-center">
+                                            <RatioIcon isSmart={isSmart} label={item.label} color={iconColor} />
                                         </span>
-                                        <span className="h-3 leading-3">{isSmart ? "智能" : item.label}</span>
+                                        <span className="leading-3">{isSmart ? "智能" : item.label}</span>
                                     </button>
                                 );
                             })}
                         </div>
                     </CanvasSection>
                     <CanvasSection title="选择分辨率">
-                        <div className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.subtleFill }}>
+                        <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                             {resolutionOptionsForRender.map((item) => {
                                 const active = resolution === item.value;
                                 return (
@@ -147,7 +147,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                         key={item.value}
                                         type="button"
                                         className="flex-1 rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
-                                        style={{ background: active ? theme.toolbar.panel : "transparent", color: active ? theme.toolbar.activeText : theme.node.muted }}
+                                        style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                         onMouseDown={(event) => event.stopPropagation()}
                                         onClick={() => onConfigChange("vquality", item.value)}
                                     >
@@ -165,11 +165,11 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                             </CanvasSection>
                             {audioGenerationEnabled ? (
                                 <CanvasSection title="生成音频">
-                                    <div className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.subtleFill }}>
+                                    <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                                         <button
                                             type="button"
-                                            className="flex flex-1 items-center justify-center gap-1 rounded-md py-1 text-[10.8px] transition hover:opacity-80"
-                                            style={{ background: !generateAudio ? theme.toolbar.panel : "transparent", color: !generateAudio ? theme.toolbar.activeText : theme.node.muted }}
+                                            className="flex flex-1 items-center justify-center gap-1 rounded-md py-1 text-[9.6px] transition hover:opacity-80"
+                                            style={{ background: !generateAudio ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: !generateAudio ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                             onMouseDown={(event) => event.stopPropagation()}
                                             onClick={() => onConfigChange("videoGenerateAudio", "false")}
                                         >
@@ -178,18 +178,14 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                         </button>
                                         <button
                                             type="button"
-                                            className="flex flex-1 items-center justify-center gap-1 rounded-md py-1 text-[10.8px] transition hover:opacity-80"
-                                            style={{ background: generateAudio ? theme.toolbar.panel : "transparent", color: generateAudio ? theme.toolbar.activeText : theme.node.muted }}
+                                            className="flex flex-1 items-center justify-center gap-1 rounded-md py-1 text-[9.6px] transition hover:opacity-80"
+                                            style={{ background: generateAudio ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: generateAudio ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                             onMouseDown={(event) => event.stopPropagation()}
                                             onClick={() => onConfigChange("videoGenerateAudio", "true")}
                                         >
                                             <Volume2 className="size-3.5" />
                                             <span>开启</span>
                                         </button>
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-1 text-[10.8px] leading-4" style={{ color: theme.node.muted }}>
-                                        {generateAudio ? <Volume2 className="size-3 shrink-0" /> : <VolumeX className="size-3 shrink-0" />}
-                                        <span>{generateAudio ? "音频将随视频同步生成" : audioHint || "不会生成音频"}</span>
                                     </div>
                                 </CanvasSection>
                             ) : null}
@@ -264,7 +260,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onClick={() => onConfigChange("size", item.value)}
                             >
-                                <SizePreview width={item.width} height={item.height} color={theme.node.text} />
+                                <RatioIcon isSmart={item.value === "auto" || item.value === "adaptive"} label={item.label} color={theme.node.text} />
                                 <span>{item.value === "auto" || item.value === "adaptive" ? item.value : item.label}</span>
                             </button>
                         ))}
@@ -292,7 +288,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
 
 export function videoResolutionLabel(value: string) {
     const normalized = normalizeVideoResolutionValue(value);
-    return /k$/i.test(normalized) ? normalized : `${normalized}p`;
+    return /k$/i.test(normalized) ? normalized : `${normalized}P`;
 }
 
 export function videoSizeRatioLabel(value: string) {
@@ -360,23 +356,21 @@ function SecondsSlider({ value, min, max, theme, onChange }: { value: number; mi
     );
 }
 
-function SizePreview({ width, height, color }: { width: number; height: number; color: string }) {
-    if (!width || !height) return null;
-    const longSide = Math.max(width, height);
-    const previewWidth = Math.max(6, Math.round((width / longSide) * 18));
-    const previewHeight = Math.max(6, Math.round((height / longSide) * 18));
-    return <span className="rounded-[3px] border-[1.5px]" style={{ width: previewWidth, height: previewHeight, borderColor: color }} />;
-}
-
-function SmartRatioIcon({ color }: { color: string }) {
+function RatioIcon({ isSmart, label, color }: { isSmart: boolean; label: string; color: string }) {
+    const iconName = isSmart ? "auto" : (label || "").replace(":", "-");
+    const svgUrl = `/ratios/${iconName}.svg`;
     return (
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
-            <rect x="4" y="4" width="10" height="10" rx="2" stroke={color} strokeWidth="1.5" />
-            <path d="M2 5V3C2 2.44772 2.44772 2 3 2H5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M16 5V3C16 2.44772 15.5523 2 15 2H13" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M2 13V15C2 15.5523 2.44772 16 3 16H5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M16 13V15C16 15.5523 15.5523 16 15 16H13" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        <span
+            className="shrink-0"
+            style={{
+                display: "inline-block",
+                width: 18,
+                height: 18,
+                backgroundColor: color,
+                mask: `url(${svgUrl}) no-repeat center / contain`,
+                WebkitMask: `url(${svgUrl}) no-repeat center / contain`,
+            }}
+        />
     );
 }
 
@@ -427,8 +421,8 @@ function SegmentedPill({ selected, theme, icon, onClick, children }: { selected:
     return (
         <button
             type="button"
-            className="flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border px-3 text-[13px] transition hover:opacity-80"
-            style={{ background: selected ? theme.toolbar.activeBg : "transparent", borderColor: selected ? theme.toolbar.activeBg : theme.node.stroke, color: selected ? theme.toolbar.activeText : theme.node.text }}
+            className="flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-[13px] transition hover:opacity-80"
+            style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}
         >
@@ -443,11 +437,11 @@ function RatioChip({ selected, theme, width, height, isSmart, onClick, children 
         <button
             type="button"
             className="inline-flex min-w-[40px] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] leading-3 transition hover:opacity-80"
-            style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: selected ? theme.toolbar.activeText : theme.node.text }}
+            style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}
         >
-            {isSmart ? <SmartRatioIcon color={selected ? theme.toolbar.activeText : theme.node.text} /> : <SizePreview width={width} height={height} color={selected ? theme.toolbar.activeText : theme.node.text} />}
+            {isSmart ? <RatioIcon isSmart label={typeof children === "string" ? children : ""} color={theme.node.text} /> : <RatioIcon isSmart={false} label={typeof children === "string" ? children : ""} color={theme.node.text} />}
             <span className="truncate">{children}</span>
         </button>
     );
@@ -457,8 +451,8 @@ function TextChip({ selected, theme, onClick, children }: { selected: boolean; t
     return (
         <button
             type="button"
-            className="cursor-pointer rounded-[10px] border px-3 py-1.5 text-xs transition hover:opacity-80"
-            style={{ background: selected ? theme.toolbar.activeBg : "transparent", borderColor: selected ? theme.toolbar.activeBg : theme.node.stroke, color: selected ? theme.toolbar.activeText : theme.node.text }}
+            className="cursor-pointer rounded-[10px] px-3 py-1.5 text-xs transition hover:opacity-80"
+            style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={onClick}
         >

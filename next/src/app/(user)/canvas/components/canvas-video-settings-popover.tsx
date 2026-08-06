@@ -137,11 +137,12 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
     return createPortal(
         <div ref={panelRef} className="canvas-image-settings-popover" style={style} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
             <div className="space-y-4">
+                <div className="text-lg font-semibold">视频设置</div>
                 {showFrameOrReference ? (
                     <>
-                        <div className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.subtleFill }}>
-                            <button type="button" className="flex flex-1 items-center justify-center rounded-md py-1 text-[10.8px] transition hover:opacity-80" style={{ background: activeTab === "frames" ? theme.toolbar.panel : "transparent", color: activeTab === "frames" ? theme.toolbar.activeText : theme.node.muted }} onMouseDown={(event) => event.stopPropagation()} onClick={() => setActiveTab("frames")}>首尾帧</button>
-                            <button type="button" className="flex flex-1 items-center justify-center rounded-md py-1 text-[10.8px] transition hover:opacity-80" style={{ background: activeTab === "reference" ? theme.toolbar.panel : "transparent", color: activeTab === "reference" ? theme.toolbar.activeText : theme.node.muted }} onMouseDown={(event) => event.stopPropagation()} onClick={() => setActiveTab("reference")}>全能参考</button>
+                        <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
+                            <button type="button" className="flex flex-1 items-center justify-center rounded-md py-1 text-[10.8px] transition hover:opacity-80" style={{ background: activeTab === "frames" ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: activeTab === "frames" ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }} onMouseDown={(event) => event.stopPropagation()} onClick={() => setActiveTab("frames")}>首尾帧</button>
+                            <button type="button" className="flex flex-1 items-center justify-center rounded-md py-1 text-[10.8px] transition hover:opacity-80" style={{ background: activeTab === "reference" ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: activeTab === "reference" ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }} onMouseDown={(event) => event.stopPropagation()} onClick={() => setActiveTab("reference")}>全能参考</button>
                         </div>
                         {activeTab === "frames" && hasFrames ? (
                             <div className="flex items-stretch gap-2">
@@ -171,7 +172,7 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
                 {!visualOnly && supportsElementList ? <KlingElementListSection items={elementList} options={mediaOptions} theme={theme} onChange={updateElementList} /> : null}
                 {!visualOnly && supportsMotionControl ? <CharacterOrientationSetting value={config.videoCharacterOrientation} theme={theme} onChange={(value) => onConfigChange("videoCharacterOrientation", value)} /> : null}
                 {!visualOnly && supportsMultiShot ? <AdvancedVideoSettings metadata={metadata} resourceOptions={resourceOptions} theme={theme} supportsMultiShot={supportsMultiShot} useKlingMultiShotBehavior={useKlingMultiShotBehavior} onMetadataChange={onMetadataChange} /> : null}
-                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle className="space-y-3" variant="canvas" visualOnly={visualOnly} capabilities={cap} />
+                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-3" variant="canvas" visualOnly={visualOnly} capabilities={cap} />
             </div>
         </div>,
         document.body,
@@ -318,7 +319,7 @@ function NumberField({ value, min, max, theme, onChange }: { value: string; min:
 }
 
 function OptionPill({ selected, theme, onClick, children }: { selected: boolean; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onClick: () => void; children: ReactNode }) {
-    return <button type="button" className="h-9 cursor-pointer rounded-full border px-2 text-sm transition hover:opacity-80" style={{ background: "transparent", borderColor: selected ? theme.node.text : theme.node.stroke, color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()} onClick={onClick}>{children}</button>;
+    return <button type="button" className="h-9 cursor-pointer rounded-full px-2 text-sm transition hover:opacity-80" style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()} onClick={onClick}>{children}</button>;
 }
 
 function CanvasSettingGroup({ title, color, children }: { title: string; color: string; children: ReactNode }) {
