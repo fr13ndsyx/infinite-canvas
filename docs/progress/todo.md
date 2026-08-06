@@ -16,6 +16,20 @@ description: 当前项目后续值得处理的事项
 - 触发条件：仅当用户在画布图像生成中选择 KIE 作为模型渠道，并上传参考图时才会调用
 - 不接 KIE 渠道时该代码不会执行，无副作用；如未来确定不使用 KIE，可删除相关适配逻辑（涉及 handler/service/router 多处）
 
+### 提示词批量上传
+
+- 状态：待实施
+- 方案文档：[prompt-batch-upload.md](./prompt-batch-upload.md)
+- 目标：管理后台提示词管理页新增「批量上传」入口，支持选择本地文件夹批量导入提示词（含 webp 图片 / webm 视频 / json 元数据）
+- 改动范围：后端 4 文件（admin handler + service + repository + router）+ 前端 3 文件（弹窗组件 + page + api）
+- 关键点：
+  - 新增 `POST /api/admin/prompts/batch` 批量创建接口
+  - 复用 `POST /api/v1/files` 上传媒体到 S3 兼容存储
+  - 按所选 source 内 prompt 文本去重
+  - 上传时选择已有来源或新建本地来源（remote:false 避免被同步覆盖）
+  - 详细进度展示 + 失败重试，媒体上传并发 5 个
+- 触发条件：管理员本地手动爬取高质量提示词后批量导入
+
 ### 提示词封面图本地化
 
 - 状态：暂不实施，上线后视情况优化
@@ -30,30 +44,20 @@ description: 当前项目后续值得处理的事项
 - 当前缓解：无（前端暂未做 onerror 降级处理）
 - 触发条件：上线后若用户反馈封面图大量失效，或运营商出于稳定性要求主动优化时再实施
 
-### 管理后台渠道管理拆分
+### 画布技能选择按钮
 
-- 状态：已实施，待测试（详见 [pending-test.md](./pending-test.md)）
-- 方案文档：[channels-page-split.md](./channels-page-split.md)
-- 目标：把"渠道配置"从系统设置页拆出来作为独立菜单项 `/admin/channels`，为后续模型能力配置腾出空间
-- 改动范围：新建 `channels/page.tsx` + 修改 `layout.tsx` + `settings/page.tsx`，后端零改动
+- 状态：待实施
+- 方案文档：[canvas-skill-button.md](./canvas-skill-button.md)
+- 目标：画布节点底部助手栏新增技能图标按钮（与提示词图标并列），一键应用预设技能（prompt 覆盖回填 + 节点参数应用）
+- 改动范围：后端新建 4 文件（model/repository/service/handler）+ 修改 3 文件（router/db.go/文档）；前端新建 3 文件（api/技能按钮组件/管理后台页）+ 修改 2 文件（助手栏/菜单）
 - 关键点：
-  - 沿用整体保存模式（不新增单渠道 CRUD API）
-  - 沿用 Channel Drawer，不改为独立编辑页
-  - 拆分后系统设置页私有 tab 仅保留同步/日志/存储三块
-- 执行顺序：先于"模型能力配置"
-
-### 生图/视频模型能力配置
-
-- 状态：已实施，待测试（详见 [pending-test.md](./pending-test.md)）
-- 方案文档：[model-capabilities-refactor.md](./model-capabilities-refactor.md)
-- 目标：管理后台支持勾选每个模型支持的比例和清晰度档位，前端工作台按模型能力动态渲染选项
-- 改动范围：后端 2 文件（setting.go + service）+ 前端 6 文件（admin.ts + settings-shared + model-pricing + store + 2 个工作台 panel）
-- 关键点：
-  - 新增 `ModelCapability` 结构（`imageAspects` / `imageTiers` / `videoResolutions` / `videoSecondsMin` / `videoSecondsMax`）
-  - 空字段走保守默认（生图=全比例+仅标准档，视频=480p/720p/1080p，秒数=4-20）
-  - 切换模型时自动回退不支持的尺寸/档位/秒数
-- 待办：专属面板（Kling V26/V3/Seedance/Grok/Motion Control）的面板类型、厂商、模式、比例、能力开关、音频限制已接入后台 `ModelCapability`（详见 [pending-test.md](./pending-test.md)「视频专属面板能力后台化重构」）。画布视频设置弹窗已改为完全能力开关驱动（详见 [pending-test.md](./pending-test.md)「画布视频设置弹窗改为能力开关驱动」），`panelType` 仅控制请求体格式不再控制 UI 显隐。模型能力卡片已拆为「图片模型能力」+「视频模型能力」两张，秒数统一走 Slider（已删除秒数预设档位），视频创作台任务数量输入框已移除（详见 [pending-test.md](./pending-test.md)「模型能力配置拆分与任务数量移除」）。Seedance 分辨率死代码清理、Seedance 参考素材数量限制后台化已完成（详见 [pending-test.md](./pending-test.md)「Seedance 分辨率与参考素材限制后台化收尾」）。剩余项：
-  - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造暂未实施，后续按需补
+  - 新建 `skills` 表（id/title/summary/types/prompt/option/sortOrder/enabled）
+  - 技能按节点类型筛选显示（Image→图片+全景节点，Video→视频节点，Text→文本节点，音频节点不显示）
+  - 选中后 prompt 覆盖回填输入框 + option 映射到节点 metadata（aspectRatio→size，resolution→quality/vquality）
+  - 技能不指定 model，用节点当前模型
+  - 轻量小弹窗（与模型选择器大小一致）
+  - 管理后台 CRUD 维护
+- 待用户补充：35 个技能的 prompt 字段内容
 
 ### 画布 Agent 行为风格可配置
 

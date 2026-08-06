@@ -1,0 +1,352 @@
+[
+  {
+    "id": "8d0c292c-10c1-4d85-a67d-beab7f2e7a87",
+    "title": "16宫格连贯分镜图",
+    "summary": "推演 16 宫格连贯剧情分镜图",
+    "types": [
+      "Image"
+    ],
+    "option": {
+      "model": "Nano-banana2",
+      "aspectRatio": "auto"
+    }
+  },
+  {
+    "id": "5dafa02d-d483-45f1-a9c4-4d5c0e1e4164",
+    "title": "25宫格连贯分镜图",
+    "summary": "推演 25 宫格连贯剧情分镜图",
+    "types": [
+      "Image"
+    ],
+    "option": {
+      "model": "Nano-banana2",
+      "aspectRatio": "auto"
+    }
+  },
+  {
+    "id": "b4fb08c3-2261-4a34-9eb8-b9add2500e16",
+    "title": "720全景图",
+    "summary": "根据需求生成360°全景图",
+    "types": [
+      "Image"
+    ],
+    "option": {
+      "model": "Nano-banana-pro",
+      "resolution": "4K",
+      "aspectRatio": "21:9"
+    }
+  },
+  {
+    "id": "1bdcb576-3a4c-4254-ab3f-267e2e88a053",
+    "title": "电影级光影矫正",
+    "summary": "一键仅调整光照/曝光/色温，不改变画面内容",
+    "types": [
+      "Image"
+    ],
+    "option": {
+      "model": "Nano-banana2",
+      "aspectRatio": "auto"
+    }
+  },
+  {
+    "id": "ca9d03dd-6f20-475e-88bb-9cddfb7467c3",
+    "title": "翻译",
+    "summary": "中英双向互译，精准贴合语境语义",
+    "types": [
+      "Text"
+    ],
+    "option": null
+  },
+  {
+    "id": "f70a774f-3915-42d6-afe5-8f99cd2bb6af",
+    "title": "故事板",
+    "summary": "一键生成专业影视故事板分镜",
+    "types": [
+      "Image"
+    ],
+    "option": {
+      "model": "GPT-image2",
+      "resolution": "4K",
+      "aspectRatio": "16:9"
+    }
+  },
+  {
+    "id": "5aec66c2-d6f7-497b-9626-ff6d385d523e",
+    "title": "画面推演 - 3秒后",
+    "summary": "基于物理逻辑，生成3秒后的动作结果。",
+    "types": [
+      "Image"
+    ],
+    "option": null
+  },
+  {
+    "id": "4ef9f8d3-783d-4be9-a358-542c685e67a9",
+    "title": "画面推演 - 5秒前",
+    "summary": "基于物理逻辑，反推5秒前的动作起因。",
+    "types": [
+      "Image"
+    ],
+    "option": null
+  },
+  {
+    "id": "5e2fb06f-7ff5-4c9b-9151-e51154130e1b",
+    "title": "角色三视图",
+    "summary": "一键生成角色三视图（正面/侧面/背面）。",
+    "types": [
+      "Image"
+    ],
+    "option": {
+      "model": "Nano-banana2",
+      "aspectRatio": "16:9"
+    }
+  },
+  {
+    "id": "26847823-1ff2-4b98-a19b-54029d035ed6",
+    "title": "情节9宫格",
+    "summary": "根据情景推演 9 宫格分镜图",
+    "types": [
+      "Image"
+    ],
+    "option": {
+      "model": "Nano-banana2",
+      "aspectRatio": "auto"
+    }
+  },
+  {
+    "id": "d1848dc9-a3e8-46d2-b629-a77f61e63895",
+    "title": "全景9宫格",
+    "summary": "生成不同景别、角度的 9 宫格图",
+    "types": [
+      "Image"
+    ],
+    "option": {
+      "model": "Nano-banana2",
+      "aspectRatio": "auto"
+    }
+  },
+  {
+    "id": "37cb32a5-bc18-4872-9ee8-d9b1f4bdc33e",
+    "title": "文本扩写丰富",
+    "summary": "保留原意补细节，自然扩充内容篇幅",
+    "types": [
+      "Text"
+    ],
+    "option": null
+  },
+  {
+    "id": "1a74dc91-3a3f-4aa0-b487-6f43826f296f",
+    "title": "运镜 - 变焦聚焦",
+    "summary": "机身保持静止，镜头光学匀速变焦收紧聚焦主体细节",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "c96df80e-9ace-48a8-a213-623a60e5ba9c",
+    "title": "运镜 - 变焦拉广",
+    "summary": "机位固定不动，镜头光学缓慢变焦拉远扩大全景视野",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "470e7c32-b0d6-431c-aff9-789b3ac0123b",
+    "title": "运镜 - 低空航拍",
+    "summary": "低空模拟无人机柔和平稳飞行巡航，画面细腻电影质感",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "2233e937-6786-421c-860f-57be7466794a",
+    "title": "运镜 - 第一视角",
+    "summary": "模拟真人肉眼自然视野，沉浸式主观第一人称拍摄视角",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "b920f722-ba8b-4385-bfba-01849d20043c",
+    "title": "运镜 - 高空俯拍",
+    "summary": "超高空上帝视角全景俯瞰取景，画面宏大开阔构图震撼",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "331cb21d-b35b-4d72-bf22-b9eeee3fa72e",
+    "title": "运镜 - 跟随拍摄",
+    "summary": "云台防抖锁定主体，全程顺滑智能追踪对焦",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "10a11b6b-3185-4a58-a39f-8d24446314c3",
+    "title": "运镜 - 固定镜头",
+    "summary": "机位全程锁死静止不动，画面高度稳定构图规整",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "d4feb803-67cf-4b6d-b044-9158420e7733",
+    "title": "运镜 - 轨道右移",
+    "summary": "设备沿轨道匀速水平向右平稳移动",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "f6ef4be8-acf4-44b0-b20f-9a651b67ae9c",
+    "title": "运镜 - 轨道左移",
+    "summary": "机位沿轨道平行向左顺滑平移",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "af7000e7-d392-4da3-b659-31b5f4819199",
+    "title": "运镜 - 滚筒旋转",
+    "summary": "镜头沿机身轴向完整顺滑滚筒翻转，画面无撕裂无畸变",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "27388059-1a13-4b07-839f-5e7f1341f1c4",
+    "title": "运镜 - 环绕拍摄",
+    "summary": "以恒定半径围绕主体 360 度匀速完整环绕转动拍摄",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "aa338c91-0ae6-4c86-8456-1ca2636b8f2a",
+    "title": "运镜 - 机位上升",
+    "summary": "整机机位垂直向上匀速抬升，主体始终居中构图",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "62bb20c6-3de2-43c4-8f0a-bf5f689fbd03",
+    "title": "运镜 - 机位下降",
+    "summary": "整套设备垂直缓慢下沉降落，画面构图保持稳定不变",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "ac163c23-b953-497c-b22a-b8cba714718c",
+    "title": "运镜 - 镜头上摇",
+    "summary": "机位底座固定不动，镜头缓慢垂直向上柔和摇动",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "9bca1faa-6e72-4048-8a54-6bff8b5388cf",
+    "title": "运镜 - 镜头下摇",
+    "summary": "机位保持静止，镜头平缓垂直向下匀速摇动过渡",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "eb2d9c84-0491-466b-a22e-44365cdfa555",
+    "title": "运镜 - 镜头右摇",
+    "summary": "机位全程不变，镜头水平向右顺滑匀速全景摇动",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "7ec4ba0a-ef88-42d3-8ecb-326c9a52ff63",
+    "title": "运镜 - 镜头左摇",
+    "summary": "机身位置固定，镜头水平向左全景缓慢平稳转动",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "70e9c2ec-a858-49e0-9ec1-d5840b30f262",
+    "title": "运镜 - 柯克变焦",
+    "summary": "机位向后缓慢移动同时镜头向前变焦，营造经典透视特效",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "65ef4b02-97f8-4cbd-a47a-69a29529e850",
+    "title": "运镜 - 盘旋抬升",
+    "summary": "环绕主体匀速圆周运动，同时镜头缓慢垂直抬升",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "f11db2be-7507-495c-99c9-b739baf30d42",
+    "title": "运镜 - 盘旋下降",
+    "summary": "围绕主体平稳环绕转动，镜头同步缓慢垂直下沉",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "383d5ca8-d4ef-4bfe-9414-b0f5db30a496",
+    "title": "运镜 - 手持纪实",
+    "summary": "模拟真人自然手持相机轻微呼吸晃动，还原纪实真实质感",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "27c980ab-12d9-4548-8399-1828d84449aa",
+    "title": "运镜 - 向后拉远",
+    "summary": "整机匀速向后缓慢拉远取景，视野逐步拓宽画面纯净整洁",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "b38c3940-bef5-4f48-82cc-d1a3176405dd",
+    "title": "运镜 - 向前推进",
+    "summary": "整机匀速向前缓慢推进靠近主体",
+    "types": [
+      "Video"
+    ],
+    "option": null
+  },
+  {
+    "id": "f8dfe13e-9c2d-4dfd-a59a-246cabb0e9fd",
+    "title": "自动润色文本",
+    "summary": "修正语病错字，优化语句流畅自然",
+    "types": [
+      "Text"
+    ],
+    "option": null
+  }
+]
