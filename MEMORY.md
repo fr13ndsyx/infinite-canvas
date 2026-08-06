@@ -31,6 +31,21 @@
 - 新增文档：docs/canvas/canvas-assistant-bar-ui.md（底部助手栏 UI 规范）
 - 待验证：模型介绍字段后端未提供，ModelLabel 目前是占位 `&nbsp;`
 
+## feat/canvas-optimize 合并（2026-08-06）
+- 合并到 main，提交 57f32f8
+- 改动范围：视频节点参数弹窗 UI 优化（canvas-video-settings-popover.tsx + video-settings-panel.tsx）
+- 关键变更：
+  - 视频设置标题移到弹窗最顶部（之前在 VideoSettingsPanel 内部）
+  - 切换选项改为 iOS26 玻璃拟态分段控件样式：容器 subtleFill 背景 + 白色实心滑块（node.panel）+ 选中项阴影 0 2px 8px rgba(0,0,0,0.12)
+  - 四个切换框（首尾帧/比例/分辨率/音频）统一 min-h-[52px] 高度，去除拥挤感
+  - 字体统一黑色（theme.node.text），不靠字体颜色强调选中态
+  - 比例/音频按钮字号 10.8px → 9.6px，分辨率保持 10.8px
+  - 分辨率小写 p 改大写 P（含 capabilities 数据源处理）
+  - 删除 SmartRatioIcon（手绘星星）和 SizePreview（动态矩形），统一为 RatioIcon 组件
+  - RatioIcon 用 CSS mask 加载 /ratios/{比例}.svg，颜色跟随 theme.node.text 自动适配深浅模式
+  - 新增 next/public/ratios/ 目录存放 10 个比例 SVG 图标（auto/16-9/9-16/1-1/4-3/3-4/21-9/2-3/3-2/16-1）
+- 涉及文件：canvas-video-settings-popover.tsx、video-settings-panel.tsx、next/public/ratios/*.svg
+
 ## UI 重构优化约定（2026-08-04，用户明确）
 - 参考截图/设计图**只看 UI 布局与结构**，不要照搬颜色
 - 画布 UI 颜色一律用 `canvasThemes` 主题 token（light/dark 两套），选中态高亮用 `toolbar.activeBg`/`activeText`/`activeStroke`，禁止硬编码 orange/black/stone 等固定色
