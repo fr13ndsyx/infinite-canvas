@@ -132,7 +132,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                         <span className="flex h-5 items-center justify-center">
                                             <RatioIcon isSmart={isSmart} label={item.label} color={iconColor} />
                                         </span>
-                                        <span className="leading-3">{isSmart ? "智能" : item.label}</span>
+                                        <span className="text-[9px] leading-3">{isSmart ? "智能" : item.label}</span>
                                     </button>
                                 );
                             })}
@@ -356,7 +356,7 @@ function SecondsSlider({ value, min, max, theme, onChange }: { value: number; mi
     );
 }
 
-function RatioIcon({ isSmart, label, color }: { isSmart: boolean; label: string; color: string }) {
+export function RatioIcon({ isSmart, label, color }: { isSmart: boolean; label: string; color: string }) {
     const iconName = isSmart ? "auto" : (label || "").replace(":", "-");
     const svgUrl = `/ratios/${iconName}.svg`;
     return (
@@ -408,7 +408,7 @@ function AudioGenerationSetting({ checked, hint, theme, onChange }: { checked: b
     );
 }
 
-function CanvasSection({ title, children }: { title: string; children: ReactNode }) {
+export function CanvasSection({ title, children }: { title: string; children: ReactNode }) {
     return (
         <div className="space-y-1.5">
             <div className="text-[10.8px] font-medium opacity-55">{title}</div>

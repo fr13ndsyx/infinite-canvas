@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, type ReactNode, useState } from "react";
-import { ConfigProvider, Segmented, Slider } from "antd";
+import { ConfigProvider, Slider } from "antd";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AdminModelCapability } from "@/services/api/admin";
 import type { AiConfig } from "@/stores/use-config-store";
+import { CanvasSection, RatioIcon } from "@/components/video-settings-panel";
 
 const aspectOptions = [
     { value: "1:1", label: "1:1", width: 1024, height: 1024, icon: "square", tier: "standard" as const },
@@ -106,47 +107,62 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
             >
                 {showTitle ? <div className="text-lg font-semibold">图像设置</div> : null}
                 {showSize ? (
-                    <div className="space-y-2.5">
-                        <div className="flex items-center justify-between gap-3">
-                            <SettingTitle color={theme.node.muted}>比例</SettingTitle>
-                            {tierOptions.length >= 1 ? (
-                                <span onMouseDown={(event) => event.stopPropagation()}>
-                                    <Segmented
-                                        size="small"
-                                        value={effectiveResolutionTier}
-                                        onChange={(value) => changeResolutionTier(value as "standard" | "2k" | "4k")}
-                                        options={tierOptions}
-                                    />
-                                </span>
-                            ) : null}
-                        </div>
-                        <div className="grid grid-cols-4 gap-2.5">
-                            {visibleAspects.map((item) => (
-                                <button
-                                    key={item.value}
-                                    type="button"
-                                    className="flex h-[72px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border bg-transparent text-xs transition hover:opacity-80"
-                                    style={{ borderColor: selectedAspect?.value === item.value ? theme.node.text : theme.node.stroke, background: "transparent", color: theme.node.text }}
-                                    onMouseDown={(event) => event.stopPropagation()}
-                                    onClick={() => selectAspect(item.value)}
-                                >
-                                    <AspectIcon type={item.icon} width={item.width} height={item.height} color={theme.node.text} />
-                                    <span>{item.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    <>
+                        {tierOptions.length >= 1 ? (
+                            <CanvasSection title="分辨率档位">
+                                <div className="flex min-h-[44px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
+                                    {tierOptions.map((item) => {
+                                        const active = effectiveResolutionTier === item.value;
+                                        return (
+                                            <button
+                                                key={item.value}
+                                                type="button"
+                                                className="flex-1 rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
+                                                style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                                onMouseDown={(event) => event.stopPropagation()}
+                                                onClick={() => changeResolutionTier(item.value as "standard" | "2k" | "4k")}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </CanvasSection>
+                        ) : null}
+                        <CanvasSection title="选择比例">
+                            <div className="grid grid-cols-4 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
+                                {visibleAspects.map((item) => {
+                                    const isSmart = item.value === "auto";
+                                    const active = selectedAspect?.value === item.value;
+                                    return (
+                                        <button
+                                            key={item.value}
+                                            type="button"
+                                            className="flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md py-1 text-[9px] leading-3 transition hover:opacity-80"
+                                            style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                            onMouseDown={(event) => event.stopPropagation()}
+                                            onClick={() => selectAspect(item.value)}
+                                        >
+                                            <span className="flex h-5 items-center justify-center">
+                                                <RatioIcon isSmart={isSmart} label={item.label} color={theme.node.text} />
+                                            </span>
+                                            <span>{isSmart ? "智能" : item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </CanvasSection>
+                    </>
                 ) : null}
                 {showCount ? (
-                    <div className="space-y-2.5">
-                        <div className="flex items-center justify-between gap-3">
-                            <SettingTitle color={theme.node.text}>生成数量</SettingTitle>
-                            <span className="text-xs tabular-nums" style={{ color: theme.node.text }}>{count} 张</span>
+                    <CanvasSection title="生成数量">
+                        <div className="flex items-center justify-between gap-3 px-1">
+                            <span className="text-[10.8px] tabular-nums" style={{ color: theme.node.text }}>{count} 张</span>
                         </div>
                         <div onMouseDown={(event) => event.stopPropagation()}>
                             <Slider min={1} max={maxCount} value={count} onChange={(value) => onConfigChange("count", String(value))} tooltip={{ formatter: (value) => `${value} 张`, color: theme.node.text }} />
                         </div>
-                    </div>
+                    </CanvasSection>
                 ) : null}
             </div>
         </ImageSettingsTheme>
@@ -168,26 +184,6 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
 
 export function imageSizeLabel(size: string) {
     return aspectOptions.find((item) => (item.size || item.value) === size || item.value === size)?.label || size;
-}
-
-function AspectIcon({ type, width, height, color }: { type: string; width: number; height: number; color: string }) {
-    if (type === "auto") return null;
-    const ratio = width / Math.max(1, height);
-    const boxWidth = ratio >= 1 ? 18 : Math.max(8, 18 * ratio);
-    const boxHeight = ratio >= 1 ? Math.max(8, 18 / ratio) : 18;
-    return (
-        <span className="grid h-5 w-7 place-items-center">
-            <span className="border-2" style={{ width: boxWidth, height: boxHeight, borderColor: color }} />
-        </span>
-    );
-}
-
-function SettingTitle({ children, color }: { children: string; color: string }) {
-    return (
-        <div className="text-xs font-medium" style={{ color }}>
-            {children}
-        </div>
-    );
 }
 
 export function imageFormatLabel(format: string) {

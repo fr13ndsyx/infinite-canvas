@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { App, Button } from "antd";
-import { Check, ChevronDown, Cpu } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -197,29 +197,42 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
 
 function ModelLabel({ model }: { model: string; channelName?: string }) {
     return (
-        <span className="flex min-w-0 flex-1 items-center gap-2.5">
-            <ModelIcon model={model} />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-[13px] font-medium leading-[18px]">{model}</span>
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <ModelIcon model={model} size="size-6" />
+            <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[14px] font-medium leading-none">{model}</span>
                 {/* 模型介绍占位，后端加字段后填充 */}
-                <span className="truncate text-[11px] leading-[16px] opacity-50">&nbsp;</span>
+                <span className="truncate text-[10px] leading-none opacity-50">&nbsp;</span>
             </span>
         </span>
     );
 }
 
-function ModelIcon({ model }: { model: string }) {
+function ModelIcon({ model, size = "size-3" }: { model: string; size?: string }) {
     const icon = resolveModelIcon(model);
-    return icon ? <img src={icon} alt="" className="size-3 shrink-0 dark:invert" /> : <Cpu className="size-3 shrink-0 opacity-70" />;
+    return <img src={icon} alt="" className={`${size} shrink-0 dark:invert`} />;
 }
 
 export function resolveModelIcon(model: string) {
     const name = model.toLowerCase();
     if (name.includes("claude") || name.includes("anthropic")) return "/icons/claude.svg";
-    if (name.includes("gemini") || name.includes("google")) return "/icons/gemini.svg";
-    if (name.includes("gpt") || name.includes("openai")) return "/icons/openai.svg";
-    if (name.includes("grok") || name.includes("grok")) return "/icons/grok.svg";
-    if (name.includes("deepseek") || name.includes("deepseek")) return "/icons/deepseek.svg";
-    if (name.includes("glm") || name.includes("glm")) return "/icons/glm.svg";
-    return "";
+    if (name.includes("gemini") || name.includes("imagen") || name.includes("veo")) return "/icons/gemini.svg";
+    if (name.includes("nano") && name.includes("banana")) return "/icons/nano-banana.svg";
+    if (name.includes("gpt") || name.includes("openai")) return "/icons/gpt.svg";
+    if (name.includes("sora")) return "/icons/sora.svg";
+    if (name.includes("grok") || name.includes("xai")) return "/icons/grok.svg";
+    if (name.includes("deepseek")) return "/icons/deepseek.svg";
+    if (name.includes("glm") || name.includes("zhipu") || name.includes("chatglm")) return "/icons/glm.svg";
+    if (name.includes("qwen") || name.includes("tongyi") || name.includes("wanxiang")) return "/icons/qwen.svg";
+    if (name.includes("hunyuan")) return "/icons/hunyuan.svg";
+    if (name.includes("kimi") || name.includes("moonshot")) return "/icons/kimi.svg";
+    if (name.includes("kling") || name.includes("keling")) return "/icons/keling.svg";
+    if (name.includes("mimo") || name.includes("miaomi")) return "/icons/xiaomi.svg";
+    if (name.includes("minimax")) return "/icons/minimax.svg";
+    if (name.includes("hailuo")) return "/icons/hailuo.svg";
+    if (name.includes("flux")) return "/icons/flux.svg";
+    if (name.includes("midjourney") || name.includes("mj")) return "/icons/midjourney.svg";
+    if (name.includes("pixverse")) return "/icons/pixverse.svg";
+    if (name.includes("seedream") || name.includes("doubao") || name.includes("seedance")) return "/icons/seedream.svg";
+    return "/icons/auto.svg";
 }
