@@ -13,6 +13,23 @@
 - `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
 
+## feat/canvas-optimize 合并（2026-08-07）
+- 合并到 main，提交 2608c96 → merge 16f82f8
+- 改动范围：模型图标库扩充 + 画布节点参数弹窗样式统一 + 模型下拉项布局
+- 关键变更：
+  - 模型图标库：next/public/icons/ 从 6 个扩充到 20 个 SVG（claude/gpt/gemini/grok/deepseek/glm/qwen/hunyuan/kimi/keling/flux/midjourney/pixverse/seedream/sora/minimax/hailuo/nano-banana/xiaomi/auto），统一小写命名；删除原 openai.svg 改名 gpt.svg
+  - resolveModelIcon：按厂商/模型关键字映射（claude/gemini+imagen+veo/nano banana/gpt+openai/sora/grok+xai/deepseek/glm+zhipu+chatglm/qwen+tongyi+wanxiang/hunyuan/kimi+moonshot/kling+keling/mimo+miaomi/minimax/hailuo/flux/midjourney+mj/pixverse/seedream+doubao+seedance），未匹配走 auto.svg 兜底（不再 fallback 到 Cpu 图标）
+  - ModelIcon 组件新增 size 参数：底部助手栏保持 size-3（12px），下拉项 size-6（24px）
+  - ModelLabel 下拉项布局：图标 24px = 主标题 14px + 副标题 10px（leading-none，无 gap，严格垂直对齐）
+  - 比例图标统一：图片节点从 AspectIcon（CSS 边框矩形）改为 RatioIcon（SVG），与视频节点统一；智能比例（auto）显示 auto.svg 图标 + "智能"文字（原图片节点智能比例返回 null 不显示图标）
+  - CanvasSection 组件 export 供图片/音频面板复用
+  - 图片节点弹窗（image-settings-panel.tsx）：分辨率档位从 antd Segmented 改为横向分段（subtleFill 容器 + 实心选中）；比例从 grid 描边按钮改为 subtleFill 容器 + 实心选中；生成数量标题改用 CanvasSection；删除 SettingTitle 和 Segmented import
+  - 音频节点弹窗（audio-settings-panel.tsx）：声音/格式/语速从 OptionPill 描边按钮改为 subtleFill 容器 + 实心选中；声音改 grid 4 列，格式 grid 3 列，语速横向 flex；删除 OptionPill、SettingGroup、ReactNode import
+  - 弹窗间距：图片/音频弹窗 space-y-4 改为 space-y-3，与视频节点一致
+  - 视频节点弹窗比例图标下方文字：9.6px → 9px
+- 涉及文件：model-picker.tsx、video-settings-panel.tsx、image-settings-panel.tsx、audio-settings-panel.tsx、canvas-image-settings-popover.tsx、canvas-audio-settings-popover.tsx、next/public/icons/*.svg
+- 待验证：模型下拉项图标与两行文字对齐效果、图片/音频弹窗样式与视频节点一致性、智能比例 auto.svg 显示
+
 ## feat/canvas-ui-optimize 合并（2026-08-05）
 - 合并到 main，提交 a6910e9
 - 改动范围：画布所有节点底部助手栏 + 模型下拉 + 参数弹窗
