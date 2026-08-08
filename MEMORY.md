@@ -13,6 +13,35 @@
 - `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
 
+## canvas-opt-v3 合并（2026-08-09）
+- 分支：canvas-opt-v3 → main（fast-forward，commit e3eed82）
+- 改动范围：画布节点输入框/底部助手栏/连接线/模型下拉/@ 引用菜单与芯片
+- 关键变更：
+  - 统一所有节点下方输入框宽度为 580px（原图片/视频 580px、其他 500px），不随节点尺寸缩放
+  - 底部助手栏下拉菜单与弹窗添加 1px solid `theme.toolbar.border` 边框，区分与输入框背景的层次
+  - 节点操作行摄像机按钮图标替换为自定义 `/public/camera.svg`，深色模式 `dark:invert` 自动反色
+  - @ 引用文本节点排序改为按节点创建顺序（title 自然排序：文本1、文本2…文本10），删除后新建节点 title 取 max+1，排序保持创建顺序
+  - 模型下拉菜单项交互重构：图标 25px + 主标题 15px + 副标题 9px（默认隐藏，hover 时主标题 translateY 上移并淡入副标题），总高度 25px 与图标对齐，动画 200ms ease-out
+  - 连接线电流呼吸效果：active 连线硬编码 `#2f80ff`（与节点选中边框一致），叠加流动虚线光流 `strokeDasharray="4,12"` + drop-shadow 蓝色光晕，呼吸动画 1.6s ease-in-out
+  - 选中/悬停节点时连线显示蓝色电流流动效果；在 `finishNodeDrag` 的 wasClick 分支补充 `setHoveredNodeId(clickedNodeId)` 恢复点击后 hover 状态
+  - @ 引用菜单副标题（文本节点内容预览）字号从继承的 12px 调整为 10px，主标题（节点名称）保持 12px
+  - 配置节点（canvas-config-composer）引用芯片显示改为节点名称（input.title），与节点下方输入框芯片保持一致；hover 通过 title 属性查看完整内容
+- 涉及文件：
+  - `canvas-config-composer.tsx`、`canvas-connections.tsx`、`canvas-node.tsx`、`canvas-prompt-chip-input.tsx`、`canvas-resource-mention-textarea.tsx`、`canvas-client-page.tsx`、`canvas-camera-control.tsx`、`canvas-image-settings-popover.tsx`、`canvas-audio-settings-popover.tsx`、`canvas-video-settings-popover.tsx`
+  - `utils/canvas-resource-references.ts`（新增 `naturalCompare` + `compareNodeTitleNatural`）
+  - `components/model-picker.tsx`（ModelLabel 两行动画）
+  - `app/globals.css`（新增 `canvas-connection-breathe` / `canvas-connection-electric` / `canvas-connection-flow` keyframes）
+  - `next/public/camera.svg`（新增图标）
+- 待验证：
+  - 节点输入框宽度统一 580px 且不随节点缩放变化
+  - 底部助手栏下拉菜单/弹窗边框在浅色/深色主题下都清晰可辨
+  - 摄像机图标在深色模式自动反色
+  - @ 引用文本节点按 1,2,4,5 顺序排列（删除 3 后新建为 5）
+  - 模型下拉菜单 hover 时主标题上移 + 副标题淡入动画流畅，默认副标题不占布局
+  - 选中/悬停节点时相连线显示蓝色电流流动效果
+  - @ 引用菜单副标题字号 10px 比主标题明显小
+  - 配置节点引用芯片显示节点名称而非内容
+
 ## feat/canvas-optimize 合并（2026-08-07）
 - 合并到 main，提交 2608c96 → merge 16f82f8
 - 改动范围：模型图标库扩充 + 画布节点参数弹窗样式统一 + 模型下拉项布局
