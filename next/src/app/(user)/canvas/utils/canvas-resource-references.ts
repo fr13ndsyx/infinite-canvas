@@ -1,5 +1,3 @@
-import { imageReferenceLabel } from "@/lib/image-reference-prompt";
-import { seedanceReferenceLabel } from "@/lib/seedance-video";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "../types";
 import { isCanvasImageNodeType } from "./canvas-panorama";
 
@@ -58,32 +56,22 @@ function getConnectedConfigResourceNodes(nodeId: string, nodes: CanvasNodeData[]
 }
 
 function labelResourceNodes(nodes: CanvasNodeData[], active: boolean) {
-    const counts: Record<CanvasResourceKind, number> = { image: 0, video: 0, audio: 0, text: 0 };
     return nodes.flatMap((node): CanvasResourceReference[] => {
         const kind = resourceKind(node);
         if (!kind) return [];
-        const index = counts[kind]++;
-        const label = labelForKind(kind, index);
         return [
             {
                 id: node.id,
                 nodeId: node.id,
                 kind,
-                label,
-                title: node.title || label,
+                label: node.title || "",
+                title: node.title || "",
                 previewUrl: node.metadata?.content,
                 text: node.type === CanvasNodeType.Text ? node.metadata?.content || node.metadata?.prompt : undefined,
                 active,
             },
         ];
     });
-}
-
-function labelForKind(kind: CanvasResourceKind, index: number) {
-    if (kind === "image") return imageReferenceLabel(index);
-    if (kind === "video") return seedanceReferenceLabel("video", index);
-    if (kind === "audio") return seedanceReferenceLabel("audio", index);
-    return `文本${index + 1}`;
 }
 
 function isResourceNode(node: CanvasNodeData) {
