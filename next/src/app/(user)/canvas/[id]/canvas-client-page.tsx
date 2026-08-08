@@ -27,7 +27,7 @@ import { applyCameraPrompt } from "../utils/canvas-camera";
 import { GROUP_PADDING, findContainingGroupId, findGroupDropTarget, getNodeBounds, snapNodesIntoGroup } from "../utils/canvas-group";
 import { App, Button, Dropdown, Modal } from "antd";
 import { modelKey } from "@/lib/video-model-capabilities";
-import { NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
+import { NODE_DEFAULT_SIZE, NODE_TITLE_PREFIX, getNodeSpec } from "../constants";
 import { ActiveConnectionPath, ConnectionPath } from "../components/canvas-connections";
 import { CanvasConfigComposer } from "../components/canvas-config-composer";
 import { CanvasConfigNodePanel } from "../components/canvas-config-node-panel";
@@ -52,7 +52,7 @@ import { AssetPickerModal, type AssetPickerTab } from "../components/asset-picke
 import { CanvasZoomControls } from "../components/canvas-zoom-controls";
 import { CANVAS_ASSET_DRAG_TYPE, CanvasSidePanel } from "../components/canvas-side-panel";
 import { DEFAULT_CANVAS_AGENT_PANEL, DEFAULT_CANVAS_SIDE_PANEL, useCanvasStore } from "../stores/use-canvas-store";
-import { buildCanvasResourceReferences, buildNodeMentionReferences } from "../utils/canvas-resource-references";
+import { buildNodeMentionReferences } from "../utils/canvas-resource-references";
 import { buildCanvasAgentContext } from "../agent/canvas-agent-context";
 import type { CanvasAgentAction, CanvasAgentToolResult } from "../agent/canvas-agent-tools";
 import {
@@ -122,14 +122,30 @@ const IMAGE_PROMPT_REVERSE_PRESET = `请根据参考图片反推一段适合用�
 2. 覆盖主体、构图、风格、光线、色彩、材质、镜头和氛围。
 3. 尽量写成可直接用于生图模型的完整提示词。`;
 
-function createCanvasNode(type: CanvasNodeType, position: Position, metadata?: CanvasNodeMetadata, nodeId?: string): CanvasNodeData {
+function getNextNodeTitle(type: CanvasNodeType, nodes: CanvasNodeData[]): string {
+    const prefix = NODE_TITLE_PREFIX[type];
+    const regex = new RegExp(`^${prefix}(\\d+)$`);
+    let maxNum = 0;
+    for (const node of nodes) {
+        if (node.type !== type) continue;
+        const match = node.title?.match(regex);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+        }
+    }
+    return `${prefix}${maxNum + 1}`;
+}
+
+function createCanvasNode(type: CanvasNodeType, position: Position, metadata?: CanvasNodeMetadata, nodeId?: string, existingNodes?: CanvasNodeData[]): CanvasNodeData {
     const spec = getNodeSpec(type);
     const id = nodeId || `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const title = existingNodes ? getNextNodeTitle(type, existingNodes) : spec.title;
 
     return {
         id,
         type,
-        title: spec.title,
+        title,
         position: {
             x: position.x - spec.width / 2,
             y: position.y - spec.height / 2,
@@ -192,28 +208,28 @@ function ConnectionCreateMenu({ pending, onCreate, onClose }: { pending: Pending
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     return (
         <div
-            className="absolute z-[120] w-[300px] rounded-[18px] border p-3 shadow-2xl backdrop-blur"
+            className="absolute z-[120] w-[220px] rounded-2xl border p-2.5 shadow-2xl backdrop-blur"
             data-connection-create-menu
             style={{ left: pending.position.x, top: pending.position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
         >
-            <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-sm font-medium" style={{ color: theme.node.muted }}>
+            <div className="mb-1.5 flex items-center justify-between px-1">
+                <span className="text-[11px] font-medium" style={{ color: theme.node.muted }}>
                     引用该节点生成
                 </span>
-                <button type="button" className="grid size-7 place-items-center rounded-lg text-base opacity-55 transition hover:bg-white/10 hover:opacity-100" onClick={onClose} aria-label="关闭">
+                <button type="button" className="grid size-6 place-items-center rounded-md text-sm opacity-55 transition hover:opacity-100" onClick={onClose} aria-label="关闭">
                     ×
                 </button>
             </div>
-            <div className="grid gap-1">
-                <ConnectionCreateOption theme={theme} icon={<List className="size-5" />} title="文本生成" description="脚本、广告词、品牌文案" onClick={() => onCreate(CanvasNodeType.Text)} />
-                <ConnectionCreateOption theme={theme} icon={<ImageIcon className="size-5" />} title="图片生成" onClick={() => onCreate(CanvasNodeType.Image)} />
-                <ConnectionCreateOption theme={theme} icon={<Video className="size-5" />} title="视频生成" onClick={() => onCreate(CanvasNodeType.Video)} />
-                <ConnectionCreateOption theme={theme} icon={<Music2 className="size-5" />} title="音频参考" onClick={() => onCreate(CanvasNodeType.Audio)} />
-                <ConnectionCreateOption theme={theme} icon={<Globe2 className="size-5" />} title="全景图" description="文生全景、图生全景" onClick={() => onCreate(CanvasNodeType.Panorama)} />
-                <ConnectionCreateOption theme={theme} icon={<Layers3 className="size-5" />} title="3D 导演台" description="3D场景、角色、机位" onClick={() => onCreate(CanvasNodeType.Director)} />
-                <ConnectionCreateOption theme={theme} icon={<Settings2 className="size-5" />} title="配置节点" description="模型、尺寸、数量和输入顺序" onClick={() => onCreate(CanvasNodeType.Config)} />
+            <div className="grid gap-0.5">
+                <ConnectionCreateOption compact theme={theme} icon={<List className="size-4" />} title="文本" description="脚本、广告词、品牌文案" onClick={() => onCreate(CanvasNodeType.Text)} />
+                <ConnectionCreateOption compact theme={theme} icon={<ImageIcon className="size-4" />} title="图片" onClick={() => onCreate(CanvasNodeType.Image)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Video className="size-4" />} title="视频" onClick={() => onCreate(CanvasNodeType.Video)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Music2 className="size-4" />} title="音频" onClick={() => onCreate(CanvasNodeType.Audio)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Globe2 className="size-4" />} title="全景图" description="文生全景、图生全景" onClick={() => onCreate(CanvasNodeType.Panorama)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Layers3 className="size-4" />} title="3D 导演台" description="3D场景、角色、机位" onClick={() => onCreate(CanvasNodeType.Director)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Settings2 className="size-4" />} title="配置节点" description="模型、尺寸、数量和输入顺序" onClick={() => onCreate(CanvasNodeType.Config)} />
             </div>
         </div>
     );
@@ -221,13 +237,13 @@ function ConnectionCreateMenu({ pending, onCreate, onClose }: { pending: Pending
 
 function ConnectionCreateOption({ theme, icon, title, description, onClick, compact = false }: { theme: (typeof canvasThemes)[keyof typeof canvasThemes]; icon: React.ReactNode; title: string; description?: string; onClick?: () => void; compact?: boolean }) {
     return (
-        <button type="button" className={`flex ${compact ? "h-12 gap-2 rounded-xl px-2" : "h-16 gap-3 rounded-2xl px-3"} w-full cursor-pointer items-center text-left transition`} style={{ color: theme.node.text }} onClick={onClick} onMouseEnter={(event) => (event.currentTarget.style.background = theme.node.fill)} onMouseLeave={(event) => (event.currentTarget.style.background = "transparent")}>
-            <span className={`grid ${compact ? "size-8 rounded-lg" : "size-11 rounded-xl"} shrink-0 place-items-center`} style={{ background: theme.node.fill, color: theme.node.muted }}>
+        <button type="button" className={`flex ${compact ? "h-11 gap-2 rounded-xl px-2" : "h-16 gap-3 rounded-2xl px-3"} w-full cursor-pointer items-center text-left transition`} style={{ color: theme.node.text }} onClick={onClick} onMouseEnter={(event) => (event.currentTarget.style.background = theme.node.fill)} onMouseLeave={(event) => (event.currentTarget.style.background = "transparent")}>
+            <span className={`grid ${compact ? "size-7 rounded-lg" : "size-11 rounded-xl"} shrink-0 place-items-center`} style={{ background: theme.node.fill, color: theme.node.muted }}>
                 {icon}
             </span>
             <span className="min-w-0 flex-1">
-                <span className={`flex items-center gap-2 ${compact ? "text-sm font-medium leading-4" : "text-base font-semibold leading-5"}`}>{title}</span>
-                {description ? <span className={`mt-0.5 block truncate ${compact ? "text-xs" : "mt-1 text-sm"}`} style={{ color: theme.node.muted }}>{description}</span> : null}
+                <span className={`flex items-center gap-2 ${compact ? "text-xs font-medium leading-4" : "text-base font-semibold leading-5"}`}>{title}</span>
+                {description ? <span className={`mt-0.5 block truncate ${compact ? "text-[11px]" : "mt-1 text-sm"}`} style={{ color: theme.node.muted }}>{description}</span> : null}
             </span>
         </button>
     );
@@ -258,21 +274,21 @@ function NodeCreateMenu({
     }, [onClose]);
 
     return (
-        <div ref={menuRef} className="absolute z-[120] w-[260px] rounded-2xl border p-2.5 shadow-2xl backdrop-blur" data-canvas-no-zoom style={{ left: position.x, top: position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }} onPointerDown={(event) => event.stopPropagation()}>
+        <div ref={menuRef} className="absolute z-[120] w-[220px] rounded-2xl border p-2.5 shadow-2xl backdrop-blur" data-canvas-no-zoom style={{ left: position.x, top: position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }} onPointerDown={(event) => event.stopPropagation()}>
             <div className="mb-1.5 flex items-center justify-between px-1">
-                <span className="text-xs font-medium" style={{ color: theme.node.muted }}>添加节点</span>
+                <span className="text-[11px] font-medium" style={{ color: theme.node.muted }}>添加节点</span>
                 <button type="button" className="grid size-6 place-items-center rounded-md text-sm opacity-55 transition hover:opacity-100" onClick={onClose} aria-label="关闭">×</button>
             </div>
             <div className="grid gap-0.5">
-                <ConnectionCreateOption compact theme={theme} icon={<List className="size-4" />} title="文本生成" description="脚本、广告词、品牌文案" onClick={() => onCreate(CanvasNodeType.Text)} />
-                <ConnectionCreateOption compact theme={theme} icon={<ImageIcon className="size-4" />} title="图片生成" onClick={() => onCreate(CanvasNodeType.Image)} />
-                <ConnectionCreateOption compact theme={theme} icon={<Video className="size-4" />} title="视频生成" onClick={() => onCreate(CanvasNodeType.Video)} />
-                <ConnectionCreateOption compact theme={theme} icon={<Music2 className="size-4" />} title="音频参考" onClick={() => onCreate(CanvasNodeType.Audio)} />
+                <ConnectionCreateOption compact theme={theme} icon={<List className="size-4" />} title="文本" description="脚本、广告词、品牌文案" onClick={() => onCreate(CanvasNodeType.Text)} />
+                <ConnectionCreateOption compact theme={theme} icon={<ImageIcon className="size-4" />} title="图片" onClick={() => onCreate(CanvasNodeType.Image)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Video className="size-4" />} title="视频" onClick={() => onCreate(CanvasNodeType.Video)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Music2 className="size-4" />} title="音频" onClick={() => onCreate(CanvasNodeType.Audio)} />
                 <ConnectionCreateOption compact theme={theme} icon={<Globe2 className="size-4" />} title="全景图" description="文生全景、图生全景" onClick={() => onCreate(CanvasNodeType.Panorama)} />
                 <ConnectionCreateOption compact theme={theme} icon={<Layers3 className="size-4" />} title="3D 导演台" description="3D场景、角色、机位" onClick={() => onCreate(CanvasNodeType.Director)} />
                 <ConnectionCreateOption compact theme={theme} icon={<Settings2 className="size-4" />} title="配置节点" description="模型、尺寸、数量和输入顺序" onClick={() => onCreate(CanvasNodeType.Config)} />
                 <div className="mb-1.5 mt-2 flex items-center justify-between px-1">
-                    <span className="text-xs font-medium" style={{ color: theme.node.muted }}>添加资源</span>
+                    <span className="text-[11px] font-medium" style={{ color: theme.node.muted }}>添加资源</span>
                 </div>
                 <ConnectionCreateOption compact theme={theme} icon={<Upload className="size-4" />} title="上传" description="图片、视频或音频" onClick={onUpload} />
                 <ConnectionCreateOption compact theme={theme} icon={<Images className="size-4" />} title="从素材库选择" description="文本、图片或视频" onClick={onOpenAssetLibrary} />
@@ -716,7 +732,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
     const createConnectedNode = useCallback(
         (type: CanvasNodeType, pending: PendingConnectionCreate) => {
             const metadata = type === CanvasNodeType.Config ? { model: effectiveConfig.imageModel || effectiveConfig.model, size: effectiveConfig.size, count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count) } : undefined;
-            const newNode = createCanvasNode(type, pending.position, metadata);
+            const newNode = createCanvasNode(type, pending.position, metadata, undefined, nodesRef.current);
             const connection = normalizeConnection(pending.connection.nodeId, newNode.id, [...nodesRef.current, newNode], pending.connection.handleType);
             if (!connection) {
                 message.warning("配置节点之间不能连接");
@@ -876,9 +892,6 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
         });
         return map;
     }, [connections, nodeById, nodes]);
-    const resourceContextNodeId = dialogNodeId || activeNodeId;
-    const canvasResourceReferences = useMemo(() => buildCanvasResourceReferences(nodes, connections, resourceContextNodeId), [connections, nodes, resourceContextNodeId]);
-    const resourceReferenceByNodeId = useMemo(() => new Map(canvasResourceReferences.map((reference) => [reference.nodeId, reference])), [canvasResourceReferences]);
     const mentionReferencesByNodeId = useMemo(() => {
         const map = new Map<string, ReturnType<typeof buildNodeMentionReferences>>();
         nodes.forEach((node) => map.set(node.id, buildNodeMentionReferences(node, nodes, connections)));
@@ -937,6 +950,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     ? { content: textContent, status: NODE_STATUS_SUCCESS }
                     : configMetadata,
                 nodeId,
+                nodesRef.current,
             );
             if (type === CanvasNodeType.Text && textContent !== undefined) newNode.title = textContent.slice(0, 32) || "Assistant Text";
             setNodes((prev) => [...prev, newNode]);
@@ -1063,7 +1077,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
         const group = createCanvasNode(CanvasNodeType.Group, {
             x: bounds.left - GROUP_PADDING + width / 2,
             y: bounds.top - GROUP_PADDING + height / 2,
-        });
+        }, undefined, undefined, nodesRef.current);
         group.width = width;
         group.height = height;
         group.position = { x: bounds.left - GROUP_PADDING, y: bounds.top - GROUP_PADDING };
@@ -3439,6 +3453,8 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     size: effectiveConfig.size,
                     count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count),
                 },
+                undefined,
+                nodesRef.current,
             );
             const connection = { id: nanoid(), fromNodeId: sourceNode.id, toNodeId: configNode.id };
             const nextNodes = nodesRef.current.map((item) => (item.id === sourceNode.id ? { ...item, metadata: { ...item.metadata, content: prompt, prompt, status: NODE_STATUS_SUCCESS } } : item)).concat(configNode);
@@ -3685,7 +3701,6 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                             batchRecovering={collapsingBatchIds.has(node.id)}
                             batchMotion={batchMotionById.get(node.id)}
                             showImageInfo={showImageInfo}
-                            resourceLabel={resourceReferenceByNodeId.get(node.id)}
                             mentionReferences={mentionReferencesByNodeId.get(node.id) || []}
                             now={node.metadata?.status === NODE_STATUS_LOADING && !node.metadata.content && (node.type === CanvasNodeType.Video || isCanvasImageNodeType(node.type) || node.type === CanvasNodeType.Audio) ? canvasNow : undefined}
                             renderPanel={(panelNode) =>
@@ -3796,8 +3811,8 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-8">
                         <div className="flex items-end gap-4">
                             <div
-                                className="flex items-center gap-2.5 rounded-2xl px-6 py-4 text-white shadow-lg"
-                                style={{ backgroundColor: "#1c1917" }}
+                                className="flex items-center gap-2.5 rounded-2xl px-6 py-4 shadow-lg"
+                                style={{ backgroundColor: theme.node.activeStroke, color: theme.canvas.background }}
                             >
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M3 3l7 19 2.5-8.5L21 11 3 3z" />

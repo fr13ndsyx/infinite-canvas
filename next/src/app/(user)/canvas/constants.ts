@@ -20,6 +20,18 @@ export const NODE_DEFAULT_SIZE = {
     [CanvasNodeType.Group]: { width: 760, height: 480, title: "组" },
 } satisfies Record<CanvasNodeType, { width: number; height: number; title: string }>;
 
+// 节点序号标题前缀，用于自动命名（文本1、图片1、视频1...）
+export const NODE_TITLE_PREFIX: Record<CanvasNodeType, string> = {
+    [CanvasNodeType.Text]: "文本",
+    [CanvasNodeType.Image]: "图片",
+    [CanvasNodeType.Video]: "视频",
+    [CanvasNodeType.Audio]: "音频",
+    [CanvasNodeType.Panorama]: "全景图",
+    [CanvasNodeType.Config]: "配置节点",
+    [CanvasNodeType.Director]: "3D导演台",
+    [CanvasNodeType.Group]: "组",
+};
+
 export const NODE_SPECS = {
     [CanvasNodeType.Image]: {
         ...NODE_DEFAULT_SIZE[CanvasNodeType.Image],

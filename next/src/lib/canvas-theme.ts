@@ -33,7 +33,7 @@ export const canvasThemes = {
     },
     dark: {
         canvas: {
-            background: "#181715",
+            background: "#141414",
             dot: "rgba(245,245,244,.24)",
             line: "rgba(245,245,244,.10)",
             selectionStroke: "#fafaf9",

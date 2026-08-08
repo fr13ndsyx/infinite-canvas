@@ -209,7 +209,7 @@ function CanvasGrid({ viewport, mode }: { viewport: ViewportTransform; mode: Can
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     if (mode === "blank") return null;
 
-    const gridSize = 48 * viewport.k;
+    const gridSize = 32 * viewport.k;
     const x = viewport.x % gridSize;
     const y = viewport.y % gridSize;
     const dotSize = viewport.k < 0.12 ? 0.8 : 1.15;
