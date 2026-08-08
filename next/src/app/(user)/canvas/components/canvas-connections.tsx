@@ -27,9 +27,11 @@ export function ConnectionPath({
     const dx = Math.abs(endX - startX);
     const curvature = Math.max(dx * 0.5, 50);
     const pathD = `M ${startX} ${startY} C ${startX + curvature} ${startY}, ${endX - curvature} ${endY}, ${endX} ${endY}`;
+    // active 连线用蓝色电流（与节点选中边框 selectionBlue 一致），非 active 用主题 muted 色
+    const activeColor = "#2f80ff";
 
     return (
-        <g>
+        <g style={{ ["--canvas-active-stroke" as string]: activeColor }}>
             <path
                 data-connection-id={connection.id}
                 d={pathD}
@@ -49,12 +51,31 @@ export function ConnectionPath({
             />
             <path
                 d={pathD}
-                stroke={active ? theme.node.activeStroke : theme.node.muted}
+                stroke={active ? activeColor : theme.node.muted}
                 strokeWidth={active ? 3 : 2}
-                strokeOpacity={active ? 1 : 0.82}
+                strokeOpacity={active ? undefined : 0.82}
                 fill="none"
-                style={{ filter: active ? `drop-shadow(0 0 8px ${theme.node.activeStroke}66)` : undefined, pointerEvents: "none" }}
+                style={{
+                    filter: active ? `drop-shadow(0 0 8px ${activeColor}66)` : undefined,
+                    pointerEvents: "none",
+                    animation: active ? "canvas-connection-breathe 1.6s ease-in-out infinite" : undefined,
+                }}
             />
+            {active ? (
+                <path
+                    d={pathD}
+                    stroke={activeColor}
+                    strokeWidth="2.5"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray="4,12"
+                    style={{
+                        filter: `drop-shadow(0 0 6px ${activeColor})`,
+                        pointerEvents: "none",
+                        animation: "canvas-connection-electric 0.8s linear infinite",
+                    }}
+                />
+            ) : null}
         </g>
     );
 }
@@ -74,5 +95,20 @@ export function ActiveConnectionPath({ node, handle, mouseWorld, target }: { nod
     const distance = Math.abs(snappedEndX - snappedStartX);
     const pathD = `M ${snappedStartX} ${snappedStartY} C ${snappedStartX + distance * 0.5} ${snappedStartY}, ${snappedEndX - distance * 0.5} ${snappedEndY}, ${snappedEndX} ${snappedEndY}`;
 
-    return <path d={pathD} stroke={theme.node.activeStroke} strokeWidth="2" fill="none" strokeDasharray="5,5" />;
+    return (
+        <g style={{ ["--canvas-active-stroke" as string]: "#2f80ff" }}>
+            <path
+                d={pathD}
+                stroke="#2f80ff"
+                strokeWidth="3"
+                fill="none"
+                strokeDasharray="5,5"
+                strokeLinecap="round"
+                style={{
+                    filter: `drop-shadow(0 0 6px #2f80ff88)`,
+                    animation: "canvas-connection-flow 0.6s linear infinite",
+                }}
+            />
+        </g>
+    );
 }

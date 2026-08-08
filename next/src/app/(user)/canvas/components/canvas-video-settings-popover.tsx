@@ -115,7 +115,7 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
     const margin = 12;
     const left = buttonRect.left + buttonRect.width / 2 - width / 2;
     const topPlacement = placement?.startsWith("top");
-    const style = { position: "fixed", zIndex: 1200, width, left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)), ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }), background: theme.toolbar.panel, borderRadius: 18, boxShadow: "none", padding: 18, overflowY: "auto", color: theme.node.text } as const;
+    const style = { position: "fixed", zIndex: 1200, width, left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)), ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }), background: theme.toolbar.panel, border: `1px solid ${theme.toolbar.border}`, borderRadius: 18, boxShadow: "none", padding: 18, overflowY: "auto", color: theme.node.text } as const;
     const model = config.model || config.videoModel || "";
     const cap = findModelCapability(config, model);
     const panelType = resolveVideoPanelType(cap);

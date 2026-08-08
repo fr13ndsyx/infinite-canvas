@@ -46,7 +46,34 @@ function getContextResourceNodes(nodeId: string, nodes: CanvasNodeData[], connec
     return connections
         .filter((connection) => connection.toNodeId === nodeId)
         .map((connection) => nodes.find((node) => node.id === connection.fromNodeId))
-        .filter((node): node is CanvasNodeData => Boolean(node && isResourceNode(node)));
+        .filter((node): node is CanvasNodeData => Boolean(node && isResourceNode(node)))
+        .sort(compareNodeTitleNatural);
+}
+
+// 按节点 title 做自然排序（如 "文本2" 排在 "文本10" 之前），让 @ 引用与编号跟随节点创建顺序
+function compareNodeTitleNatural(a: CanvasNodeData, b: CanvasNodeData): number {
+    return naturalCompare(a.title || "", b.title || "");
+}
+
+function naturalCompare(a: string, b: string): number {
+    const regex = /(\d+|\D+)/g;
+    const aParts = a.match(regex) || [];
+    const bParts = b.match(regex) || [];
+    const length = Math.min(aParts.length, bParts.length);
+    for (let index = 0; index < length; index += 1) {
+        const aPart = aParts[index];
+        const bPart = bParts[index];
+        const aDigit = /^\d+$/.test(aPart);
+        const bDigit = /^\d+$/.test(bPart);
+        if (aDigit && bDigit) {
+            const diff = parseInt(aPart, 10) - parseInt(bPart, 10);
+            if (diff !== 0) return diff;
+        } else {
+            const diff = aPart.localeCompare(bPart);
+            if (diff !== 0) return diff;
+        }
+    }
+    return aParts.length - bParts.length;
 }
 
 function getConnectedConfigResourceNodes(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]) {

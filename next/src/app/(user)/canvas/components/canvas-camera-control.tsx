@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Camera, ChevronDown, ChevronUp, X } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { Button, Switch, Tooltip } from "antd";
 
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
@@ -123,7 +123,7 @@ export function CanvasCameraControl({ value, onChange, buttonClassName }: Canvas
                     aria-expanded={open}
                     onClick={() => setOpen((current) => !current)}
                 >
-                    <Camera className="size-3 shrink-0" />
+                    <img src="/camera.svg" alt="" className="size-3 shrink-0 dark:invert" />
                     <span>摄像机</span>
                 </button>
             </span>

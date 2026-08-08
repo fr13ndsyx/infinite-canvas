@@ -1383,6 +1383,8 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
             } else {
                 setDialogNodeId(clickedNodeId);
             }
+            // 纯点击（未拖拽）后恢复 hover 高亮，让相连线呼吸动画在选中态下也生效
+            setHoveredNodeId(clickedNodeId);
         }
     }, []);
 

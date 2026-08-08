@@ -332,7 +332,7 @@ function MentionMenu({
 
                     <span className="min-w-0 flex-1">
                         <span className="block font-medium">{reference.label}</span>
-                        <span className="block truncate opacity-65">{reference.text || reference.title}</span>
+                        <span className="block truncate opacity-65" style={{ fontSize: 10, lineHeight: "14px" }}>{reference.text || reference.title}</span>
                     </span>
                 </button>
             ))}

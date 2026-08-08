@@ -151,6 +151,7 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
         top: buttonRect.bottom + gap,
         maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2),
         background: theme.toolbar.panel,
+        border: `1px solid ${theme.toolbar.border}`,
         borderRadius: 18,
         boxShadow: "none",
         padding: 8,
@@ -175,7 +176,7 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
                             <button
                                 key={option.key}
                                 type="button"
-                                className="flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left outline-none transition"
+                                className="group/item flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left outline-none transition"
                                 style={{ color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
                                 onMouseEnter={(event) => { event.currentTarget.style.background = theme.node.subtleFill; }}
                                 onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
@@ -195,14 +196,15 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
     );
 }
 
-function ModelLabel({ model }: { model: string; channelName?: string }) {
+function ModelLabel({ model, subtitle = "" }: { model: string; subtitle?: string }) {
     return (
-        <span className="flex min-w-0 flex-1 items-center gap-1.5">
-            <ModelIcon model={model} size="size-6" />
-            <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[14px] font-medium leading-none">{model}</span>
-                {/* 模型介绍占位，后端加字段后填充 */}
-                <span className="truncate text-[10px] leading-none opacity-50">&nbsp;</span>
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+            <ModelIcon model={model} size="size-[25px]" />
+            <span className="flex h-[25px] min-w-0 flex-1 flex-col overflow-hidden">
+                <span className="flex flex-col translate-y-[5px] transition-transform duration-200 ease-out group-hover/item:translate-y-0">
+                    <span className="truncate text-[15px] font-medium leading-[15px]">{model}</span>
+                    <span className="truncate text-[9px] leading-[10px] opacity-0 transition-opacity duration-200 ease-out group-hover/item:opacity-55">{subtitle}</span>
+                </span>
             </span>
         </span>
     );

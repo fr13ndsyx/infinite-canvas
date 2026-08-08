@@ -423,7 +423,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 </>
             ) : null}
 
-            {showPanel && !isGroup && renderPanel ? <div className={"absolute left-1/2 top-full z-[70] max-w-[calc(100vw-24px)] -translate-x-1/2 pt-4 " + (data.type === CanvasNodeType.Image || data.type === CanvasNodeType.Video ? "w-[580px]" : "w-[500px]")}>{renderPanel(data)}</div> : null}
+            {showPanel && !isGroup && renderPanel ? <div className="absolute left-1/2 top-full z-[70] w-[580px] max-w-[calc(100vw-24px)] -translate-x-1/2 pt-4">{renderPanel(data)}</div> : null}
         </div>
     );
 });
