@@ -12,3 +12,7 @@ data/
 
 # 编译产物
 *.exe
+
+# IDE/工具配置
+.github/
+.workbuddy/
