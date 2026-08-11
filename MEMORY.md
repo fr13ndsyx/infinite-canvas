@@ -13,6 +13,19 @@
 - `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
 
+## admin-channels-v2 合并（2026-08-11）
+- 分支：admin-channels-v2 → main（fast-forward，commit 73a256d）
+- 改动范围：Git 追踪清理 + 模型描述下拉菜单 bug 修复
+- 关键变更：
+  - 从 Git 追踪移除 `.github/workflows/ci.yml`、`.github/workflows/docker-image.yml`、`.workbuddy/memory/2026-08-11.md`；`.gitignore` 新增 `.github/` 和 `.workbuddy/` 规则；本地文件保留不删除
+  - 新增 `syncPublicSettingsFromSaved` 共享助手（`settings-shared.ts`）：管理后台保存设置成功后用响应数据直接更新全局 `publicSettings`，零额外网络请求，避免画布/工作台页面仍显示旧配置
+  - `model-pricing/page.tsx` 的 `saveSettings` 成功分支调用 `syncPublicSettingsFromSaved(saved)`
+  - `model-picker.tsx` 的 `channelOptions` 改为直接从 `publicSettings.modelChannel.modelInfos` 取描述，不再依赖传入的 `config.modelInfos`（修复生图/视频工作台 `GenerationSettings` 传原始 store config 导致 `modelInfos` 为空数组、下拉菜单不显示描述的问题）
+- 涉及文件：`.gitignore`、`docs/progress/pending-test.md`、`next/src/app/(admin)/admin/settings-shared.ts`、`next/src/app/(admin)/admin/model-pricing/page.tsx`、`next/src/components/model-picker.tsx`
+- 待验证：见 `docs/progress/pending-test.md`「修复模型描述下拉菜单不实时生效」验证步骤
+- 备注：其他管理后台设置页（系统设置、存储设置等）若修改了 `publicSettings` 相关字段，后续按同样方式补 `syncPublicSettingsFromSaved` 调用；本次仅修 `model-pricing`
+- 备注：Git 合并时首次 `--no-ff` 失败（`.gitignore` 被占用 unlink 报错），改用 `--ff-only` 成功；后续如遇类似情况优先 ff 合并
+
 ## canvas-opt-v3 合并（2026-08-09）
 - 分支：canvas-opt-v3 → main（fast-forward，commit e3eed82）
 - 改动范围：画布节点输入框/底部助手栏/连接线/模型下拉/@ 引用菜单与芯片
