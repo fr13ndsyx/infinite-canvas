@@ -16,3 +16,7 @@ data/
 # IDE/工具配置
 .github/
 .workbuddy/
+.agents/
+
+# patch 文件
+*.patch
