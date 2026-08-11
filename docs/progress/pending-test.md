@@ -1308,4 +1308,36 @@ description: 当前版本已实现但仍需人工验证的变更项
 8. 取消勾选某模型的「开放」开关并保存，刷新后确认该模型从 `modelInfos` 中被剔除（后端 `normalizeModelInfos` 按 `availableModels` 过滤）
 9. 重新勾选开放并保存，确认需要重新填写描述（被剔除的项不会自动恢复）
 
+## 修复模型描述下拉菜单不实时生效
+
+修复两个 bug：(1) 管理后台保存模型描述后，画布/工作台页面的模型下拉菜单仍显示旧描述，需重新登录或刷新页面才生效；(2) 生图/视频工作台下方的模型下拉菜单始终不显示描述（画布页面正常）。
+
+### 根因
+
+1. `saveSettings` 成功后只更新管理后台本地 state，未刷新前端全局 `publicSettings`，导致订阅 `publicSettings` 的页面（画布、工作台）仍拿到登录时的旧数据
+2. `ModelPicker` 的 `channelOptions` 从传入的 `config.modelInfos` 取描述，但生图/视频工作台的 `GenerationSettings` 组件传给 `ModelPicker` 的是原始 store config（其 `modelInfos` 为本地持久化默认空数组），而非 `effectiveConfig`（才会注入后端下发的描述）
+
+### 可测试变更
+
+- 新增 `syncPublicSettingsFromSaved` 共享助手：保存成功后用响应数据直接更新全局 `publicSettings`，零额外网络请求
+- `model-pricing/page.tsx` 的 `saveSettings` 成功分支调用 `syncPublicSettingsFromSaved(saved)`
+- `model-picker.tsx` 的 `channelOptions` 改为直接从 `publicSettings.modelChannel.modelInfos` 取描述，不再依赖传入的 `config.modelInfos`；`useMemo` 依赖增加 `publicSettings`
+
+### 涉及文件
+
+- `next/src/app/(admin)/admin/settings-shared.ts`：新增 `syncPublicSettingsFromSaved`；新增 `AdminPublicSettings` 和 `useConfigStore` 导入
+- `next/src/app/(admin)/admin/model-pricing/page.tsx`：`saveSettings` 成功分支新增 `syncPublicSettingsFromSaved(saved)` 调用
+- `next/src/components/model-picker.tsx`：`channelOptions` 的 `infos` 数据源从 `config.modelInfos` 改为 `publicSettings?.modelChannel?.modelInfos`
+
+### 验证步骤
+
+1. 登录管理后台，进入「模型开放与定价」，给某模型填入描述 A，保存
+2. 切换到画布页面，打开模型下拉，悬停该模型，确认显示描述 A（无需刷新页面）
+3. 切换到生图工作台，打开下方模型下拉，悬停该模型，确认显示描述 A（此前不显示）
+4. 切换到视频创作台，打开下方模型下拉，悬停该模型，确认显示描述 A（此前不显示）
+5. 回到管理后台，把描述改为 B，保存
+6. 立即切到画布/生图/视频工作台，打开下拉，确认显示描述 B（旧版需重新登录才更新）
+7. 清空某模型描述并保存，确认下拉菜单该模型不再显示副标题
+8. 修改其他公开配置（如默认模型、可用模型列表），保存后确认前端立即生效
+
 

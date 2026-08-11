@@ -1,5 +1,6 @@
 import type React from "react";
-import type { AdminModelCapability, AdminModelChannel, AdminModelCost, AdminModelInfo, AdminSettings, AdminStorageProvider } from "@/services/api/admin";
+import type { AdminModelCapability, AdminModelChannel, AdminModelCost, AdminModelInfo, AdminPublicSettings, AdminSettings, AdminStorageProvider } from "@/services/api/admin";
+import { useConfigStore } from "@/stores/use-config-store";
 
 // 全量 settings 空默认值，供各设置页 Form initialValues 与归一化兜底使用。
 export const emptySettings: AdminSettings = {
@@ -238,4 +239,18 @@ export function finalizeSettingsForSave(values: AdminSettings): AdminSettings {
     next.public.modelChannel.availableModels = filterModels(next.public.modelChannel.availableModels, collectChannelModels(next.private.channels));
     next.public.modelChannel.systemPrompt = next.public.modelChannel.systemPrompts.image || next.public.modelChannel.systemPrompts.text || "";
     return next;
+}
+
+// 保存成功后，用响应数据同步前端全局 publicSettings，避免管理后台改动不实时生效。
+export function syncPublicSettingsFromSaved(saved: AdminSettings) {
+    const current = useConfigStore.getState().publicSettings;
+    if (!current) return;
+    useConfigStore.setState({
+        publicSettings: {
+            ...current,
+            modelChannel: saved.public.modelChannel,
+            auth: saved.public.auth,
+            storage: saved.public.storage,
+        } as AdminPublicSettings,
+    });
 }

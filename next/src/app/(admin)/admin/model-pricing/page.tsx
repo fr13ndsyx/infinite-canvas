@@ -9,7 +9,7 @@ import { fetchAdminSettings, saveAdminSettings, type AdminModelCapability, type 
 import { modelMatchesCapability } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 
-import { collectChannelModels, emptySettings, finalizeSettingsForSave, modelCostCredits, modelInfoDescription, normalizeSettings, setModelCost, setModelDescription } from "../settings-shared";
+import { collectChannelModels, emptySettings, finalizeSettingsForSave, modelCostCredits, modelInfoDescription, normalizeSettings, setModelCost, setModelDescription, syncPublicSettingsFromSaved } from "../settings-shared";
 
 // 模型能力可选项：与前端 image-settings-panel / video-settings-panel 保持一致
 const IMAGE_ASPECT_OPTIONS = [
@@ -243,6 +243,7 @@ export default function AdminModelPricingPage() {
             setModelCosts(saved.public.modelChannel.modelCosts);
             setModelCapabilities(saved.public.modelChannel.modelCapabilities);
             setModelInfos(saved.public.modelChannel.modelInfos);
+            syncPublicSettingsFromSaved(saved);
             message.success("已保存");
         } catch (error) {
             message.error(error instanceof Error ? error.message : "保存失败");
