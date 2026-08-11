@@ -7,6 +7,7 @@ import { FileText, Image as ImageIcon, Music2, Video, X } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
+import { CanvasNodeImageUpload, type CanvasNodeStackItem } from "./canvas-node-image-upload";
 import type { NodeGenerationInput } from "./canvas-node-generation";
 
 type CanvasConfigComposerProps = {
@@ -14,6 +15,9 @@ type CanvasConfigComposerProps = {
     inputs: NodeGenerationInput[];
     onChange: (value: string) => void;
     onClose: () => void;
+    stackItems?: CanvasNodeStackItem[];
+    onUploadImage?: (file: File) => void;
+    onRemoveItem?: (item: CanvasNodeStackItem) => void;
 };
 
 type Token =
@@ -26,7 +30,7 @@ type MentionState = {
 
 export const CONFIG_REFERENCE_PATTERN = /@\[node:([^\]]+)\]/g;
 
-export function CanvasConfigComposer({ value, inputs, onChange, onClose }: CanvasConfigComposerProps) {
+export function CanvasConfigComposer({ value, inputs, onChange, onClose, stackItems = [], onUploadImage, onRemoveItem }: CanvasConfigComposerProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const editorRef = useRef<HTMLDivElement>(null);
     const composingRef = useRef(false);
@@ -120,12 +124,13 @@ export function CanvasConfigComposer({ value, inputs, onChange, onClose }: Canva
     return (
         <div
             data-canvas-no-zoom
-            className="rounded-2xl border p-3 shadow-2xl backdrop-blur"
+            className="relative rounded-2xl border p-3 shadow-2xl backdrop-blur"
             style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
             onMouseDown={stopCanvasInteraction}
             onPointerDown={stopCanvasInteraction}
             onWheel={(event) => event.stopPropagation()}
         >
+            {onUploadImage ? <CanvasNodeImageUpload items={stackItems} onUpload={onUploadImage} onRemove={onRemoveItem} offset={{ left: 14, top: 50 }} /> : null}
             <div className="mb-2 flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-baseline gap-2">
                     <div className="shrink-0 text-xs font-semibold">组装提示词</div>
@@ -134,13 +139,13 @@ export function CanvasConfigComposer({ value, inputs, onChange, onClose }: Canva
                 <Button size="small" type="text" className="!h-7 !w-7 !min-w-7 !p-0" icon={<X className="size-3.5" />} onClick={onClose} />
             </div>
             <div className="relative rounded-xl" style={{ background: "transparent" }}>
-                {!value.trim() ? <div className="pointer-events-none absolute left-3 top-2 text-sm leading-7" style={{ color: theme.node.placeholder }}>输入提示词，按 @ 引用连接的图片或文本</div> : null}
+                {!value.trim() ? <div className="pointer-events-none absolute top-2 text-sm leading-7" style={{ left: onUploadImage ? 80 : 12, color: theme.node.placeholder }}>输入提示词，按 @ 引用连接的图片或文本</div> : null}
                 <div
                     ref={editorRef}
                     contentEditable
                     suppressContentEditableWarning
                     className="thin-scrollbar h-64 w-full cursor-text overflow-y-auto whitespace-pre-wrap break-words px-3 py-2 text-sm leading-7 outline-none"
-                    style={{ color: theme.node.text }}
+                    style={{ color: theme.node.text, paddingLeft: onUploadImage ? 80 : undefined }}
                     onInput={() => {
                         if (!composingRef.current) syncFromEditor();
                     }}

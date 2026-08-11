@@ -139,7 +139,7 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
     onSelect: (model: string, channelId?: string) => void;
     emptyText: string;
 }) {
-    const width = 280;
+    const width = 320;
     const gap = 8;
     const margin = 12;
     const left = buttonRect.left + buttonRect.width / 2 - width / 2;
@@ -199,11 +199,11 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
 function ModelLabel({ model, subtitle = "" }: { model: string; subtitle?: string }) {
     return (
         <span className="flex min-w-0 flex-1 items-center gap-2">
-            <ModelIcon model={model} size="size-[25px]" />
-            <span className="flex h-[25px] min-w-0 flex-1 flex-col overflow-hidden">
-                <span className="flex flex-col translate-y-[5px] transition-transform duration-200 ease-out group-hover/item:translate-y-0">
-                    <span className="truncate text-[15px] font-medium leading-[15px]">{model}</span>
-                    <span className="truncate text-[9px] leading-[10px] opacity-0 transition-opacity duration-200 ease-out group-hover/item:opacity-55">{subtitle}</span>
+            <ModelIcon model={model} size="size-[30px]" />
+            <span className="flex h-[34px] min-w-0 flex-1 flex-col overflow-hidden">
+                <span className="flex flex-col translate-y-[8px] transition-transform duration-200 ease-out group-hover/item:translate-y-0">
+                    <span className="truncate text-[16px] font-medium leading-[18px]">{model}</span>
+                    <span className="truncate text-[12px] leading-[14px] opacity-0 transition-opacity duration-200 ease-out group-hover/item:opacity-55">{subtitle}</span>
                 </span>
             </span>
         </span>

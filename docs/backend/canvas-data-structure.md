@@ -99,12 +99,13 @@ type CanvasNodeMetadata = {
   storageKey?: string;
   mimeType?: string;
   bytes?: number;
+  inputUploadFor?: string;
 };
 ```
 
 不同节点的使用方式：
 
-- 图片节点：`content` 是当前可展示的图片 URL，通常是 `blob:` URL；`storageKey` 指向本地图片 Blob；`naturalWidth/naturalHeight/bytes/mimeType` 保存原图信息。
+- 图片节点：`content` 是当前可展示的图片 URL，通常是 `blob:` URL；`storageKey` 指向本地图片 Blob；`naturalWidth/naturalHeight/bytes/mimeType` 保存原图信息；由节点输入框上传组件创建的图片节点用 `inputUploadFor` 记录目标节点 ID，配合连线共同决定组件中展示哪些已上传图片。
 - 视频节点：`content` 是当前可播放的视频 URL，通常是 `blob:` URL；`storageKey` 指向本地视频 Blob；`bytes/mimeType` 保存文件信息。
 - 文本节点：`content` 保存文本内容；`fontSize` 保存字体大小；`prompt/status/errorDetails` 保存生成状态。
 - 生成配置节点：`generationMode/model/size/count/inputOrder` 保存生成配置；`generationMode` 可选择文本、图片或视频；上游输入通过 `connections` 计算。

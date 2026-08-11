@@ -94,6 +94,7 @@ export type CanvasNodeMetadata = {
     panoramaFinalPrompt?: string;
     panoramaProjection?: "equirectangular";
     directorProject?: unknown;
+    inputUploadFor?: string;
 };
 
 export type CanvasDirectorPanorama = {

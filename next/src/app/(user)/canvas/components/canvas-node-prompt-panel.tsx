@@ -14,6 +14,7 @@ import { CanvasCameraControl } from "./canvas-camera-control";
 import { CanvasPromptLibrary } from "./canvas-prompt-library";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import { CanvasPromptChipInput } from "./canvas-prompt-chip-input";
+import { CanvasNodeImageUpload, type CanvasNodeStackItem } from "./canvas-node-image-upload";
 import { CanvasVideoSettingsPopover, type CanvasVideoFrameOption, type CanvasVideoResourceOption } from "./canvas-video-settings-popover";
 import { CanvasNodeType, type CanvasGenerationMode, type CanvasNodeData } from "../types";
 import { PANORAMA_IMAGE_SIZE, isCanvasImageNodeType, isPanoramaNodeType } from "../utils/canvas-panorama";
@@ -32,10 +33,13 @@ type CanvasNodePromptPanelProps = {
     mentionReferences?: CanvasResourceReference[];
     videoFrameOptions?: CanvasVideoFrameOption[];
     videoResourceOptions?: CanvasVideoResourceOption[];
+    stackItems?: CanvasNodeStackItem[];
+    onUploadImage?: (file: File) => void;
+    onRemoveItem?: (item: CanvasNodeStackItem) => void;
     onImageSettingsOpenChange?: (open: boolean) => void;
 };
 
-export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, mentionReferences = [], videoFrameOptions = [], videoResourceOptions = [], onImageSettingsOpenChange }: CanvasNodePromptPanelProps) {
+export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, mentionReferences = [], videoFrameOptions = [], videoResourceOptions = [], stackItems = [], onUploadImage, onRemoveItem, onImageSettingsOpenChange }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
     const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
@@ -43,6 +47,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const mode = defaultMode(node.type);
     const config = buildNodeConfig(globalConfig, node, mode);
     const isPanorama = isPanoramaNodeType(node.type);
+    const hasUpload = mode !== "audio" && Boolean(onUploadImage);
     const hasTextContent = node.type === CanvasNodeType.Text && Boolean(node.metadata?.content?.trim());
     const hasImageContent = isCanvasImageNodeType(node.type) && Boolean(node.metadata?.content);
     const sourcePrompt = isPanorama ? node.metadata?.panoramaSourcePrompt || "" : node.metadata?.prompt || "";
@@ -70,20 +75,22 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     return (
         <div
             data-canvas-no-zoom
-            className="rounded-2xl border p-3 shadow-2xl backdrop-blur"
+            className="relative rounded-2xl border p-3 shadow-2xl backdrop-blur"
             style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
             onWheel={(event) => event.stopPropagation()}
         >
+            {hasUpload ? <CanvasNodeImageUpload items={stackItems} onUpload={onUploadImage!} onRemove={onRemoveItem} /> : null}
             <CanvasPromptChipInput
                 value={prompt}
                 references={mentionReferences}
                 onChange={updatePrompt}
                 onSubmit={submit}
                 className="thin-scrollbar h-40 w-full resize-none rounded-xl px-3 py-2 text-sm leading-5 outline-none"
-                style={{ background: "transparent", color: theme.node.text }}
+                style={{ background: "transparent", color: theme.node.text, paddingLeft: hasUpload ? 80 : undefined }}
                 placeholder={isPanorama ? "描述想生成的全景，或上传/连接图片作为参考" : promptPlaceholder(mode, hasImageContent, hasTextContent)}
+                placeholderIndent={hasUpload ? 68 : 0}
             />
 
             <div className="canvas-composer-bar mt-2 flex min-w-0 items-center gap-1 text-[10.8px]" style={{ fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}>

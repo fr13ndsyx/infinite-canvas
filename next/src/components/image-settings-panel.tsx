@@ -183,6 +183,7 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
 }
 
 export function imageSizeLabel(size: string) {
+    if (size === "auto") return "智能比例";
     return aspectOptions.find((item) => (item.size || item.value) === size || item.value === size)?.label || size;
 }
 

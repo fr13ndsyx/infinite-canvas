@@ -30,6 +30,7 @@ import { modelKey } from "@/lib/video-model-capabilities";
 import { NODE_DEFAULT_SIZE, NODE_TITLE_PREFIX, getNodeSpec } from "../constants";
 import { ActiveConnectionPath, ConnectionPath } from "../components/canvas-connections";
 import { CanvasConfigComposer } from "../components/canvas-config-composer";
+import type { CanvasNodeStackItem } from "../components/canvas-node-image-upload";
 import { CanvasConfigNodePanel } from "../components/canvas-config-node-panel";
 import { CanvasDirector } from "../components/canvas-director";
 import { CanvasDirectorNodePanel } from "../components/canvas-director-node-panel";
@@ -371,7 +372,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
     const [runningNodeId, setRunningNodeId] = useState<string | null>(null);
     const [isMiniMapOpen, setIsMiniMapOpen] = useState(false);
     const [backgroundMode, setBackgroundMode] = useState<CanvasBackgroundMode>("lines");
-    const [showImageInfo, setShowImageInfo] = useState(false);
+    const [showImageInfo, setShowImageInfo] = useState(true);
     const [sidePanel, setSidePanel] = useState(() => DEFAULT_CANVAS_SIDE_PANEL);
     const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
     const [assetPickerOpen, setAssetPickerOpen] = useState(false);
@@ -501,7 +502,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
             setActiveChatId(project.activeChatId || null);
             setAgentConfig(project.agentConfig || null);
             setBackgroundMode(project.backgroundMode);
-            setShowImageInfo(project.showImageInfo || false);
+            setShowImageInfo(project.showImageInfo ?? true);
             setViewport(project.viewport);
             setSidePanel(project.sidePanel || DEFAULT_CANVAS_SIDE_PANEL);
             const restoredAgentPanel = project.agentPanel || DEFAULT_CANVAS_AGENT_PANEL;
@@ -516,7 +517,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                 nodes: restoredNodes,
                 connections: project.connections,
                 backgroundMode: project.backgroundMode,
-                showImageInfo: project.showImageInfo || false,
+                showImageInfo: project.showImageInfo ?? true,
             };
             setHistoryState({ canUndo: false, canRedo: false });
             setProjectLoaded(true);
@@ -731,7 +732,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
 
     const createConnectedNode = useCallback(
         (type: CanvasNodeType, pending: PendingConnectionCreate) => {
-            const metadata = type === CanvasNodeType.Config ? { model: effectiveConfig.imageModel || effectiveConfig.model, size: effectiveConfig.size, count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count) } : undefined;
+            const metadata = type === CanvasNodeType.Config ? { model: effectiveConfig.imageModel || effectiveConfig.model, size: effectiveConfig.size, count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count) } : type === CanvasNodeType.Image ? { size: "auto" } : undefined;
             const newNode = createCanvasNode(type, pending.position, metadata, undefined, nodesRef.current);
             const connection = normalizeConnection(pending.connection.nodeId, newNode.id, [...nodesRef.current, newNode], pending.connection.handleType);
             if (!connection) {
@@ -897,6 +898,22 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
         nodes.forEach((node) => map.set(node.id, buildNodeMentionReferences(node, nodes, connections)));
         return map;
     }, [connections, nodes]);
+    const stackItemsByNodeId = useMemo(() => {
+        const map = new Map<string, CanvasNodeStackItem[]>();
+        nodes.forEach((node) => {
+            const items = (mentionReferencesByNodeId.get(node.id) || [])
+                .filter((reference) => (reference.kind === "image" || reference.kind === "text") && reference.nodeId !== node.id)
+                .map((reference) => ({
+                    nodeId: reference.nodeId,
+                    kind: reference.kind as "image" | "text",
+                    url: reference.kind === "image" ? reference.previewUrl : undefined,
+                    label: reference.label || reference.title || "资源",
+                    uploaded: reference.kind === "image" && nodeById.get(reference.nodeId)?.metadata?.inputUploadFor === node.id,
+                }));
+            map.set(node.id, items);
+        });
+        return map;
+    }, [mentionReferencesByNodeId, nodeById, nodes]);
     const videoFrameOptionsByNodeId = useMemo(() => {
         const map = new Map<string, CanvasVideoFrameOption[]>();
         nodes.forEach((node) => {
@@ -942,7 +959,9 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                         size: effectiveConfig.size,
                         count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count),
                     }
-                    : undefined;
+                    : type === CanvasNodeType.Image
+                      ? { size: "auto" }
+                      : undefined;
             const newNode = createCanvasNode(
                 type,
                 targetPosition,
@@ -1545,6 +1564,27 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
         }
     }, [appendImportedImageNode, message]);
 
+    const uploadNodeInputImage = useCallback(
+        async (targetNodeId: string, file: File) => {
+            const target = nodesRef.current.find((node) => node.id === targetNodeId);
+            if (!target || !file.type.startsWith("image/")) return;
+            const hideLoading = message.loading("正在上传图片...", 0);
+            try {
+                const image = await uploadImage(file);
+                const nextSize = fitNodeSize(image.width, image.height);
+                const id = `image-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                setNodes((prev) => [...prev, { id, type: CanvasNodeType.Image, title: file.name, position: { x: target.position.x - nextSize.width - 80, y: target.position.y }, width: nextSize.width, height: nextSize.height, metadata: { ...imageMetadata(image), inputUploadFor: targetNodeId } }]);
+                setConnections((prev) => (prev.some((conn) => conn.fromNodeId === id && conn.toNodeId === targetNodeId) ? prev : [...prev, { id: nanoid(), fromNodeId: id, toNodeId: targetNodeId }]));
+            } catch (error) {
+                console.error("Upload node input image failed:", error);
+                message.error("图片上传失败");
+            } finally {
+                hideLoading();
+            }
+        },
+        [message],
+    );
+
     const finishPanoramaImport = useCallback((type: CanvasNodeType.Image | CanvasNodeType.Panorama) => {
         if (!pendingPanoramaImport) return;
         setPendingPanoramaImport(null);
@@ -1831,6 +1871,31 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
     const handleConfigNodeChange = useCallback((nodeId: string, patch: Partial<CanvasNodeData["metadata"]>) => {
         setNodes((prev) => prev.map((node) => (node.id === nodeId ? applyNodeConfigPatch(node, patch) : node)));
     }, []);
+
+    // 堆叠区移除引用：上传的图删节点、连线的资源只断连线；同时清掉提示词中悬空的 @ 标签，避免退化成无意义纯文本
+    const handleRemoveStackItem = useCallback(
+        (targetNodeId: string, item: CanvasNodeStackItem) => {
+            if (item.uploaded) {
+                deleteNodes(new Set([item.nodeId]));
+            } else {
+                setConnections((prev) => prev.filter((connection) => !(connection.fromNodeId === item.nodeId && connection.toNodeId === targetNodeId)));
+            }
+            const target = nodesRef.current.find((node) => node.id === targetNodeId);
+            if (!target) return;
+            if (target.type === CanvasNodeType.Config) {
+                const composerContent = target.metadata?.composerContent ?? "";
+                const token = `@[node:${item.nodeId}]`;
+                if (composerContent.includes(token)) handleConfigNodeChange(targetNodeId, { composerContent: composerContent.split(token).join("") });
+                return;
+            }
+            const prompt = target.metadata?.prompt ?? "";
+            if (item.label && prompt.includes(item.label)) {
+                const stripped = prompt.replace(new RegExp(escapeLabelRegExp(item.label) + "(?!\\d)", "g"), "").replace(/ {2,}/g, " ");
+                handleNodePromptChange(targetNodeId, stripped);
+            }
+        },
+        [deleteNodes, handleConfigNodeChange, handleNodePromptChange],
+    );
 
     const handleDirectorProjectChange = useCallback(
         (project: unknown) => {
@@ -3712,6 +3777,9 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                                         inputs={configInputsById.get(panelNode.id) || []}
                                         onChange={(composerContent) => handleConfigNodeChange(panelNode.id, { composerContent })}
                                         onClose={() => setDialogNodeId(null)}
+                                        stackItems={stackItemsByNodeId.get(panelNode.id) || []}
+                                        onUploadImage={(file) => void uploadNodeInputImage(panelNode.id, file)}
+                                        onRemoveItem={(item) => handleRemoveStackItem(panelNode.id, item)}
                                     />
                                 ) : panelNode.type === CanvasNodeType.Director ? null : (
                                     <CanvasNodePromptPanel
@@ -3720,6 +3788,9 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                                         mentionReferences={mentionReferencesByNodeId.get(panelNode.id) || []}
                                         videoFrameOptions={videoFrameOptionsByNodeId.get(panelNode.id) || []}
                                         videoResourceOptions={videoResourceOptionsByNodeId.get(panelNode.id) || []}
+                                        stackItems={stackItemsByNodeId.get(panelNode.id) || []}
+                                        onUploadImage={(file) => void uploadNodeInputImage(panelNode.id, file)}
+                                        onRemoveItem={(item) => handleRemoveStackItem(panelNode.id, item)}
                                         onPromptChange={handleNodePromptChange}
                                         onConfigChange={handleConfigNodeChange}
                                         onGenerate={handleGenerateNode}
@@ -4392,6 +4463,10 @@ function audioExtension(mimeType?: string) {
     if (mimeType?.includes("flac")) return "flac";
     if (mimeType?.includes("pcm")) return "pcm";
     return "mp3";
+}
+
+function escapeLabelRegExp(label: string) {
+    return label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function imageMetadata(image: UploadedImage): CanvasNodeMetadata {

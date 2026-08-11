@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { Image } from "antd";
@@ -17,6 +17,7 @@ type CanvasPromptChipInputProps = {
     className?: string;
     style?: CSSProperties;
     placeholder?: string;
+    placeholderIndent?: number;
 };
 
 type MentionState = {
@@ -28,7 +29,7 @@ type PromptToken =
     | { type: "text"; value: string }
     | { type: "reference"; label: string };
 
-export function CanvasPromptChipInput({ value, references, onChange, onSubmit, className, style, placeholder }: CanvasPromptChipInputProps) {
+export function CanvasPromptChipInput({ value, references, onChange, onSubmit, className, style, placeholder, placeholderIndent = 0 }: CanvasPromptChipInputProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const editorRef = useRef<HTMLDivElement>(null);
     const composingRef = useRef(false);
@@ -125,7 +126,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
     return (
         <div className="relative w-full">
             {showPlaceholder && placeholder ? (
-                <div className="pointer-events-none absolute left-3 top-2 text-sm leading-5" style={{ color: theme.node.placeholder }}>
+                <div className="pointer-events-none absolute top-2 text-sm leading-5" style={{ left: 12 + placeholderIndent, color: theme.node.placeholder }}>
                     {placeholder}
                 </div>
             ) : null}
@@ -150,6 +151,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
 
                     const selection = window.getSelection();
                     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+
                     if (!range) return;
 
                     range.deleteContents();
