@@ -9,6 +9,41 @@ description: 当前项目后续值得处理的事项
 
 ## 待办
 
+### 上线运营：提示词模块改造（需求 3，先行开发）
+
+- 状态：方案已确认，待动工
+- 方案文档：[launch-requirements.md](./launch-requirements.md)
+- 目标：废弃 GitHub 同步（质量低且过时），改管理后台手动维护；提示词分图片/视频/电影级（电影级视频）三模块
+- 改动范围：
+  - 删除：`PromptSource` 表、`prompt_fetch.go`、`prompt_sync_scheduler.go`、`/api/admin/prompt-sources` 接口、后台源管理页；`Prompt.source` 保留为来源标签
+  - 新增：后台单条增删改 + JSON+媒体文件批量导入；`Prompt` 加 `category` 字段（`image`/`video`/`cinematic`），列表页顶部三 Tab，tags 作二级筛选
+- 后置项：会员专属提示词标记（本轮不做，随需求 2 支付体系联动）
+
+### 上线运营：技能模块新增（需求 4，先行开发）
+
+- 状态：方案已确认，待动工
+- 方案文档：[launch-requirements.md](./launch-requirements.md)
+- 目标：类 Coze 预置 AI 能力包，绑定画布节点类型一键调用，prompt 注入节点输入框（可见可改）
+- 改动范围：
+  - 后端：新增 `skills` 表（nodeType/name/description/prompt/coverUrl/sortOrder/enabled）+ `GET /api/skills?nodeType=` + `/api/admin/skills` CRUD
+  - 前端：节点底部助手栏"技能"按钮（提示词按钮旁）→ 按节点类型过滤的技能面板 → 点击注入输入框
+  - 管理后台：技能预置管理页（用户不能自建，无会员标记）
+- 首批技能：文本（翻译/扩写）、图片（16 宫格分镜/电影级光影矫正）、视频（运镜轨道右移/环绕拍摄）
+
+### 上线运营：小程序扫码登录（需求 1，收尾开发）
+
+- 状态：待启动（项目运行验证没问题后）；前置资质待用户确认
+- 方案文档：[launch-requirements.md](./launch-requirements.md)
+- 方向：邮箱验证码/小程序扫码/手机号三选一，倾向小程序扫码登录（网页生成 scene 小程序码 → 小程序内确认 → 网页轮询拿 token；`User.WechatID` 字段已预留）
+- 待确认：已发布的小程序、主体资质（个人/企业）、域名 ICP 备案；现有账密登录保留还是替换
+
+### 上线运营：支付系统（需求 2，收尾开发）
+
+- 状态：待启动（项目运行验证没问题后）；收费模式/渠道待用户确认
+- 方案文档：[launch-requirements.md](./launch-requirements.md)
+- 基础：算力点体系已完整（Credits + CreditLog + 预扣/返还），支付只需做充值入口对接
+- 待确认：充值算力点 vs 订阅会员（会员专属提示词依赖此决策）；微信商户/支付宝/第三方个人支付（与需求 1 主体资质联动）
+
 ### KIE AI 接口代码清理
 
 - 状态：暂不考虑删除

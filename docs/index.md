@@ -31,6 +31,7 @@
 
 ## 项目进度
 
+- [上线运营需求开发方案](progress/launch-requirements.md)
 - [待测试](progress/pending-test.md)
 - [TODO](progress/todo.md)
 
