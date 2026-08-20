@@ -13,6 +13,28 @@
 - `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
 
+## refactor/prompt 合并（2026-08-21）
+
+- 分支：refactor/prompt → main（fast-forward，commit 0d9213f）
+- 改动范围：提示词模块改造（废弃 GitHub 同步 + 三分类 + 文件夹批量导入）+ antd reset.css 压制 Tailwind 颜色修复 + 项目架构文档
+- 关键变更：
+  - 后端删除 GitHub 同步链路：`prompt_fetch.go`、`prompt_sync_scheduler.go`、`main.go` 调度、`/api/admin/prompt-sources` 接口、`PromptSource` 模型、`prompt_sources` 表（启动迁移自动删除）；存量提示词迁移时自动归入 `image` 分类
+  - `Prompt` 模型新增 `category` 字段（`image`/`video`/`cinematic`，带索引），保存/导入时校验；`source` 保留为普通来源标签
+  - 后端新增 `POST /api/admin/prompts/import` 批量导入：JSON + 媒体 multipart，媒体文件名与 `coverUrl` 一致时自动上传存储并替换 URL；封面上传依赖服务端 S3 存储已启用
+  - 前端用户端三分类改造：提示词中心页顶部三分类 Tab（图片/视频/电影级）、选择弹窗分类 Tab（支持 `defaultCategory`）、画布侧栏按三分类分组（默认展开图片）
+  - 前端管理后台：删除"提示词来源"页面与菜单、`admin-prompt-sources.ts`；提示词管理页改分类筛选；批量导入弹窗支持拖入/选择文件夹（`prompt-import.ts`：递归收集 → 同名配对 → 按 20 条/24MB 分批顺序上传 + 进度条）；兼容 `prompt_text`/`image_filename`/`type`/中文 `category`（转标签）字段别名
+  - 修复深色模式分类按钮"白底白字"：根因是 `antd/dist/reset.css`（unlayered）中 `button { color: inherit }` 压过 Tailwind utilities 的 `text-white`/`dark:text-stone-900`；改为 `@import "antd/dist/reset.css" layer(base)`（layout.tsx 删 import，globals.css 加 layer 导入），影响全站原生 button 的 Tailwind 颜色类
+  - 新增 `ARCHITECTURE.md` 项目架构文档
+- 本地数据操作：已清空全部存量提示词（1593 条 GitHub 同步数据），通过管理后台批量导入 381 条自备图片提示词（image/image-json 同名 JSON+图片，走本地 MinIO `127.0.0.1:9000` bucket `infinite-canvas`）
+- 本地环境：用户已装 MinIO（`D:\minio\Bin\minio.exe`，数据 `D:\minio\data`，默认凭据 minioadmin/minioadmin，console :9001）；站点存储 Provider 已配置「本地 MinIO」
+- 涉及文件：后端 `Go/{model/prompt.go, service/prompts.go, handler/admin.go, repository/db.go, repository/prompt.go, router/router.go, main.go}`；前端 `next/src/{app/(admin)/admin/{layout.tsx, prompts/*}, app/(user)/prompts/page.tsx, app/(user)/canvas/components/canvas-side-panel.tsx, components/prompts/*, services/api/{prompts.ts, admin.ts, admin-prompt-sources.ts(删), request.ts}, app/{globals.css, layout.tsx}}`；文档 `docs/{backend/backend-database.md, overview/features.md, overview/repo-structure.md, overview/third-party-prompt-repositories.md(删), progress/{todo.md, pending-test.md}}`
+- 待验证：见 `docs/progress/pending-test.md`「提示词模块改造」与「修复 antd reset.css」章节
+- 待办：
+  - 封面图本地化：存量 GitHub 提示词封面是 X/Twitter 图床 URL 有失效风险（本轮已清空存量数据，新导入封面走存储链路，风险主要消除；todo 中条目背景已更新）
+  - 提示词中心电影级/视频分类当前为空，待用户导入对应内容
+  - 上线迁移：线上配置云存储后清空提示词表重新导入即可
+- 备注：导入接口的 JSON 字段兼容 `gpt-image-2-prompts` 导出格式（title/prompt_text/image_filename/type/category 中文细分转标签）
+
 ## admin-channels-v2 合并（2026-08-11）
 - 分支：admin-channels-v2 → main（fast-forward，commit 73a256d）
 - 改动范围：Git 追踪清理 + 模型描述下拉菜单 bug 修复
