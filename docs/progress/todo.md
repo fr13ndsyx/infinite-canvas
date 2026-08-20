@@ -9,16 +9,6 @@ description: 当前项目后续值得处理的事项
 
 ## 待办
 
-### 上线运营：提示词模块改造（需求 3，先行开发）
-
-- 状态：方案已确认，待动工
-- 方案文档：[launch-requirements.md](./launch-requirements.md)
-- 目标：废弃 GitHub 同步（质量低且过时），改管理后台手动维护；提示词分图片/视频/电影级（电影级视频）三模块
-- 改动范围：
-  - 删除：`PromptSource` 表、`prompt_fetch.go`、`prompt_sync_scheduler.go`、`/api/admin/prompt-sources` 接口、后台源管理页；`Prompt.source` 保留为来源标签
-  - 新增：后台单条增删改 + JSON+媒体文件批量导入；`Prompt` 加 `category` 字段（`image`/`video`/`cinematic`），列表页顶部三 Tab，tags 作二级筛选
-- 后置项：会员专属提示词标记（本轮不做，随需求 2 支付体系联动）
-
 ### 上线运营：技能模块新增（需求 4，先行开发）
 
 - 状态：方案已确认，待动工
@@ -54,41 +44,22 @@ description: 当前项目后续值得处理的事项
 ### 提示词封面图本地化
 
 - 状态：暂不实施，上线后视情况优化
-- 问题：提示词来源从 7 个 GitHub 仓库同步，`Prompt.CoverURL` 直接存原 URL 字符串，不下载图片。其中 xianyu-awesome-gptimage2 来源的 latest-prompts 部分使用 X/Twitter 图床链接（`pbs.twimg.com`），易因 X 防盗链、推文删除、账号封禁而失效
+- 背景：提示词已改为管理后台手动维护 + JSON/媒体文件批量导入，新导入的封面走存储链路上传，不存在失效问题；存量数据 `Prompt.CoverURL` 仍存原 GitHub raw / X(Twitter) 图床 URL 字符串，X 图床链接（`pbs.twimg.com`）易因防盗链、推文删除、账号封禁而失效
 - 失效风险分级：
-  - 低风险：GitHub raw 链接（6 个来源），仓库主删除才失效
+  - 低风险：GitHub raw 链接（存量数据），仓库主删除才失效
   - 高风险：X/Twitter 图床链接（xianyu latest 部分），多种原因会失效
 - 备选方案（待上线后评估）：
-  - 方案 A（推荐）：数据库 BYTEA 存储。`prompts` 表新增 `cover_data BYTEA` + `cover_mime TEXT` 字段，同步时下载封面图存入数据库；后端新增 `GET /api/prompts/:id/cover` 接口按需返回二进制流；前端 `<img src="/api/prompts/xxx/cover" onError={回退到原 coverUrl}>`。CoverURL 字段保留作为兜底/审计。备份迁移只靠 .sql，适合运营商场景。数据量约 140-420MB，PostgreSQL 可接受
+  - 方案 A（推荐）：数据库 BYTEA 存储。`prompts` 表新增 `cover_data BYTEA` + `cover_mime TEXT` 字段，导入时下载封面图存入数据库；后端新增 `GET /api/prompts/:id/cover` 接口按需返回二进制流；前端 `<img src="/api/prompts/xxx/cover" onError={回退到原 coverUrl}>`。CoverURL 字段保留作为兜底/审计。备份迁移只靠 .sql，适合运营商场景
   - 方案 B：文件系统存储。下载到 `data/prompt-covers/` 目录，数据库只存路径。数据库保持精简但备份需同时拷贝文件
   - 方案 C：代理 + 按需缓存。后端提供 `/api/proxy-image?url=xxx` 接口，首次访问时下载并缓存。不浪费带宽但首次访问若原链接已失效则无法缓存
-- 当前缓解：无（前端暂未做 onerror 降级处理）
+- 当前缓解：无（前端暂未做 onerror 降级处理）；也可在批量导入时把存量失效封面重新上传替换
 - 触发条件：上线后若用户反馈封面图大量失效，或运营商出于稳定性要求主动优化时再实施
-
-### 管理后台渠道管理拆分
-
-- 状态：已实施，待测试（详见 [pending-test.md](./pending-test.md)）
-- 方案文档：[channels-page-split.md](./channels-page-split.md)
-- 目标：把"渠道配置"从系统设置页拆出来作为独立菜单项 `/admin/channels`，为后续模型能力配置腾出空间
-- 改动范围：新建 `channels/page.tsx` + 修改 `layout.tsx` + `settings/page.tsx`，后端零改动
-- 关键点：
-  - 沿用整体保存模式（不新增单渠道 CRUD API）
-  - 沿用 Channel Drawer，不改为独立编辑页
-  - 拆分后系统设置页私有 tab 仅保留同步/日志/存储三块
-- 执行顺序：先于"模型能力配置"
 
 ### 生图/视频模型能力配置
 
-- 状态：已实施，待测试（详见 [pending-test.md](./pending-test.md)）
+- 状态：已实施并验证通过（变更明细见 [pending-test.md](./pending-test.md)），仅剩收尾项暂未实施，后续按需补
 - 方案文档：[model-capabilities-refactor.md](./model-capabilities-refactor.md)
-- 目标：管理后台支持勾选每个模型支持的比例和清晰度档位，前端工作台按模型能力动态渲染选项
-- 改动范围：后端 2 文件（setting.go + service）+ 前端 6 文件（admin.ts + settings-shared + model-pricing + store + 2 个工作台 panel）
-- 关键点：
-  - 新增 `ModelCapability` 结构（`imageAspects` / `imageTiers` / `videoResolutions` / `videoSecondsMin` / `videoSecondsMax`）
-  - 空字段走保守默认（生图=全比例+仅标准档，视频=480p/720p/1080p，秒数=4-20）
-  - 切换模型时自动回退不支持的尺寸/档位/秒数
-- 待办：专属面板（Kling V26/V3/Seedance/Grok/Motion Control）的面板类型、厂商、模式、比例、能力开关、音频限制已接入后台 `ModelCapability`（详见 [pending-test.md](./pending-test.md)「视频专属面板能力后台化重构」）。画布视频设置弹窗已改为完全能力开关驱动（详见 [pending-test.md](./pending-test.md)「画布视频设置弹窗改为能力开关驱动」），`panelType` 仅控制请求体格式不再控制 UI 显隐。模型能力卡片已拆为「图片模型能力」+「视频模型能力」两张，秒数统一走 Slider（已删除秒数预设档位），视频创作台任务数量输入框已移除（详见 [pending-test.md](./pending-test.md)「模型能力配置拆分与任务数量移除」）。Seedance 分辨率死代码清理、Seedance 参考素材数量限制后台化已完成（详见 [pending-test.md](./pending-test.md)「Seedance 分辨率与参考素材限制后台化收尾」）。剩余项：
-  - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造暂未实施，后续按需补
+- 剩余项：后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造
 
 ### 画布 Agent 行为风格可配置
 

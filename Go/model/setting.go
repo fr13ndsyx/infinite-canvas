@@ -150,11 +150,10 @@ type PublicAuthSetting struct {
 
 // PrivateSetting 私有配置。
 type PrivateSetting struct {
-	Channels   []ModelChannel        `json:"channels"`
-	PromptSync PromptSyncSetting     `json:"promptSync"`
-	AILog      AILogSetting          `json:"aiLog"`
-	Auth       PrivateAuthSetting    `json:"auth"`
-	Storage    PrivateStorageSetting `json:"storage"`
+	Channels []ModelChannel        `json:"channels"`
+	AILog    AILogSetting          `json:"aiLog"`
+	Auth     PrivateAuthSetting    `json:"auth"`
+	Storage  PrivateStorageSetting `json:"storage"`
 }
 
 type AILogSetting struct {
@@ -198,12 +197,6 @@ type StorageProvider struct {
 }
 
 type StorageCapacityCheckSetting struct {
-	Enabled *bool  `json:"enabled"`
-	Cron    string `json:"cron"`
-}
-
-// PromptSyncSetting 提示词定时同步配置。
-type PromptSyncSetting struct {
 	Enabled *bool  `json:"enabled"`
 	Cron    string `json:"cron"`
 }

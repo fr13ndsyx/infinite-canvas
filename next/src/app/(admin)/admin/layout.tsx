@@ -1,6 +1,6 @@
 "use client";
 
-import { ApiOutlined, AuditOutlined, CloudOutlined, DollarOutlined, FileTextOutlined, FolderOutlined, HomeOutlined, LogoutOutlined, PictureOutlined, SettingOutlined, TransactionOutlined, UserOutlined } from "@ant-design/icons";
+import { ApiOutlined, AuditOutlined, CloudOutlined, DollarOutlined, FileTextOutlined, HomeOutlined, LogoutOutlined, PictureOutlined, SettingOutlined, TransactionOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Flex, Layout, Menu, Typography, theme } from "antd";
 import type { MenuProps } from "antd";
 import Link from "next/link";
@@ -25,7 +25,6 @@ const adminMenus: MenuItem[] = [
         { key: "/admin/ai-logs", icon: <AuditOutlined />, label: "AI 调用日志" },
     ]},
     { type: "group", label: "内容库", children: [
-        { key: "/admin/prompt-sources", icon: <FolderOutlined />, label: "提示词来源" },
         { key: "/admin/prompts", icon: <FileTextOutlined />, label: "提示词管理" },
         { key: "/admin/assets", icon: <PictureOutlined />, label: "素材库" },
     ]},
@@ -49,7 +48,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         { prefix: "/admin/credit-logs", key: "/admin/credit-logs", title: "算力点日志" },
         { prefix: "/admin/channels", key: "/admin/channels", title: "模型管理" },
         { prefix: "/admin/model-pricing", key: "/admin/model-pricing", title: "开放与定价" },
-        { prefix: "/admin/prompt-sources", key: "/admin/prompt-sources", title: "提示词来源" },
         { prefix: "/admin/prompts", key: "/admin/prompts", title: "提示词管理" },
         { prefix: "/admin/assets", key: "/admin/assets", title: "素材库管理" },
         { prefix: "/admin/storage", key: "/admin/storage", title: "存储设置" },

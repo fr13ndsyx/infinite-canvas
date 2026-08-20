@@ -22,9 +22,12 @@ description: 当前后端主要数据表与字段说明
 - `users`
 - `credit_logs`
 - `prompts`
-- `prompt_categories`
 - `assets`
 - `settings`
+- `creative_workflows`
+- `user_configs`
+- `ai_call_logs`
+- `storage_objects`
 - `video_tasks`
 - `video_generation_logs`
 - `image_generation_logs`
@@ -62,7 +65,7 @@ description: 当前后端主要数据表与字段说明
 
 ### prompts
 
-提示词表。用于保存公开提示词、内置 GitHub 系统提示词、分类和预览内容。
+提示词表。管理后台手动维护（单条增删改 + JSON/媒体文件批量导入），不再从 GitHub 同步。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -71,33 +74,13 @@ description: 当前后端主要数据表与字段说明
 | `cover_url` | string | 封面图 |
 | `prompt` | string | 提示词内容 |
 | `tags` | json | 标签列表 |
-| `category` | string | 分类标识 |
+| `category` | string | 分类：`image`（图片）、`video`（视频）、`cinematic`（电影级），带索引 |
+| `source` | string | 来源标签，导入或保存时自定义填写，带索引 |
 | `preview` | text | Markdown 展示内容，可包含文本、图片、视频链接等 |
 | `created_at` | string | 创建时间 |
 | `updated_at` | string | 更新时间 |
 
-`github_url` 仅用于接口返回，不写入数据库。
-
-### prompt_categories
-
-提示词分类表。把原硬编码的 8 个分类来源迁移到数据库，支持管理后台可视化增删改查。首次启动时自动写入种子数据（1 个 system 本地分类 + 7 个 GitHub 远程同步源）。
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `category` | string | 主键，分类 ID，如 `gpt-image-2-prompts`，创建后不可修改 |
-| `name` | string | 显示名称 |
-| `description` | string | 分类描述 |
-| `github_url` | string | GitHub 仓库地址，远程分类必填 |
-| `remote` | bool | 是否远程同步分类 |
-| `enabled` | bool | 是否启用，禁用后不同步、不在用户端展示，但提示词数据保留 |
-| `sort_order` | int | 排序权重，越小越靠前 |
-| `last_synced_at` | string | 最后同步时间 |
-| `created_at` | string | 创建时间 |
-| `updated_at` | string | 更新时间 |
-
-删除分类时只删除分类记录，不级联删除 `prompts` 表中该分类下的提示词条目；禁用分类与删除分类的区别是禁用可一键切回 `enabled: true` 恢复展示。
-
-所有分类共用全局 `PROMPT_SYNC_CRON` 调度，不支持分类独立 cron。
+存量数据在启动迁移时自动填充 `category = image`，并删除已废弃的 `prompt_sources` 表。
 
 ### assets
 
@@ -362,7 +345,6 @@ description: 当前后端主要数据表与字段说明
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `channels` | object[] | 模型渠道配置列表 |
-| `promptSync` | object | GitHub 远程提示词定时同步配置 |
 | `auth` | object | 私有登录配置 |
 
 `channels` 每项字段：
@@ -377,13 +359,6 @@ description: 当前后端主要数据表与字段说明
 | `weight` | number | 渠道权重，同一模型命中多个渠道时按权重随机 |
 | `enabled` | bool | 是否启用 |
 | `remark` | string | 备注 |
-
-`promptSync` 字段：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `enabled` | bool | 是否开启定时同步，默认开启 |
-| `cron` | string | Cron 表达式，默认每天 0 点 |
 
 `auth.linuxDo` 当前字段：
 

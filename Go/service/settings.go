@@ -58,7 +58,6 @@ func SaveSettings(settings model.Settings) (model.Settings, error) {
 	)
 	result, err := repository.SaveSettings(settings, now())
 	if err == nil {
-		RefreshPromptSyncScheduler()
 		RefreshStorageCapacityScheduler()
 		RefreshAILogCleanupScheduler()
 	}
@@ -226,7 +225,6 @@ func normalizePrivateSetting(setting model.PrivateSetting) model.PrivateSetting 
 	if setting.Channels == nil {
 		setting.Channels = []model.ModelChannel{}
 	}
-	setting.PromptSync = normalizePromptSyncSetting(setting.PromptSync)
 	setting.AILog = normalizeAILogSetting(setting.AILog)
 	setting.Storage = normalizePrivateStorageSetting(setting.Storage)
 	for i := range setting.Channels {

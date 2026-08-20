@@ -5,6 +5,44 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+## 提示词模块改造：废弃 GitHub 同步 + 三分类 + 批量导入
+
+### 可测试变更
+
+- 后端删除 GitHub 同步链路：`prompt_fetch.go`、`prompt_sync_scheduler.go`、`main.go` 中的调度启动、`/api/admin/prompt-sources` 全部接口及 `PromptSource` 模型；`Prompt.source` 保留为普通来源标签
+- `Prompt` 模型新增 `category` 字段（`image` / `video` / `cinematic`，带索引），保存/导入时校验分类合法性；启动迁移自动把存量提示词填充为 `image` 并删除废弃的 `prompt_sources` 表
+- 后端新增 `POST /api/admin/prompts/import` 批量导入接口：JSON 描述文件 + 媒体文件，媒体文件名与 `coverUrl` 一致时自动上传替换为存储地址
+- 前端提示词中心页（`prompts/page.tsx`）：顶部改为图片 / 视频 / 电影级三分类 Tab，标签作二级筛选，删除来源筛选
+- 提示词选择弹窗（`prompt-select-dialog.tsx`）：来源筛选改为三分类 Tab，支持 `defaultCategory` 指定初始分类
+- 画布侧栏提示词库（`canvas-side-panel.tsx`）：按来源分组改为按三分类分组，默认展开图片分类，搜索时全部分组展开
+- 管理后台提示词管理页：筛选/表格列/新增编辑表单的"来源"改为"分类"；"批量导入"支持拖入或选择文件夹（提示词 .json/.txt 与同名图片/视频自动配对，文件夹名含 image/video/电影 自动分类，默认分类可手动指定），按条数和媒体体积自动分批上传并显示进度；删除"提示词来源"菜单项与页面、`admin-prompt-sources.ts` API 文件
+- 文档：`backend-database.md` 更新 prompts 表结构与表清单（删除 `prompt_categories`/`promptSync` 描述）；`features.md` 更新提示词库功能说明；删除 `third-party-prompt-repositories.md`
+
+### 验证步骤
+
+1. 启动后端，确认存量提示词自动归入"图片"分类，`prompt_sources` 表被删除
+2. 前台提示词中心页顶部出现图片 / 视频 / 电影级三个 Tab，切换后列表按分类过滤，标签筛选正常
+3. 画布侧栏"提示词库"按三分类分组展示，默认展开图片分类；输入关键词时全部分组展开并本地过滤
+4. 节点输入框打开提示词选择弹窗，分类 Tab 可切换，选择后正常插入
+5. 管理后台菜单无"提示词来源"入口；提示词管理页按分类/标签筛选正常
+6. 管理后台新增提示词时选择分类保存成功；选择非法分类（接口直调）返回错误提示
+7. 管理后台"批量导入"：把含若干 .json/.txt 提示词和同名图片的文件夹（如 image/、video/）拖入弹窗，确认识别条数与配对提示正确；导入后列表新增对应条目，封面为上传后的存储地址，image/ 文件夹归图片分类、video/ 归视频分类；几百个文件时自动分批上传，进度正常显示、中途失败时提示已成功条数
+8. 确认后台不再有任何提示词定时同步日志输出
+
+## 修复 antd reset.css 压制 Tailwind 文字颜色导致的按钮主题异常
+
+### 可测试变更
+
+- `layout.tsx` 删除 `import "antd/dist/reset.css"`；`globals.css` 改为 `@import "antd/dist/reset.css" layer(base)`
+- 根因：reset.css 是无 layer 的裸 CSS，其中 `input, button, select... { color: inherit }` 按 CSS 规范优先级高于所有 `@layer`，压制了 Tailwind utilities 中的 `text-white` / `dark:text-stone-900` 等文字颜色类，导致深色模式下选中态按钮出现"白底白字"
+- 该修复影响全站所有原生 button 上的 Tailwind 颜色类，不止提示词分类按钮
+
+### 验证步骤
+
+1. 提示词中心页（`/prompts`）深色模式下，"图片/视频/电影级"分类按钮选中态为浅底深字、未选中态为深灰底浅字，无白底白字
+2. 浅色模式下选中态为黑底白字，对比正常
+3. 抽查其他页面（画布、我的素材、管理后台）的原生按钮文字颜色与背景有明显区分，两种主题下均正常
+
 ## 选中节点的连线改为流动虚线动效
 
 ### 可测试变更

@@ -179,8 +179,7 @@ infinite-canvas/
 │   │   ├── quick-start.md          # 快速开始
 │   │   ├── features.md             # 功能介绍
 │   │   ├── docker.md               # Docker 部署
-│   │   ├── deployment.md           # 部署汇总（Docker + 本地 + PostgreSQL）
-│   │   └── third-party-prompt-repositories.md
+│   │   └── deployment.md           # 部署汇总（Docker + 本地 + PostgreSQL）
 │   ├── backend/                    # 后端文档
 │   │   ├── backend-database.md     # 数据库表结构
 │   │   ├── api-response.md         # 接口响应规则

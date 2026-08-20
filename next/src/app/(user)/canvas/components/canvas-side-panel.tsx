@@ -12,7 +12,7 @@ import { useCopyText } from "@/hooks/use-copy-text";
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { cn } from "@/lib/utils";
 import { fetchAssetLibrary, type AssetLibraryItem } from "@/services/api/assets";
-import { fetchPrompts, type Prompt } from "@/services/api/prompts";
+import { fetchPrompts, PROMPT_CATEGORY_OPTIONS, type Prompt } from "@/services/api/prompts";
 import { useAssetStore, type Asset } from "@/stores/use-asset-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 
@@ -368,14 +368,8 @@ function libraryPayload(asset: AssetLibraryItem): InsertAssetPayload {
 const CanvasPromptsTab = memo(function CanvasPromptsTab({ theme, onInsert }: { theme: CanvasTheme; onInsert: (payload: InsertAssetPayload) => void }) {
     const copyText = useCopyText();
     const [keyword, setKeyword] = useState("");
-    const [expanded, setExpanded] = useState<Record<string, boolean>>({ system: true });
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({ image: true });
     const [detail, setDetail] = useState<Prompt | null>(null);
-    const sourceQuery = useQuery({
-        queryKey: ["canvas-side-prompt-sources"],
-        queryFn: () => fetchPrompts({ page: 1, pageSize: 1 }),
-        retry: false,
-    });
-    const sources = useMemo(() => sourceQuery.data?.sources || [], [sourceQuery.data?.sources]);
 
     return (
         <div className="flex h-full flex-col">
@@ -383,38 +377,36 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ theme, onInsert }: { t
                 <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder="搜索提示词" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-                {sourceQuery.isLoading ? <div className="flex justify-center pt-16"><Spin size="small" /></div> : (
-                    <div className="space-y-2">
-                        {sources.map((option) => {
-                            const opened = Boolean(expanded[option.source]) || Boolean(keyword.trim());
-                            return <PromptGroup key={option.source} source={option.source} label={option.name} keyword={keyword} open={opened} theme={theme} onToggle={() => setExpanded((current) => ({ ...current, [option.source]: !current[option.source] }))} onView={setDetail} onInsert={onInsert} />;
-                        })}
-                    </div>
-                )}
+                <div className="space-y-2">
+                    {PROMPT_CATEGORY_OPTIONS.map((option) => {
+                        const opened = Boolean(expanded[option.value]) || Boolean(keyword.trim());
+                        return <PromptGroup key={option.value} category={option.value} label={option.label} keyword={keyword} open={opened} theme={theme} onToggle={() => setExpanded((current) => ({ ...current, [option.value]: !current[option.value] }))} onView={setDetail} onInsert={onInsert} />;
+                    })}
+                </div>
             </div>
             <PromptDetailDialog prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => copyText(prompt, "已复制提示词")} />
         </div>
     );
 });
 
-async function fetchPromptSource(source: string) {
-    const first = await fetchPrompts({ source, page: 1, pageSize: 500 });
+async function fetchPromptCategory(category: string) {
+    const first = await fetchPrompts({ category, page: 1, pageSize: 500 });
     if (first.total <= first.items.length) return first.items;
 
     const pages = await Promise.all(
         Array.from(
             { length: Math.ceil(first.total / 500) - 1 },
-            (_, index) => fetchPrompts({ source, page: index + 2, pageSize: 500 }),
+            (_, index) => fetchPrompts({ category, page: index + 2, pageSize: 500 }),
         ),
     );
 
     return [...first.items, ...pages.flatMap((page) => page.items)];
 }
 
-function PromptGroup({ source, label, keyword, open, theme, onToggle, onView, onInsert }: { source: string; label: string; keyword: string; open: boolean; theme: CanvasTheme; onToggle: () => void; onView: (prompt: Prompt) => void; onInsert: (payload: InsertAssetPayload) => void }) {
+function PromptGroup({ category, label, keyword, open, theme, onToggle, onView, onInsert }: { category: string; label: string; keyword: string; open: boolean; theme: CanvasTheme; onToggle: () => void; onView: (prompt: Prompt) => void; onInsert: (payload: InsertAssetPayload) => void }) {
     const query = useQuery({
-        queryKey: ["canvas-side-prompt-source", source],
-        queryFn: () => fetchPromptSource(source),
+        queryKey: ["canvas-side-prompt-category", category],
+        queryFn: () => fetchPromptCategory(category),
         enabled: open,
         staleTime: PROMPT_CACHE_TIME,
         gcTime: PROMPT_CACHE_TIME,
@@ -442,7 +434,7 @@ function PromptGroup({ source, label, keyword, open, theme, onToggle, onView, on
                     ) : items.length ? (
                         items.map((item) => <PromptRow key={item.id} item={item} theme={theme} onView={() => onView(item)} onInsert={() => onInsert({ kind: "text", content: item.prompt, title: item.title })} />)
                     ) : (
-                        <div className="py-4 text-center text-xs opacity-40">该来源暂无提示词</div>
+                        <div className="py-4 text-center text-xs opacity-40">该分类暂无提示词</div>
                     )}
                 </div>
             ) : null}

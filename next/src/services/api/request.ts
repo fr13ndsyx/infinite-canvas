@@ -43,6 +43,15 @@ export async function apiPost<T>(url: string, body?: unknown, token?: string) {
     });
 }
 
+export async function apiPostForm<T>(url: string, form: FormData, token?: string) {
+    return apiRequest<T>({
+        url,
+        method: "POST",
+        data: form,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+}
+
 export async function apiPut<T>(url: string, body?: unknown, token?: string) {
     return apiRequest<T>({
         url,

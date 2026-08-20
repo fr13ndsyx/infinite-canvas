@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, compactApiParams } from "@/services/api/request";
+import { apiDelete, apiGet, apiPost, apiPostForm, compactApiParams } from "@/services/api/request";
 import type { Prompt, PromptListResponse } from "@/services/api/prompts";
 
 export type AdminUser = {
@@ -77,6 +77,7 @@ export async function deleteAdminCreditLog(token: string, id: string) {
 
 export type AdminPromptQuery = {
     keyword?: string;
+    category?: string;
     source?: string;
     tag?: string[];
     page?: number;
@@ -117,6 +118,13 @@ export async function deleteAdminPrompt(token: string, id: string) {
 
 export async function deleteAdminPrompts(token: string, ids: string[]) {
     return apiPost<boolean>("/api/admin/prompts/batch-delete", { ids }, token);
+}
+
+export async function importAdminPrompts(token: string, jsonFile: File, mediaFiles: File[]) {
+    const form = new FormData();
+    form.append("file", jsonFile);
+    mediaFiles.forEach((file) => form.append("media", file));
+    return apiPostForm<{ count: number }>("/api/admin/prompts/import", form, token);
 }
 
 export type AdminAssetQuery = {
@@ -263,10 +271,6 @@ export type AdminStorageProvider = {
 
 export type AdminPrivateSettings = {
     channels: AdminModelChannel[];
-    promptSync: {
-        enabled: boolean;
-        cron: string;
-    };
     aiLog: {
         localDirectReportEnabled: boolean;
         cleanup: {

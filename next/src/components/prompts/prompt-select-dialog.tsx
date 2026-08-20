@@ -4,16 +4,19 @@ import { Check, Search } from "lucide-react";
 import { type UIEvent, useEffect, useState } from "react";
 import { App, Empty, Input, Modal, Spin, Tag } from "antd";
 
-import { ALL_PROMPTS_OPTION } from "@/services/api/prompts";
+import { PROMPT_CATEGORY_OPTIONS, type PromptCategory } from "@/services/api/prompts";
 import { cn } from "@/lib/utils";
 import { PromptCard } from "./prompt-card";
 import { usePromptList } from "./use-prompt-list";
 
-export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect: (prompt: string) => void }) {
+export function PromptSelectDialog({ open, onOpenChange, onSelect, defaultCategory = "image" }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect: (prompt: string) => void; defaultCategory?: PromptCategory }) {
     const { message } = App.useApp();
     const [keyword, setKeyword] = useState("");
-    const [selectedSource, setSelectedSource] = useState(ALL_PROMPTS_OPTION);
-    const { query, items, sources: promptSources } = usePromptList({ keyword, source: selectedSource, enabled: open });
+    const [category, setCategory] = useState<PromptCategory>(defaultCategory);
+    const { query, items } = usePromptList({ keyword, tags: [], category, enabled: open });
+
+    useEffect(() => setCategory(defaultCategory), [defaultCategory]);
+
     const selectPrompt = (prompt: string) => {
         onSelect(prompt);
         onOpenChange(false);
@@ -36,11 +39,11 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
                 </div>
                 <div className="mt-5">
                     <div className="grid gap-2 sm:grid-cols-[64px_minmax(0,1fr)] sm:items-start">
-                        <div className="pt-[5px] text-sm leading-none font-medium text-stone-500 dark:text-stone-400">来源</div>
+                        <div className="pt-[5px] text-sm leading-none font-medium text-stone-500 dark:text-stone-400">分类</div>
                         <div className="flex flex-wrap gap-2">
-                            {promptSources.map((option) => (
-                                <Tag.CheckableTag key={option.source} checked={selectedSource === option.source} className={cn("prompt-filter-tag", selectedSource === option.source && "is-active")} onChange={() => setSelectedSource(option.source)}>
-                                    {option.name}
+                            {PROMPT_CATEGORY_OPTIONS.map((option) => (
+                                <Tag.CheckableTag key={option.value} checked={category === option.value} className={cn("prompt-filter-tag", category === option.value && "is-active")} onChange={() => setCategory(option.value)}>
+                                    {option.label}
                                 </Tag.CheckableTag>
                             ))}
                         </div>

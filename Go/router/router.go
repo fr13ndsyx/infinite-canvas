@@ -126,18 +126,9 @@ func New() *gin.Engine {
 	admin.POST("/settings/channel-models", gin.WrapF(handler.AdminChannelModels))
 	admin.POST("/settings/channel-test", gin.WrapF(handler.AdminTestChannelModel))
 	admin.POST("/storage/measure", gin.WrapF(handler.AdminMeasureStorageProvider))
-	admin.GET("/prompt-sources", gin.WrapF(handler.AdminPromptSources))
-	admin.POST("/prompt-sources", gin.WrapF(handler.AdminCreatePromptSource))
-	admin.PUT("/prompt-sources/:source", func(c *gin.Context) {
-		handler.AdminUpdatePromptSource(c.Writer, c.Request, c.Param("source"))
-	})
-	admin.DELETE("/prompt-sources/:source", func(c *gin.Context) {
-		handler.AdminDeletePromptSource(c.Writer, c.Request, c.Param("source"))
-	})
-	admin.POST("/prompt-sources/sync", gin.WrapF(handler.AdminSyncPromptSources))
-	admin.POST("/prompt-sources/sync-all", gin.WrapF(handler.AdminSyncAllPromptSources))
 	admin.GET("/prompts", gin.WrapF(handler.AdminPrompts))
 	admin.POST("/prompts", gin.WrapF(handler.AdminSavePrompt))
+	admin.POST("/prompts/import", gin.WrapF(handler.AdminImportPrompts))
 	admin.POST("/prompts/batch-delete", gin.WrapF(handler.AdminDeletePrompts))
 	admin.DELETE("/prompts/:id", func(c *gin.Context) {
 		handler.AdminDeletePrompt(c.Writer, c.Request, c.Param("id"))

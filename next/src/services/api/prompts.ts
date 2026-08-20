@@ -6,34 +6,42 @@ export type Prompt = {
     coverUrl: string;
     prompt: string;
     tags: string[];
+    category: PromptCategory;
     source: string;
-    githubUrl: string;
     preview: string;
     createdAt: string;
     updatedAt: string;
 };
 
-export const ALL_PROMPTS_OPTION = "全部";
+export type PromptCategory = "image" | "video" | "cinematic";
 
-export type PromptSourceOption = {
-    source: string;
-    name: string;
-};
+export const PROMPT_CATEGORY_OPTIONS: { value: PromptCategory; label: string }[] = [
+    { value: "image", label: "图片" },
+    { value: "video", label: "视频" },
+    { value: "cinematic", label: "电影级" },
+];
+
+export function promptCategoryLabel(category: string) {
+    return PROMPT_CATEGORY_OPTIONS.find((item) => item.value === category)?.label || "图片";
+}
+
+export const ALL_PROMPTS_OPTION = "全部";
 
 export type PromptListResponse = {
     items: Prompt[];
     tags: string[];
-    sources: PromptSourceOption[];
+    sources: string[];
     total: number;
 };
 
-export async function fetchPrompts({ keyword = "", tag = [], source = ALL_PROMPTS_OPTION, page, pageSize }: { keyword?: string; tag?: string[]; source?: string; page?: number; pageSize?: number } = {}) {
+export async function fetchPrompts({ keyword = "", tag = [], category = "", source = "", page, pageSize }: { keyword?: string; tag?: string[]; category?: string; source?: string; page?: number; pageSize?: number } = {}) {
     return apiGet<PromptListResponse>(
         "/api/prompts",
         compactApiParams({
             ...(keyword ? { keyword } : {}),
             ...(tag.length ? { tag } : {}),
-            ...(source !== ALL_PROMPTS_OPTION ? { source } : {}),
+            ...(category ? { category } : {}),
+            ...(source ? { source } : {}),
             ...(page ? { page } : {}),
             ...(pageSize ? { pageSize } : {}),
         }),
