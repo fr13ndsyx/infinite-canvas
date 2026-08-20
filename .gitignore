@@ -9,6 +9,8 @@ data/
 *.tsbuildinfo
 .DS_Store
 .idea
+AGENTS.md
+MEMORY.md
 
 # 编译产物
 *.exe
