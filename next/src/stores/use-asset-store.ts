@@ -180,7 +180,10 @@ export const useAssetStore = create<AssetStore>()(
                     const remote = await fetchUserAssetData<AssetSnapshot>(token);
                     const remoteAssets = Array.isArray(remote?.assets) ? remote.assets : [];
                     if (syncEnabled) {
-                        set({ assets: remoteAssets });
+                        // 合并云端与本地（按 id 去重、updatedAt 取较新），本地新增回推云端，避免 hydrate 覆盖丢失素材。
+                        const merged = mergeAssets(remoteAssets, get().assets);
+                        set({ assets: merged });
+                        if (merged.length > remoteAssets.length) scheduleAssetSync(get);
                     } else {
                         const localHasAssets = get().assets.length > 0;
                         if (!localHasAssets && remoteAssets.length) {

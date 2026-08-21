@@ -2452,7 +2452,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
         [createAudioFileNode, createImageFileNode, createVideoFileNode, screenToCanvas, size.height, size.width],
     );
 
-    function insertAssetAt(payload: InsertAssetPayload, position?: Position, nodeId?: string) {
+    async function insertAssetAt(payload: InsertAssetPayload, position?: Position, nodeId?: string) {
         const center = position || screenToCanvas((containerRef.current?.getBoundingClientRect().left || 0) + size.width / 2, (containerRef.current?.getBoundingClientRect().top || 0) + size.height / 2);
         if (payload.kind === "text") {
             createNode(CanvasNodeType.Text, position, payload.content, nodeId);
@@ -2475,7 +2475,9 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
             setSelectedConnectionId(null);
             return;
         }
-        return insertAssistantImage({ id: nodeId || `asset-${Date.now()}`, prompt: payload.title, dataUrl: payload.dataUrl, storageKey: payload.storageKey, source: payload.source }, position, nodeId);
+        // 有 storageKey 的素材 dataUrl 可能为空（画布保存时未解析），插入前先解析真实地址。
+        const dataUrl = await resolveImageUrl(payload.storageKey, payload.dataUrl);
+        return insertAssistantImage({ id: nodeId || `asset-${Date.now()}`, prompt: "", title: payload.title, dataUrl, storageKey: payload.storageKey, source: payload.source }, position, nodeId);
     }
 
     const handleDrop = useCallback(
@@ -3547,7 +3549,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
             const node: CanvasNodeData = {
                 id,
                 type: CanvasNodeType.Image,
-                title: image.prompt.slice(0, 32) || "Generated Image",
+                title: image.title?.slice(0, 32) || image.prompt.slice(0, 32) || "Generated Image",
                 position: { x: center.x - config.width / 2, y: center.y - config.height / 2 },
                 width: config.width,
                 height: config.height,

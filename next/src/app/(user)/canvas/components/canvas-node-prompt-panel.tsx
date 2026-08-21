@@ -107,6 +107,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                                 onMissingConfig={() => openConfigDialog(true)}
                                 onOpenChange={onImageSettingsOpenChange}
                                 showSize={!isPanorama}
+                                panorama={isPanorama}
                             />
                         </>
                     ) : mode === "video" ? (

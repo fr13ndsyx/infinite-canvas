@@ -50,7 +50,7 @@ function tierOfAspect(value: string): "standard" | "2k" | "4k" {
 
 type ImageSettingsPanelProps = {
     config: AiConfig;
-    onConfigChange: (key: "size" | "count", value: string) => void;
+    onConfigChange: (key: "size" | "count" | "quality", value: string) => void;
     theme: CanvasTheme;
     capabilities?: AdminModelCapability;
     showTitle?: boolean;
@@ -58,9 +58,10 @@ type ImageSettingsPanelProps = {
     showCount?: boolean;
     className?: string;
     maxCount?: number;
+    panorama?: boolean;
 };
 
-export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities, showTitle = true, showSize = true, showCount = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 10 }: ImageSettingsPanelProps) {
+export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities, showTitle = true, showSize = true, showCount = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 10, panorama = false }: ImageSettingsPanelProps) {
     const [resolutionTier, setResolutionTier] = useState<"standard" | "2k" | "4k">(() => tierOfAspect(config.size || "auto"));
     const count = Math.max(1, Math.floor(Math.abs(Number(config.count)) || 1));
     const activeSize = config.size || "auto";
@@ -93,6 +94,15 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
         setResolutionTier(next);
         if (activeSize !== "auto" && tierOfAspect(activeSize) !== next) onConfigChange("size", "auto");
     };
+    // 全景模式：档位直接写入 quality（标准=low / 2K=medium / 4K=high），比例固定 2:1 不展示。
+    const panoramaTier = panoramaTierOfQuality(config.quality);
+    const changeTier = (tier: "standard" | "2k" | "4k") => {
+        if (panorama) {
+            onConfigChange("quality", tier === "standard" ? "low" : tier === "2k" ? "medium" : "high");
+            return;
+        }
+        changeResolutionTier(tier);
+    };
 
     return (
         <ImageSettingsTheme theme={theme}>
@@ -106,13 +116,13 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                 }}
             >
                 {showTitle ? <div className="text-lg font-semibold">图像设置</div> : null}
-                {showSize ? (
+                {showSize || panorama ? (
                     <>
                         {tierOptions.length >= 1 ? (
-                            <CanvasSection title="分辨率档位">
+                            <CanvasSection title={panorama ? "分辨率" : "分辨率档位"}>
                                 <div className="flex min-h-[44px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                                     {tierOptions.map((item) => {
-                                        const active = effectiveResolutionTier === item.value;
+                                        const active = (panorama ? panoramaTier : effectiveResolutionTier) === item.value;
                                         return (
                                             <button
                                                 key={item.value}
@@ -120,7 +130,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                                                 className="flex-1 rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
                                                 style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                                 onMouseDown={(event) => event.stopPropagation()}
-                                                onClick={() => changeResolutionTier(item.value as "standard" | "2k" | "4k")}
+                                                onClick={() => changeTier(item.value as "standard" | "2k" | "4k")}
                                             >
                                                 {item.label}
                                             </button>
@@ -129,29 +139,31 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                                 </div>
                             </CanvasSection>
                         ) : null}
-                        <CanvasSection title="选择比例">
-                            <div className="grid grid-cols-4 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
-                                {visibleAspects.map((item) => {
-                                    const isSmart = item.value === "auto";
-                                    const active = selectedAspect?.value === item.value;
-                                    return (
-                                        <button
-                                            key={item.value}
-                                            type="button"
-                                            className="flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md py-1 text-[9px] leading-3 transition hover:opacity-80"
-                                            style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
-                                            onMouseDown={(event) => event.stopPropagation()}
-                                            onClick={() => selectAspect(item.value)}
-                                        >
-                                            <span className="flex h-5 items-center justify-center">
-                                                <RatioIcon isSmart={isSmart} label={item.label} color={theme.node.text} />
-                                            </span>
-                                            <span>{isSmart ? "智能" : item.label}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </CanvasSection>
+                        {showSize ? (
+                            <CanvasSection title="选择比例">
+                                <div className="grid grid-cols-4 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
+                                    {visibleAspects.map((item) => {
+                                        const isSmart = item.value === "auto";
+                                        const active = selectedAspect?.value === item.value;
+                                        return (
+                                            <button
+                                                key={item.value}
+                                                type="button"
+                                                className="flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md py-1 text-[9px] leading-3 transition hover:opacity-80"
+                                                style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                                onMouseDown={(event) => event.stopPropagation()}
+                                                onClick={() => selectAspect(item.value)}
+                                            >
+                                                <span className="flex h-5 items-center justify-center">
+                                                    <RatioIcon isSmart={isSmart} label={item.label} color={theme.node.text} />
+                                                </span>
+                                                <span>{isSmart ? "智能" : item.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </CanvasSection>
+                        ) : null}
                     </>
                 ) : null}
                 {showCount ? (
@@ -180,6 +192,18 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
             {children}
         </ConfigProvider>
     );
+}
+
+// 全景 quality（low/medium/high，含 1k/2k/4k 别名，auto 折算 medium）对应的分辨率档位。
+export function panoramaTierOfQuality(quality: string | undefined): "standard" | "2k" | "4k" {
+    const value = (quality || "").trim().toLowerCase();
+    if (value === "low" || value === "1k" || value === "standard") return "standard";
+    if (value === "high" || value === "4k") return "4k";
+    return "2k";
+}
+
+export function imageQualityTierLabel(quality: string | undefined) {
+    return resolutionTierOptions.find((item) => item.value === panoramaTierOfQuality(quality))?.label || "2K";
 }
 
 export function imageSizeLabel(size: string) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Empty, Input, Pagination, Select, Spin } from "antd";
+import { App, Empty, Input, Pagination, Select, Spin } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, ChevronRight, Clapperboard, Eye, FileText, Group, Image as ImageIcon, Music2, Plus, Search, Settings2, Type, Video } from "lucide-react";
 import { motion } from "motion/react";
@@ -291,7 +291,7 @@ function MyAssetsTab({ theme, onAdd, onAssetDragStart, onAssetDragEnd }: { theme
                 </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-                {filtered.length ? <div className="grid grid-cols-2 gap-2 px-1 pt-1">{filtered.map((asset) => <AssetDragCard key={asset.id} asset={asset} theme={theme} onAssetDragStart={onAssetDragStart} onAssetDragEnd={onAssetDragEnd} />)}</div> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无素材" className="pt-16" />}
+                {filtered.length ? <div className="flex flex-col gap-2 px-1 pt-1">{filtered.map((asset) => <AssetDragCard key={asset.id} asset={asset} theme={theme} onAssetDragStart={onAssetDragStart} onAssetDragEnd={onAssetDragEnd} />)}</div> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无素材" className="pt-16" />}
             </div>
         </>
     );
@@ -317,7 +317,7 @@ function LibraryAssetsTab({ theme, onAssetDragStart, onAssetDragEnd }: { theme: 
                 <Select size="small" variant="borderless" className="w-16" value={type} onChange={setType} options={ASSET_TYPE_OPTIONS} />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-                {query.isLoading ? <div className="flex justify-center pt-16"><Spin size="small" /></div> : items.length ? <div className="grid grid-cols-2 gap-2 px-1 pt-1">{items.map((asset) => <LibraryAssetDragCard key={asset.id} asset={asset} theme={theme} onAssetDragStart={onAssetDragStart} onAssetDragEnd={onAssetDragEnd} />)}</div> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无素材" className="pt-16" />}
+                {query.isLoading ? <div className="flex justify-center pt-16"><Spin size="small" /></div> : items.length ? <div className="flex flex-col gap-2 px-1 pt-1">{items.map((asset) => <LibraryAssetDragCard key={asset.id} asset={asset} theme={theme} onAssetDragStart={onAssetDragStart} onAssetDragEnd={onAssetDragEnd} />)}</div> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无素材" className="pt-16" />}
                 {query.data?.total && query.data.total > ASSET_PAGE_SIZE ? <Pagination className="mt-3 flex justify-center" size="small" current={page} pageSize={ASSET_PAGE_SIZE} total={query.data.total} showSizeChanger={false} onChange={setPage} /> : null}
             </div>
         </>
@@ -333,6 +333,7 @@ function LibraryAssetDragCard({ asset, theme, onAssetDragStart, onAssetDragEnd }
 }
 
 function DraggableAssetCard({ theme, title, payload, kind, imageUrl, text, onAssetDragStart, onAssetDragEnd }: { theme: CanvasTheme; title: string; payload: InsertAssetPayload; kind: "text" | "image" | "video" | "audio"; imageUrl: string; text: string; onAssetDragStart: (payload: InsertAssetPayload) => void; onAssetDragEnd: () => void }) {
+    const summary = text || (kind === "image" ? "图片素材" : kind === "video" ? "视频素材" : "音频素材");
     return (
         <div
             draggable
@@ -343,10 +344,16 @@ function DraggableAssetCard({ theme, title, payload, kind, imageUrl, text, onAss
                 onAssetDragStart(payload);
             }}
             onDragEnd={onAssetDragEnd}
-            className="group relative aspect-square cursor-grab overflow-hidden rounded-xl border transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:cursor-grabbing"
+            className="group flex cursor-grab items-center gap-3 overflow-hidden rounded-xl border p-2 transition duration-200 hover:shadow-md active:cursor-grabbing"
             style={{ borderColor: theme.node.stroke, background: theme.node.panel }}
         >
-            {kind === "text" ? imageUrl ? <div className="flex size-full flex-col"><img src={imageUrl} alt={title} className="h-1/2 w-full object-cover" /><div className="h-1/2 overflow-hidden whitespace-pre-wrap break-words p-2.5 text-[11px] leading-snug opacity-80">{text}</div></div> : <div className="size-full overflow-hidden whitespace-pre-wrap break-words p-2.5 text-[11px] leading-snug opacity-80">{text}</div> : kind === "audio" ? <span className="grid size-full place-items-center"><Music2 className="size-8 opacity-45" /></span> : imageUrl ? kind === "video" ? <video src={imageUrl + "#t=0.1"} muted playsInline preload="metadata" className="size-full object-cover transition duration-300 group-hover:scale-[1.04]" /> : <img src={imageUrl} alt={title} className="size-full object-cover transition duration-300 group-hover:scale-[1.04]" /> : <span className="grid size-full place-items-center"><FileText className="size-8 opacity-45" /></span>}
+            <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-lg" style={{ background: theme.toolbar.panel }}>
+                {kind === "audio" ? <Music2 className="size-6 opacity-45" /> : !imageUrl ? <FileText className="size-6 opacity-45" /> : kind === "video" ? <video src={imageUrl + "#t=0.1"} muted playsInline preload="metadata" className="size-full object-cover transition duration-300 group-hover:scale-[1.04]" /> : <img src={imageUrl} alt={title} className="size-full object-cover transition duration-300 group-hover:scale-[1.04]" />}
+            </div>
+            <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold" style={{ color: theme.node.text }}>{title}</div>
+                <div className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-[11px] leading-snug" style={{ color: theme.node.text, opacity: 0.6 }}>{summary}</div>
+            </div>
         </div>
     );
 }
@@ -366,10 +373,16 @@ function libraryPayload(asset: AssetLibraryItem): InsertAssetPayload {
 }
 
 const CanvasPromptsTab = memo(function CanvasPromptsTab({ theme, onInsert }: { theme: CanvasTheme; onInsert: (payload: InsertAssetPayload) => void }) {
+    const { message } = App.useApp();
     const copyText = useCopyText();
+    const addAsset = useAssetStore((state) => state.addAsset);
     const [keyword, setKeyword] = useState("");
     const [expanded, setExpanded] = useState<Record<string, boolean>>({ image: true });
     const [detail, setDetail] = useState<Prompt | null>(null);
+    const savePromptAsset = (item: Prompt) => {
+        addAsset({ kind: "text", title: item.title, coverUrl: item.coverUrl, tags: item.tags, source: item.source, data: { content: item.prompt }, metadata: { source: "prompt-library", promptId: item.id } });
+        message.success("已加入我的素材");
+    };
 
     return (
         <div className="flex h-full flex-col">
@@ -384,7 +397,7 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ theme, onInsert }: { t
                     })}
                 </div>
             </div>
-            <PromptDetailDialog prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => copyText(prompt, "已复制提示词")} />
+            <PromptDetailDialog prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => copyText(prompt, "已复制提示词")} onSaveAsset={savePromptAsset} />
         </div>
     );
 });

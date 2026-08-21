@@ -159,6 +159,7 @@ export type CanvasAssistantImage = {
     dataUrl: string;
     storageKey?: string;
     prompt: string;
+    title?: string;
     source?: "asset" | "library";
 };
 
