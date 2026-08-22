@@ -13,6 +13,26 @@
 - `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
 
+## refactor/prompt-v1 合并（2026-08-21）
+
+- 分支：refactor/prompt-v1 → main（fast-forward，commit d622ad8）
+- 改动范围：提示词库重构后的系列 bug 修复 + 全景图分辨率档位 + 侧栏素材卡片改版
+- 关键变更：
+  - 提示词库瀑布流下滑重复：`Go/repository/prompt.go` 列表排序补次级键 `updated_at desc, id desc`（批量导入的提示词 updated_at 相同导致 OFFSET 分页顺序不稳定）
+  - 登录后"加入我的素材"失效/本地素材被清空：`use-asset-store.ts` 的 `hydrateAccountAssets` 从"云端覆盖本地"改为 `mergeAssets` 合并（id 去重、updatedAt 取新），本地多出的素材自动回推云端；根因是 userData 同步能力恒 true，每次加载云端空数据直接 `set({ assets: [] })`
+  - 画布侧栏提示词详情"加入我的素材"无反应：`canvas-side-panel.tsx` 给 `PromptDetailDialog` 补传漏掉的 `onSaveAsset`（kind: "text" 素材）
+  - 全景图节点设置面板空：`image-settings-panel.tsx` 新增 `panorama` 模式（只显示分辨率档位 标准/2K/4K，按模型 imageTiers 过滤，写入节点 quality low/medium/high，隐藏比例）；`canvas-image-settings-popover.tsx` / `canvas-node-prompt-panel.tsx` 透传启用，按钮显示当前档位（auto 显示 2K）；比例仍固定 2:1（等距柱状投影要求）
+  - 侧栏"我的素材/素材库"卡片改版：两列正方形小卡 → 单列横向卡片（56px 缩略图 + 标题 + 两行摘要），两个标签页生效，拖拽不变
+  - 画布图片拖回画布变空节点：`insertAssetAt` 图片分支插入前先 `resolveImageUrl(storageKey, dataUrl)` 解析真实地址（保存素材时带 storageKey 的 dataUrl 存空字符串）
+  - 素材图片拖入画布输入框出现图片芯片：`CanvasAssistantImage` 新增 `title` 字段，`insertAssetAt` 改传 `prompt: ""` + `title`；根因是素材标题预填为节点 prompt，无连线节点把自身作为 @ 引用（标签=标题），正文命中标签渲染成图片芯片
+- 涉及文件：`Go/repository/prompt.go`；`next/src/stores/use-asset-store.ts`；`next/src/components/image-settings-panel.tsx`；`next/src/app/(user)/canvas/types.ts`；`next/src/app/(user)/canvas/[id]/canvas-client-page.tsx`；`next/src/app/(user)/canvas/components/{canvas-side-panel,canvas-image-settings-popover,canvas-node-prompt-panel}.tsx`；`CHANGELOG.md`、`docs/progress/pending-test.md`
+- 待验证：见 `docs/progress/pending-test.md` 各条目（全景图档位/素材同步合并/侧栏卡片/空节点/图片芯片）
+- 待办：
+  - 图片反推提示词输出语言未固定（中英混杂，预置指令未约束语言，用户尚未决定固定中文还是英文）
+  - 侧栏"我的素材"卡片点击查看详情（双击打开 AssetDrawer 方案已提，用户考虑中）
+  - 全景图档位高亮回退：已选档位不在新模型 imageTiers 内时 panoramaTier 未回退到第一档（与普通图片路径行为不一致）
+  - `docs/overview/features.md` 全景图章节描述过时（"固定请求 2048x1024"），待全景图档位测试通过后一并修正
+
 ## refactor/prompt 合并（2026-08-21）
 
 - 分支：refactor/prompt → main（fast-forward，commit 0d9213f）
