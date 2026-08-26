@@ -41,7 +41,7 @@ type ModelInfo struct {
 // VideoResolutions 空=480p/720p/1080p 三档。
 // VideoSecondsMin/Max 空=默认 4-20 秒。
 // VideoPanelType 空=通用面板；kling-v26/kling-v3/seedance/grok/motion-control/agnes。
-// VideoProvider 空=不区分；apimart/kie（仅 kling-v3/motion-control 需要区分请求体格式）。
+// VideoProvider 空=不区分；apimart（仅 kling-v3/motion-control 需要区分请求体格式）。
 type ModelCapability struct {
 	Model            string   `json:"model"`
 	ImageAspects     []string `json:"imageAspects,omitempty"`

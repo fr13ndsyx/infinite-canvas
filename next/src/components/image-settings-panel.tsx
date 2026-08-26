@@ -92,7 +92,18 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
     };
     const changeResolutionTier = (next: "standard" | "2k" | "4k") => {
         setResolutionTier(next);
-        if (activeSize !== "auto" && tierOfAspect(activeSize) !== next) onConfigChange("size", "auto");
+        if (activeSize === "auto") {
+            // 从智能比例切档位：取新档位的默认比例（第一个非 auto aspect）
+            const fallback = aspectOptions.find((item) => item.tier === next && item.value !== "auto");
+            if (fallback) onConfigChange("size", fallback.size || fallback.value);
+            return;
+        }
+        const currentTier = selectedAspect?.tier;
+        if (currentTier === next) return;
+        // 切换分辨率档位时保留当前比例：找同 label 的新档位 aspect
+        const currentLabel = selectedAspect?.label;
+        const target = aspectOptions.find((item) => item.tier === next && item.label === currentLabel && item.value !== "auto");
+        onConfigChange("size", target ? (target.size || target.value) : "auto");
     };
     // 全景模式：档位直接写入 quality（标准=low / 2K=medium / 4K=high），比例固定 2:1 不展示。
     const panoramaTier = panoramaTierOfQuality(config.quality);
@@ -119,7 +130,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                 {showSize || panorama ? (
                     <>
                         {tierOptions.length >= 1 ? (
-                            <CanvasSection title={panorama ? "分辨率" : "分辨率档位"}>
+                            <CanvasSection title="选择分辨率">
                                 <div className="flex min-h-[44px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                                     {tierOptions.map((item) => {
                                         const active = (panorama ? panoramaTier : effectiveResolutionTier) === item.value;
@@ -209,6 +220,12 @@ export function imageQualityTierLabel(quality: string | undefined) {
 export function imageSizeLabel(size: string) {
     if (size === "auto") return "智能比例";
     return aspectOptions.find((item) => (item.size || item.value) === size || item.value === size)?.label || size;
+}
+
+export function imageResolutionTierLabel(size: string) {
+    if (size === "auto") return "标准";
+    const aspect = aspectOptions.find((item) => (item.size || item.value) === size || item.value === size);
+    return resolutionTierOptions.find((item) => item.value === (aspect?.tier || "standard"))?.label || "标准";
 }
 
 export function imageFormatLabel(format: string) {

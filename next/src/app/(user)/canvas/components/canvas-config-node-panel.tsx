@@ -13,6 +13,7 @@ import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasCameraControl } from "./canvas-camera-control";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import { CanvasVideoSettingsPopover, type CanvasVideoFrameOption, type CanvasVideoResourceOption } from "./canvas-video-settings-popover";
+import { CanvasVideoSizePopover } from "./canvas-video-size-popover";
 import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata } from "../types";
 
 type CanvasConfigNodePanelProps = {
@@ -105,16 +106,19 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, videoFram
 
             <div className="canvas-composer-bar mb-2 flex min-w-0 cursor-default items-center gap-1 text-[10.8px]" style={{ fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }} onMouseDown={(event) => event.stopPropagation()}>
                 <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-                    <ModelPicker className="canvas-compact-control h-10 !min-w-0 !text-[10.8px]" config={config} value={config.model} channelId={modelChannelId(config, mode)} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability={mode} onMissingConfig={() => openConfigDialog(true)} fullWidth />
+                    <ModelPicker className="canvas-compact-control !h-8 !rounded-md !px-1.5 !min-w-0 !text-[10.8px]" config={config} value={config.model} channelId={modelChannelId(config, mode)} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability={mode} onMissingConfig={() => openConfigDialog(true)} fullWidth nameMaxWidth={50} />
                     {mode === "video" ? (
-                        <CanvasVideoSettingsPopover config={config} placement="topRight" frameOptions={videoFrameOptions} resourceOptions={videoResourceOptions} metadata={node.metadata} firstFrameNodeId={node.metadata?.firstFrameNodeId} lastFrameNodeId={node.metadata?.lastFrameNodeId} onFrameChange={(patch) => onConfigChange(node.id, patch)} onMetadataChange={(patch) => onConfigChange(node.id, patch)} onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
+                        <>
+                            <CanvasVideoSettingsPopover config={config} placement="topRight" frameOptions={videoFrameOptions} resourceOptions={videoResourceOptions} metadata={node.metadata} firstFrameNodeId={node.metadata?.firstFrameNodeId} lastFrameNodeId={node.metadata?.lastFrameNodeId} onFrameChange={(patch) => onConfigChange(node.id, patch)} onMetadataChange={(patch) => onConfigChange(node.id, patch)} onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
+                            <CanvasVideoSizePopover config={config} buttonClassName="canvas-compact-control !h-8 !justify-start !rounded-md !px-1.5 !text-[10.8px]" onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
+                        </>
                     ) : mode === "image" ? (
-                        <CanvasImageSettingsPopover config={config} placement="topRight" autoAdjustOverflow={false} buttonClassName="canvas-compact-control !h-10 !justify-start !rounded-lg !px-2 !text-[10.8px]" onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })} />
+                        <CanvasImageSettingsPopover config={config} placement="topRight" autoAdjustOverflow={false} buttonClassName="canvas-compact-control !h-8 !justify-start !rounded-md !px-1.5 !text-[10.8px]" onConfigChange={(key, value) => onConfigChange(node.id, key === "count" ? { count: Number(value) || 1 } : { [key]: value })} />
                     ) : mode === "audio" ? (
-                        <CanvasAudioSettingsPopover config={config} placement="topRight" buttonClassName="canvas-compact-control !h-10 !justify-start !rounded-lg !px-2 !text-[10.8px]" onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))} />
+                        <CanvasAudioSettingsPopover config={config} placement="topRight" buttonClassName="canvas-compact-control !h-8 !justify-start !rounded-md !px-1.5 !text-[10.8px]" onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))} />
                     ) : null}
                     {mode === "image" || mode === "video" ? (
-                        <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName="!h-auto !min-w-0 !justify-start !rounded-md !px-1.5 !py-0.5" />
+                        <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName="!h-8 !min-w-0 !justify-start !rounded-md !px-1.5 !text-[10.8px]" />
                     ) : null}
                 </div>
             </div>

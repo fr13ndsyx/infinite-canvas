@@ -324,7 +324,7 @@ export function CanvasAssistantPanel({
     };
 
     const startResize = () => {
-        const move = (event: MouseEvent) => onWidthChange(Math.min(760, Math.max(320, window.innerWidth - event.clientX)));
+        const move = (event: MouseEvent) => onWidthChange(Math.min(760, Math.max(390, window.innerWidth - event.clientX)));
         const stop = () => {
             setResizing(false);
             document.body.style.cursor = "";

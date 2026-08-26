@@ -94,21 +94,25 @@ export function CanvasCameraControl({ value, onChange, buttonClassName }: Canvas
     }, [open]);
 
     const panelStyle = buttonRect
-        ? {
-            position: "fixed",
-            zIndex: 1200,
-            width: 900,
-            left: buttonRect.left + buttonRect.width / 2,
-            bottom: window.innerHeight - buttonRect.top + 8,
-            transform: "translateX(-50%) scale(0.75)",
-            transformOrigin: "center bottom",
-            overflowY: "auto",
-            background: theme.toolbar.panel,
-            border: "1px solid " + theme.toolbar.border,
-            borderRadius: 18,
-            boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
-            color: theme.node.text,
-        } as const
+        ? (() => {
+              const openUpward = window.innerHeight - buttonRect.bottom < 500;
+              return {
+                  position: "fixed",
+                  zIndex: 1200,
+                  width: 900,
+                  left: buttonRect.left + buttonRect.width / 2,
+                  transform: "translateX(-50%) scale(0.75)",
+                  overflowY: "auto",
+                  ...(openUpward
+                      ? { bottom: window.innerHeight - buttonRect.top + 8, maxHeight: Math.max(260, buttonRect.top - 24), transformOrigin: "center bottom" }
+                      : { top: buttonRect.bottom + 8, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - 24), transformOrigin: "center top" }),
+                  background: theme.toolbar.panel,
+                  border: "1px solid " + theme.toolbar.border,
+                  borderRadius: 18,
+                  boxShadow: "0 18px 54px rgba(28, 25, 23, 0.16)",
+                  color: theme.node.text,
+              } as const;
+          })()
         : undefined;
 
     return (
@@ -118,7 +122,7 @@ export function CanvasCameraControl({ value, onChange, buttonClassName }: Canvas
                     type="button"
                     className={["inline-flex items-center gap-1 border-0 bg-transparent !text-[10.8px] transition whitespace-nowrap", buttonClassName || ""].join(" ")}
                     style={{ color: value?.enabled ? theme.toolbar.activeText : theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
-                    onMouseEnter={(event) => { event.currentTarget.style.background = theme.node.fill; }}
+                    onMouseEnter={(event) => { event.currentTarget.style.background = theme.toolbar.activeBg; }}
                     onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                     aria-expanded={open}
                     onClick={() => setOpen((current) => !current)}

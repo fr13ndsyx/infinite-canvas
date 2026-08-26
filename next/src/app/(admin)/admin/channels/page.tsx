@@ -364,7 +364,6 @@ export default function AdminChannelsPage() {
                                     <Select
                                         options={[
                                             { label: "OpenAI", value: "openai" },
-                                            { label: "KIE", value: "kie" },
                                         ]}
                                     />
                                 </Form.Item>

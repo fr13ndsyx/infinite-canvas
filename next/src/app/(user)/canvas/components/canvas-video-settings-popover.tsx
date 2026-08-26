@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { FileText, Image as ImageIcon, Music2, Plus, Settings2, Trash2, Video as VideoIcon, Volume2, VolumeX, X } from "lucide-react";
+import { FileText, Image as ImageIcon, Music2, Plus, Settings2, SlidersHorizontal, Trash2, Video as VideoIcon, Volume2, VolumeX, X } from "lucide-react";
 import { Button, Input, Switch } from "antd";
 
 import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
@@ -11,6 +11,8 @@ import { boolConfig } from "@/lib/seedance-video";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { findModelCapability, resolveSupportsElementList, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveVideoModes, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
 import type { CanvasNodeMetadata } from "../types";
+import { PopoverToggleIndicator } from "@/components/popover-toggle-indicator";
+import { PopoverArrow } from "@/components/popover-arrow";
 
 export type CanvasVideoFrameOption = { nodeId: string; label: string; previewUrl?: string };
 export type CanvasVideoResourceOption = { nodeId: string; kind: "text" | "image" | "video" | "audio"; label: string; previewUrl?: string; text?: string };
@@ -64,43 +66,38 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOption
         window.addEventListener("resize", syncPosition);
         window.addEventListener("scroll", syncPosition, true);
         window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+        const trigger = buttonRef.current;
+        const node = trigger?.closest<HTMLElement>("[data-node-id]");
+        const canvasLayer = node?.parentElement;
+        const observer = new MutationObserver(syncPosition);
+        if (node) observer.observe(node, { attributes: true, attributeFilter: ["style"] });
+        if (canvasLayer) observer.observe(canvasLayer, { attributes: true, attributeFilter: ["style"] });
         return () => {
             window.removeEventListener("resize", syncPosition);
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+            observer.disconnect();
         };
     }, [open]);
 
     const panel = open && buttonRect ? <VideoSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} frameOptions={frameOptions} resourceOptions={resourceOptions} metadata={metadata} firstFrameNodeId={firstFrameNodeId} lastFrameNodeId={lastFrameNodeId} onFrameChange={onFrameChange} onMetadataChange={onMetadataChange} visualOnly={visualOnly} activeTab={activeTab} setActiveTab={setActiveTab} hasFrames={hasFrames} showFrameOrReference={showFrameOrReference} supportsFirstFrame={supportsFirstFrame} supportsLastFrame={supportsLastFrame} supportsElementList={supportsElementList} /> : null;
 
-    const segments: { key: string; label: ReactNode }[] = [
-        ...(showFrameOrReference && activeTab === "frames" ? [{ key: "frames", label: "首尾帧" }] : []),
-        ...(showFrameOrReference && activeTab === "reference" ? [{ key: "reference", label: "全能参考" }] : []),
-        ...(modeLabel ? [{ key: "mode", label: modeLabel }] : []),
-        { key: "ratio", label: ratioLabel(config.size) },
-        { key: "res", label: videoResolutionLabel(config.vquality) },
-        { key: "dur", label: videoSecondsLabel(config.videoSeconds) },
-        { key: "audio", label: audioOn ? <Volume2 className="size-3 shrink-0 opacity-80" /> : <VolumeX className="size-3 shrink-0 opacity-45" /> },
-    ];
-
     return (
         <>
-            <span ref={buttonRef} className="inline-flex min-w-0 shrink-0">
+            <span ref={buttonRef} className="group inline-flex min-w-0 shrink-0">
                 <Button
                     size="small"
                     type="text"
                     className="!h-8 !min-w-0 !justify-start !rounded-md !px-1.5 !text-[10.8px] !whitespace-nowrap"
-                    style={{ background: "transparent", color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
-                    icon={<Settings2 className="size-3" />}
+                    style={{ background: "transparent", color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif', transition: "background-color 120ms" }}
+                    icon={<SlidersHorizontal className="size-3" />}
                     onClick={() => setOpen((current) => !current)}
+                    onMouseEnter={(event) => { event.currentTarget.style.background = theme.toolbar.activeBg; }}
+                    onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                 >
                     <span className="inline-flex items-center whitespace-nowrap">
-                        {segments.map((seg, index) => (
-                            <Fragment key={seg.key}>
-                                {index > 0 ? <span className="shrink-0 px-1 opacity-30">·</span> : null}
-                                {seg.label}
-                            </Fragment>
-                        ))}
+                        视频模式
+                        <PopoverToggleIndicator open={open} />
                     </span>
                 </Button>
             </span>
@@ -114,7 +111,7 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
     const gap = 8;
     const margin = 12;
     const left = buttonRect.left + buttonRect.width / 2 - width / 2;
-    const topPlacement = placement?.startsWith("top");
+    const topPlacement = window.innerHeight - buttonRect.bottom < 320;
     const style = { position: "fixed", zIndex: 1200, width, left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)), ...(topPlacement ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) } : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }), background: theme.toolbar.panel, border: `1px solid ${theme.toolbar.border}`, borderRadius: 18, boxShadow: "none", padding: 18, overflowY: "auto", color: theme.node.text } as const;
     const model = config.model || config.videoModel || "";
     const cap = findModelCapability(config, model);
@@ -135,9 +132,9 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
     const updateElementList = (items: { name?: string; description?: string; nodeIds?: string[] }[]) => onMetadataChange?.({ klingElementList: normalizeKlingElementList(items) });
 
     return createPortal(
+        <>
         <div ref={panelRef} className="canvas-image-settings-popover" style={style} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
             <div className="space-y-4">
-                <div className="text-lg font-semibold">视频设置</div>
                 {showFrameOrReference ? (
                     <>
                         <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
@@ -172,9 +169,11 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
                 {!visualOnly && supportsElementList ? <KlingElementListSection items={elementList} options={mediaOptions} theme={theme} onChange={updateElementList} /> : null}
                 {!visualOnly && supportsMotionControl ? <CharacterOrientationSetting value={config.videoCharacterOrientation} theme={theme} onChange={(value) => onConfigChange("videoCharacterOrientation", value)} /> : null}
                 {!visualOnly && supportsMultiShot ? <AdvancedVideoSettings metadata={metadata} resourceOptions={resourceOptions} theme={theme} supportsMultiShot={supportsMultiShot} useKlingMultiShotBehavior={useKlingMultiShotBehavior} onMetadataChange={onMetadataChange} /> : null}
-                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-3" variant="canvas" visualOnly={visualOnly} capabilities={cap} />
+                <VideoSettingsPanel config={config} modelName={visualOnly ? config.videoModel || config.model : undefined} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} showTitle={false} className="space-y-3" variant="canvas" visualOnly={visualOnly} capabilities={cap} hideRatioResolution />
             </div>
-        </div>,
+        </div>
+        <PopoverArrow buttonRect={buttonRect} direction={topPlacement ? "down" : "up"} gap={8} background={theme.toolbar.panel} border={theme.toolbar.border} />
+        </>,
         document.body,
     );
 }

@@ -44,13 +44,6 @@ description: 当前项目后续值得处理的事项
 - 基础：算力点体系已完整（Credits + CreditLog + 预扣/返还），支付只需做充值入口对接
 - 待确认：充值算力点 vs 订阅会员（会员专属提示词依赖此决策）；微信商户/支付宝/第三方个人支付（与需求 1 主体资质联动）
 
-### KIE AI 接口代码清理
-
-- 状态：暂不考虑删除
-- 说明：`Go/handler/kie_image.go` 中的 `kieFileStreamUploadURL`（`https://kieai.redpandaai.co/api/file-stream-upload`）是第三方 AI 服务商 KIE AI 的文件上传接口
-- 触发条件：仅当用户在画布图像生成中选择 KIE 作为模型渠道，并上传参考图时才会调用
-- 不接 KIE 渠道时该代码不会执行，无副作用；如未来确定不使用 KIE，可删除相关适配逻辑（涉及 handler/service/router 多处）
-
 ### 提示词封面图本地化
 
 - 状态：暂不实施，上线后视情况优化
@@ -69,7 +62,7 @@ description: 当前项目后续值得处理的事项
 
 - 状态：已实施并验证通过（变更明细见 [pending-test.md](./pending-test.md)），仅剩收尾项暂未实施，后续按需补
 - 方案文档：[model-capabilities-refactor.md](./model-capabilities-refactor.md)
-- 剩余项：后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造
+- 剩余项：后端 `apimartImageConfig` 优先读配置、硬编码作 fallback 的改造（KIE 侧适配已随 KIE 渠道代码清理移除）
 
 ### 画布 Agent 行为风格可配置
 
@@ -82,4 +75,20 @@ description: 当前项目后续值得处理的事项
   - `eager` 模式下 Agent 收到"生成 prompt / 文案 / 脚本"类指令时自动调用 `create_text_node` 在画布创建节点，而非只在对话框返回文字
   - 默认 `conservative` 保持现状，不影响已有用户体验
 - 触发条件：管理员希望引导用户更深入使用画布时启用
+
+### 图片比例与分辨率解耦
+
+- 状态：方案待审，暂未实施
+- 方案文档：[image-ratio-resolution-decouple.md](./image-ratio-resolution-decouple.md)
+- 目标：把图片生成的「比例」和「分辨率档位」从同一个 `config.size` 字段拆成两个独立参数（`size` 存比例、新增 `imageTier` 存档位），让「智能比例(auto)」也能配 2K/4K，对齐 GPT-image-1 / Grok-imagine / Seedream 等主流模型的能力
+- 背景：当前比例+档位编码在 size（如 `1:1-2k`→`2048x2048`），切档位要同步换 size 否则比例丢失（已修两轮 bug），且表达不出「智能比例+2K」组合
+- 改动范围：
+  - 前端：`image-settings-panel.tsx` 重构 `aspectOptions`（去 tier/size）、`use-config-store.ts` 加 `imageTier` 字段 + 迁移逻辑、下游所有读写 `config.size` 的地方排查
+  - 后端：按模型把 `(ratio, tier)` 映射到各家 API（gpt-image-1 → size+quality、grok-imagine → aspect_ratio+resolution、seedream → size=2K/4K+prompt 比例），工作量大头
+- 关键点：
+  - 新增 `config.imageTier`（standard/2k/4k），`config.size` 语义改为纯比例
+  - 智能比例（auto）+ 2K/4K 成为合法组合
+  - 存量 `size=2048x2048` 等加载时迁移为 `size=1:1`+`imageTier=2k`
+- 风险：后端逐模型映射表需单独确认；前端 `config.size` 下游依赖需排查；部分模型不支持 4K 需降级
+- 触发条件：确认要支持「智能比例 + 2K/4K」、或切档位 bug 再发时优先实施；前置：先补后端各模型 `(ratio,tier)→API` 映射表
 

@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { App, Button } from "antd";
-import { Check, ChevronDown } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { canvasThemes } from "@/lib/canvas-theme";
+import { PopoverToggleIndicator } from "@/components/popover-toggle-indicator";
+import { PopoverArrow } from "@/components/popover-arrow";
 import { filterModelsByCapability, normalizeLocalChannels, useConfigStore, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -21,9 +23,11 @@ type ModelPickerProps = {
     fullWidth?: boolean;
     placeholder?: string;
     onMissingConfig?: () => void;
+    showToggleIndicator?: boolean;
+    nameMaxWidth?: number;
 };
 
-export function ModelPicker({ config, value, channelId, capability, onChange, className, fullWidth = false, placeholder = "选择模型", onMissingConfig }: ModelPickerProps) {
+export function ModelPicker({ config, value, channelId, capability, onChange, className, fullWidth = false, placeholder = "选择模型", onMissingConfig, showToggleIndicator = false, nameMaxWidth }: ModelPickerProps) {
     const { message } = App.useApp();
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const buttonRef = useRef<HTMLSpanElement>(null);
@@ -68,10 +72,17 @@ export function ModelPicker({ config, value, channelId, capability, onChange, cl
         window.addEventListener("resize", syncPosition);
         window.addEventListener("scroll", syncPosition, true);
         window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+        const trigger = buttonRef.current;
+        const node = trigger?.closest<HTMLElement>("[data-node-id]");
+        const canvasLayer = node?.parentElement;
+        const observer = new MutationObserver(syncPosition);
+        if (node) observer.observe(node, { attributes: true, attributeFilter: ["style"] });
+        if (canvasLayer) observer.observe(canvasLayer, { attributes: true, attributeFilter: ["style"] });
         return () => {
             window.removeEventListener("resize", syncPosition);
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+            observer.disconnect();
         };
     }, [open]);
 
@@ -95,7 +106,7 @@ export function ModelPicker({ config, value, channelId, capability, onChange, cl
 
     return (
         <>
-            <span ref={buttonRef} className="inline-flex min-w-0 shrink-0">
+            <span ref={buttonRef} className={cn("inline-flex min-w-0 shrink-0", showToggleIndicator && "group")}>
                 <Button
                     size="small"
                     type="text"
@@ -104,14 +115,16 @@ export function ModelPicker({ config, value, channelId, capability, onChange, cl
                         fullWidth ? "!w-full" : "",
                         className,
                     )}
-                    style={{ background: "transparent", color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
+                    style={{ background: "transparent", color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif', transition: "background-color 120ms" }}
                     icon={<ModelIcon model={current} />}
                     onClick={handleOpen}
                     title={current || placeholder}
+                    onMouseEnter={(event) => { event.currentTarget.style.background = theme.toolbar.activeBg; }}
+                    onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                 >
                     <span className="flex min-w-0 items-center gap-1">
-                        <span className="whitespace-nowrap">{current || placeholder}</span>
-                        <ChevronDown className="size-2.5 shrink-0 opacity-50" />
+                        <span className="min-w-0 truncate whitespace-nowrap" style={nameMaxWidth ? { maxWidth: nameMaxWidth } : undefined} title={current || placeholder}>{current || placeholder}</span>
+                        {showToggleIndicator ? <PopoverToggleIndicator open={open} /> : null}
                     </span>
                 </Button>
             </span>
@@ -164,6 +177,7 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
     } as const;
 
     return createPortal(
+        <>
         <div
             ref={panelRef}
             className="canvas-model-picker-popover"
@@ -195,7 +209,9 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
             ) : (
                 <div className="px-2 py-3 text-center text-xs opacity-55">{emptyText}</div>
             )}
-        </div>,
+        </div>
+        <PopoverArrow buttonRect={buttonRect} direction={openUpward ? "down" : "up"} gap={8} background={theme.toolbar.panel} border={theme.toolbar.border} />
+        </>,
         document.body,
     );
 }

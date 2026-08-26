@@ -299,9 +299,6 @@ func pollVideoTaskFromUpstream(task model.VideoTask) (service.VideoTaskPollUpdat
 }
 
 func normalizeVideoCreateBody(body []byte, contentType string, modelName string, channel model.ModelChannel, upstreamPath string) ([]byte, string, error) {
-	if isKIEChannel(channel, modelName) && upstreamPath == "/jobs/createTask" {
-		return normalizeKIEVideoBody(body, contentType, modelName, channel)
-	}
 	if isAPIMartChannel(channel, modelName) && upstreamPath == "/videos/generations" {
 		return normalizeAPIMartVideoBody(body, contentType, modelName, channel)
 	}
@@ -319,11 +316,6 @@ func doAIRequest(request *http.Request, channel model.ModelChannel) ([]byte, int
 }
 
 func transformVideoCreatePayload(payload []byte, request *http.Request, channel model.ModelChannel, modelName string) []byte {
-	if isKIEChannel(channel, modelName) && strings.Contains(request.URL.Path, "/jobs/createTask") {
-		if transformed, ok := transformKIECreateVideoResponse(payload, modelName); ok {
-			return transformed
-		}
-	}
 	if isAPIMartChannel(channel, modelName) && strings.Contains(request.URL.Path, "/videos/generations") {
 		if transformed, ok := transformAPIMartCreateVideoResponse(payload, modelName); ok {
 			return transformed
@@ -333,11 +325,6 @@ func transformVideoCreatePayload(payload []byte, request *http.Request, channel 
 }
 
 func transformVideoStatusPayload(payload []byte, request *http.Request, channel model.ModelChannel, modelName string) []byte {
-	if isKIEChannel(channel, modelName) && strings.Contains(request.URL.Path, "/jobs/recordInfo") {
-		if transformed, ok := transformKIETaskResponse(payload, modelName); ok {
-			return transformed
-		}
-	}
 	if isAPIMartChannel(channel, modelName) && strings.Contains(request.URL.Path, "/tasks/") {
 		if transformed, ok := transformAPIMartTaskResponse(payload, modelName); ok {
 			return transformed
@@ -347,16 +334,10 @@ func transformVideoStatusPayload(payload []byte, request *http.Request, channel 
 }
 
 func readVideoCreateErrorMessage(raw []byte, transformed []byte, channel model.ModelChannel, modelName string) string {
-	if isKIEChannel(channel, modelName) {
-		return firstNonEmpty(readKIECreateTaskErrorMessage(raw), readProviderPayloadError(raw), readNormalizedVideoError(transformed))
-	}
 	return firstNonEmpty(readProviderPayloadError(raw), readNormalizedVideoError(transformed))
 }
 
 func readVideoStatusErrorMessage(raw []byte, transformed []byte, channel model.ModelChannel, modelName string) string {
-	if isKIEChannel(channel, modelName) {
-		return firstNonEmpty(readKIERecordInfoErrorMessage(raw), readProviderPayloadError(raw), readNormalizedVideoError(transformed))
-	}
 	return firstNonEmpty(readProviderPayloadError(raw), readNormalizedVideoError(transformed))
 }
 

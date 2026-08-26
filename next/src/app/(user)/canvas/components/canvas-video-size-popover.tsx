@@ -5,24 +5,23 @@ import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
 
-import { AudioSettingsPanel } from "@/components/audio-settings-panel";
-import { audioFormatLabel, audioSpeedLabel, audioVoiceLabel } from "@/lib/audio-generation";
+import { VideoSettingsPanel, videoResolutionLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { AiConfig } from "@/stores/use-config-store";
+import type { CanvasTheme } from "@/lib/canvas-theme";
+import type { AdminModelCapability } from "@/services/api/admin";
 import { PopoverToggleIndicator } from "@/components/popover-toggle-indicator";
 import { PopoverArrow } from "@/components/popover-arrow";
 
-export type CanvasAudioSettingKey = "audioVoice" | "audioFormat" | "audioSpeed" | "audioInstructions";
-
-type CanvasAudioSettingsPopoverProps = {
+type CanvasVideoSizePopoverProps = {
     config: AiConfig;
-    onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
-    buttonClassName?: string;
+    onConfigChange: (key: "vquality" | "size", value: string) => void;
     placement?: "topLeft" | "top" | "topRight" | "bottomLeft" | "bottom" | "bottomRight";
+    buttonClassName?: string;
 };
 
-export function CanvasAudioSettingsPopover({ config, onConfigChange, buttonClassName, placement = "topLeft" }: CanvasAudioSettingsPopoverProps) {
+export function CanvasVideoSizePopover({ config, onConfigChange, placement = "topLeft", buttonClassName }: CanvasVideoSizePopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -57,14 +56,25 @@ export function CanvasAudioSettingsPopover({ config, onConfigChange, buttonClass
         };
     }, [open]);
 
-    const panel = open && buttonRect ? <AudioSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} /> : null;
+    const panel = open && buttonRect ? <VideoSizePortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} /> : null;
 
     return (
         <>
             <span ref={buttonRef} className="group inline-flex min-w-0 shrink-0">
-                <Button size="small" type="text" className={buttonClassName || "!h-8 !justify-start !rounded-full !px-2.5"} style={{ background: "transparent", color: theme.node.text, transition: "background-color 120ms" }} icon={<Settings2 className="size-3" />} onClick={() => setOpen((current) => !current)} onMouseEnter={(event) => { event.currentTarget.style.background = theme.toolbar.activeBg; }} onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}>
+                <Button
+                    size="small"
+                    type="text"
+                    className={buttonClassName || "!h-8 !justify-start !rounded-md !px-1.5 !text-[10.8px]"}
+                    style={{ background: "transparent", color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif', transition: "background-color 120ms" }}
+                    icon={<Settings2 className="size-3" />}
+                    onClick={() => setOpen((current) => !current)}
+                    onMouseEnter={(event) => { event.currentTarget.style.background = theme.toolbar.activeBg; }}
+                    onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
+                >
                     <span className="inline-flex items-center whitespace-nowrap">
-                        {audioVoiceLabel(config.audioVoice)}<span className="shrink-0 px-1 opacity-30">·</span>{audioFormatLabel(config.audioFormat)}<span className="shrink-0 px-1 opacity-30">·</span>{audioSpeedLabel(config.audioSpeed)}
+                        {videoResolutionLabel(config.vquality)}
+                        <span className="shrink-0 px-1 opacity-30">·</span>
+                        {config.size === "auto" || config.size === "adaptive" ? "智能比例" : videoSizeRatioLabel(config.size)}
                         <PopoverToggleIndicator open={open} />
                     </span>
                 </Button>
@@ -74,20 +84,13 @@ export function CanvasAudioSettingsPopover({ config, onConfigChange, buttonClass
     );
 }
 
-function AudioSettingsPortal({
-    buttonRect,
-    panelRef,
-    placement,
-    theme,
-    config,
-    onConfigChange,
-}: {
+function VideoSizePortal({ buttonRect, panelRef, placement, theme, config, onConfigChange }: {
     buttonRect: DOMRect;
     panelRef: RefObject<HTMLDivElement | null>;
-    placement: CanvasAudioSettingsPopoverProps["placement"];
-    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
+    placement: CanvasVideoSizePopoverProps["placement"];
+    theme: CanvasTheme;
     config: AiConfig;
-    onConfigChange: (key: CanvasAudioSettingKey, value: string) => void;
+    onConfigChange: (key: "vquality" | "size", value: string) => void;
 }) {
     const width = 356;
     const gap = 8;
@@ -109,17 +112,19 @@ function AudioSettingsPortal({
         color: theme.node.text,
     } as const;
 
+    const cap = config.modelCapabilities?.find((item) => item.model === (config.model || config.videoModel || ""));
+
     return createPortal(
         <>
             <div
                 ref={panelRef}
-                className="canvas-image-settings-popover"
+                className="canvas-video-size-popover"
                 style={style}
                 onPointerDown={(event) => event.stopPropagation()}
                 onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
             >
-                <AudioSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-3" showTitle={false} />
+                <VideoSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key as "vquality" | "size", value)} theme={theme} showTitle={false} className="space-y-3" variant="canvas" capabilities={cap} sizeOnly />
             </div>
             <PopoverArrow buttonRect={buttonRect} direction={topPlacement ? "down" : "up"} gap={8} background={theme.toolbar.panel} border={theme.toolbar.border} />
         </>,
