@@ -224,13 +224,13 @@ function ConnectionCreateMenu({ pending, onCreate, onClose }: { pending: Pending
                 </button>
             </div>
             <div className="grid gap-0.5">
-                <ConnectionCreateOption compact theme={theme} icon={<List className="size-4" />} title="文本" description="脚本、广告词、品牌文案" onClick={() => onCreate(CanvasNodeType.Text)} />
+                <ConnectionCreateOption compact theme={theme} icon={<List className="size-4" />} title="文本" onClick={() => onCreate(CanvasNodeType.Text)} />
                 <ConnectionCreateOption compact theme={theme} icon={<ImageIcon className="size-4" />} title="图片" onClick={() => onCreate(CanvasNodeType.Image)} />
                 <ConnectionCreateOption compact theme={theme} icon={<Video className="size-4" />} title="视频" onClick={() => onCreate(CanvasNodeType.Video)} />
                 <ConnectionCreateOption compact theme={theme} icon={<Music2 className="size-4" />} title="音频" onClick={() => onCreate(CanvasNodeType.Audio)} />
-                <ConnectionCreateOption compact theme={theme} icon={<Globe2 className="size-4" />} title="全景图" description="文生全景、图生全景" onClick={() => onCreate(CanvasNodeType.Panorama)} />
-                <ConnectionCreateOption compact theme={theme} icon={<Layers3 className="size-4" />} title="3D 导演台" description="3D场景、角色、机位" onClick={() => onCreate(CanvasNodeType.Director)} />
-                <ConnectionCreateOption compact theme={theme} icon={<Settings2 className="size-4" />} title="配置节点" description="模型、尺寸、数量和输入顺序" onClick={() => onCreate(CanvasNodeType.Config)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Globe2 className="size-4" />} title="全景图" onClick={() => onCreate(CanvasNodeType.Panorama)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Layers3 className="size-4" />} title="3D 导演台" onClick={() => onCreate(CanvasNodeType.Director)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Settings2 className="size-4" />} title="配置节点" onClick={() => onCreate(CanvasNodeType.Config)} />
             </div>
         </div>
     );
@@ -281,18 +281,18 @@ function NodeCreateMenu({
                 <button type="button" className="grid size-6 place-items-center rounded-md text-sm opacity-55 transition hover:opacity-100" onClick={onClose} aria-label="关闭">×</button>
             </div>
             <div className="grid gap-0.5">
-                <ConnectionCreateOption compact theme={theme} icon={<List className="size-4" />} title="文本" description="脚本、广告词、品牌文案" onClick={() => onCreate(CanvasNodeType.Text)} />
+                <ConnectionCreateOption compact theme={theme} icon={<List className="size-4" />} title="文本" onClick={() => onCreate(CanvasNodeType.Text)} />
                 <ConnectionCreateOption compact theme={theme} icon={<ImageIcon className="size-4" />} title="图片" onClick={() => onCreate(CanvasNodeType.Image)} />
                 <ConnectionCreateOption compact theme={theme} icon={<Video className="size-4" />} title="视频" onClick={() => onCreate(CanvasNodeType.Video)} />
                 <ConnectionCreateOption compact theme={theme} icon={<Music2 className="size-4" />} title="音频" onClick={() => onCreate(CanvasNodeType.Audio)} />
-                <ConnectionCreateOption compact theme={theme} icon={<Globe2 className="size-4" />} title="全景图" description="文生全景、图生全景" onClick={() => onCreate(CanvasNodeType.Panorama)} />
-                <ConnectionCreateOption compact theme={theme} icon={<Layers3 className="size-4" />} title="3D 导演台" description="3D场景、角色、机位" onClick={() => onCreate(CanvasNodeType.Director)} />
-                <ConnectionCreateOption compact theme={theme} icon={<Settings2 className="size-4" />} title="配置节点" description="模型、尺寸、数量和输入顺序" onClick={() => onCreate(CanvasNodeType.Config)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Globe2 className="size-4" />} title="全景图" onClick={() => onCreate(CanvasNodeType.Panorama)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Layers3 className="size-4" />} title="3D 导演台" onClick={() => onCreate(CanvasNodeType.Director)} />
+                <ConnectionCreateOption compact theme={theme} icon={<Settings2 className="size-4" />} title="配置节点" onClick={() => onCreate(CanvasNodeType.Config)} />
                 <div className="mb-1.5 mt-2 flex items-center justify-between px-1">
                     <span className="text-[11px] font-medium" style={{ color: theme.node.muted }}>添加资源</span>
                 </div>
-                <ConnectionCreateOption compact theme={theme} icon={<Upload className="size-4" />} title="上传" description="图片、视频或音频" onClick={onUpload} />
-                <ConnectionCreateOption compact theme={theme} icon={<Images className="size-4" />} title="从素材库选择" description="文本、图片或视频" onClick={onOpenAssetLibrary} />
+                <ConnectionCreateOption compact theme={theme} icon={<Upload className="size-4" />} title="上传" onClick={onUpload} />
+                <ConnectionCreateOption compact theme={theme} icon={<Images className="size-4" />} title="从素材库选择" onClick={onOpenAssetLibrary} />
             </div>
         </div>
     );
@@ -1693,6 +1693,9 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
 
             const key = event.key.toLowerCase();
             const isModifierShortcut = event.metaKey || event.ctrlKey;
+
+            // 面板等区域选中了文字时，放行复制/剪切等编辑快捷键，避免触发画布的节点复制
+            if (isModifierShortcut && (key === "c" || key === "x" || key === "a") && window.getSelection()?.toString()) return;
 
             if (isModifierShortcut && !event.altKey && key === "z") {
                 event.preventDefault();

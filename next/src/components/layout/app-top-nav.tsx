@@ -6,19 +6,22 @@ import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { Dropdown } from "antd";
 
-import { navigationSlugs, navigationTools, type NavigationSlug } from "@/constant/navigation-tools";
+import { filterNavigationTools, navigationSlugs, navigationTools, type NavigationSlug } from "@/constant/navigation-tools";
 import { AppConfigModal } from "@/components/layout/app-config-modal";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
+import { useConfigStore } from "@/stores/use-config-store";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
 export function AppTopNav() {
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const publicSettings = useConfigStore((state) => state.publicSettings);
     const hideHeader = /^\/canvas\/[^/]+/.test(pathname);
     const slug = pathname.split("/").filter(Boolean)[0];
     const activeToolSlug = navigationSlugs.includes(slug as NavigationSlug) ? (slug as NavigationSlug) : undefined;
+    const visibleTools = filterNavigationTools(navigationTools, publicSettings?.modules);
 
     const linkClassName = (active: boolean) =>
         cn(
@@ -56,7 +59,7 @@ export function AppTopNav() {
                             </button>
 
                             <nav className="hide-scrollbar ml-8 hidden h-16 min-w-0 items-center gap-7 overflow-x-auto md:flex">
-                                {navigationTools.map((tool) => {
+                                {visibleTools.map((tool) => {
                                     if (tool.kind === "link") {
                                         const Icon = tool.icon;
                                         const active = tool.slug === activeToolSlug;

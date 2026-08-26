@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/handler"
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/service"
+	"infinite-canvas/handler"
+	"infinite-canvas/model"
+	"infinite-canvas/service"
 	"github.com/gin-gonic/gin"
 )
 

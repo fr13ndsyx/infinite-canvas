@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/service"
+	"infinite-canvas/model"
+	"infinite-canvas/service"
 )
 
 // StorageConfig 返回公开存储配置。

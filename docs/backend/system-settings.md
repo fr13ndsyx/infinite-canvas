@@ -34,6 +34,11 @@ description: settings 表中 public 和 private 配置结构说明
     "linuxDo": {
       "enabled": false
     }
+  },
+  "modules": {
+    "imageWorkbench": true,
+    "videoWorkbench": true,
+    "workflows": true
   }
 }
 ```
@@ -42,6 +47,7 @@ description: settings 表中 public 和 private 配置结构说明
 | --- | --- | --- |
 | `modelChannel` | object | 模型渠道公开配置组 |
 | `auth` | object | 认证相关公开配置 |
+| `modules` | object | 功能模块可见性配置组 |
 
 `modelChannel` 字段：
 
@@ -76,6 +82,16 @@ description: settings 表中 public 和 private 配置结构说明
 | --- | --- | --- |
 | `allowRegister` | boolean | 是否允许用户注册，默认允许；关闭后注册入口隐藏，注册接口拒绝新用户创建 |
 | `linuxDo.enabled` | boolean | 是否开启 Linux.do 登录 |
+
+`modules` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `imageWorkbench` | boolean | 生图工作台（`/image`）是否可见，默认开启；关闭后所有用户的导航入口隐藏，直接访问重定向回首页 |
+| `videoWorkbench` | boolean | 视频创作台（`/video`）是否可见，默认开启；行为同上 |
+| `workflows` | boolean | 工作流（`/workflows`）是否可见，默认开启；行为同上 |
+
+模块开关只控制前端页面可见性，不拦截后端接口；工作流相关接口仍可被画布等其他功能调用。
 
 ## private.value
 

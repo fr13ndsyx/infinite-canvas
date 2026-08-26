@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/tigerowo/infinite-canvas/model"
+	"infinite-canvas/model"
 )
 
 type userContextKey struct{}

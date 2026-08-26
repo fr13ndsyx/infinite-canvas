@@ -25,6 +25,7 @@ import { useAssetStore } from "@/stores/use-asset-store";
 import { findModelCapability, normalizeLocalChannels, resolveAudioMaxReferences, resolveAudioRequiresMode, resolveMaxAudioReferences, resolveMaxImageReferences, resolveMaxVideoReferences, resolveSupportsAudioGeneration, resolveSupportsElementList, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveSupportsNegativePrompt, resolveSupportsWatermark, resolveVideoPanelType, resolveVideoProvider, resolveVideoSecondsRange, useConfigStore, useEffectiveConfig, type AiConfig, type VideoElementItem, type VideoElementReference } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { useModuleGuard } from "@/hooks/use-module-guard";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 
@@ -103,6 +104,7 @@ const quickResolutionOptions = [
 ];
 
 export default function VideoPage() {
+    const moduleEnabled = useModuleGuard("videoWorkbench");
     const { message } = App.useApp();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const elementFileInputRef = useRef<HTMLInputElement>(null);
@@ -1003,6 +1005,8 @@ export default function VideoPage() {
         if (!snapshot) return;
         void submitGenerationSnapshot(snapshot);
     };
+
+    if (!moduleEnabled) return null;
 
     return (
         <div className="flex h-full flex-col overflow-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">

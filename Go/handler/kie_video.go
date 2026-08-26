@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/model"
+	"infinite-canvas/model"
 )
 
 func isKIEChannel(channel model.ModelChannel, modelName string) bool {

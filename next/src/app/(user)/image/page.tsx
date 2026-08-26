@@ -41,6 +41,7 @@ import { deleteImageGenerationLogs, fetchImageGenerationLogs, saveImageGeneratio
 import { deleteStoredImages, imageToDataUrl, resolveImageUrl, uploadImage, uploadRemoteImageToServer } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { useModuleGuard } from "@/hooks/use-module-guard";
 import type { ReferenceImage } from "@/types/image";
 
 type GeneratedImage = {
@@ -118,6 +119,7 @@ const IMAGE_TASK_POLL_INTERVAL_MS = 10000;
 const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
 const categoryStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_categories" });
 export default function ImagePage() {
+    const moduleEnabled = useModuleGuard("imageWorkbench");
     const { message, modal } = App.useApp();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const config = useConfigStore((state) => state.config);
@@ -886,6 +888,8 @@ export default function ImagePage() {
         setResults((value) => value.filter((item) => item.id !== result.id));
         void submitGenerationBatch(snapshot);
     };
+
+    if (!moduleEnabled) return null;
 
     return (
         <div className="flex h-full flex-col overflow-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">

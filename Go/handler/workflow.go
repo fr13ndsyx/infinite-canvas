@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/tigerowo/infinite-canvas/service"
+	"infinite-canvas/service"
 )
 
 func UserWorkflows(w http.ResponseWriter, r *http.Request) {

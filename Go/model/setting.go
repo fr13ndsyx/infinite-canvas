@@ -136,6 +136,14 @@ type PublicSetting struct {
 	ModelChannel PublicModelChannelSetting `json:"modelChannel"`
 	Auth         PublicAuthSetting         `json:"auth"`
 	Storage      PublicStorageSetting      `json:"storage"`
+	Modules      PublicModuleSetting       `json:"modules"`
+}
+
+// PublicModuleSetting 功能模块可见性配置。nil 默认开启。
+type PublicModuleSetting struct {
+	ImageWorkbench *bool `json:"imageWorkbench"`
+	VideoWorkbench *bool `json:"videoWorkbench"`
+	Workflows      *bool `json:"workflows"`
 }
 
 type PublicStorageSetting struct {

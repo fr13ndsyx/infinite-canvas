@@ -5,6 +5,71 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+## 画布创作 Agent 支持指定模型 + 修复"指定模型渠道不可用"
+
+### 可测试变更
+
+- `next/src/app/(user)/canvas/types.ts`：`CanvasAgentConfig` 新增可选字段 `textModel`/`textChannelId`（随画布项目持久化）
+- `next/src/app/(user)/canvas/components/canvas-assistant-composer.tsx`：输入框底部操作行新增 `ModelPicker`（capability="text"），模型选项来自后台配置的渠道与模型；主页输入框和画布助手面板均显示
+- `next/src/app/(user)/page.tsx`：主页输入框传入 `config`，选择的模型随 `agentConfig` 传入新建画布
+- `next/src/app/(user)/canvas/components/canvas-assistant-panel.tsx`：Agent 发送请求时优先使用画布级 `agentConfig.textModel`/`textChannelId`，未选择时回退全局默认文本模型
+- `next/src/stores/use-config-store.ts`：修复 `channelIdForActiveModel`——远程模式下校验渠道确实包含当前模型，不包含时回退到包含该模型的渠道（都没有则不发渠道头，由后端按权重选择），解决后台改渠道后旧渠道 ID 残留导致的"指定模型渠道不可用"
+- 计费不变：Agent 文本请求按后台配置的模型价格扣算力点
+- `canvas-assistant-composer.tsx`：发送按钮左侧显示当前模型单次对话的算力点价格（远程模式，本地直连不显示）
+- `model-picker.tsx`：模型下拉弹层自动判断下方空间，不足 300px 时改为向上弹出，解决输入框位于页面底部时选不到模型的问题
+- 画布"添加节点"弹窗、"引用该节点生成"弹窗与 @引用节点弹窗精简：删除各选项下方的提示小字（"脚本、广告词、品牌文案"等 description、引用菜单里的节点内容预览行），只保留图标 + 标题/节点名（`canvas-client-page.tsx` 两处弹窗、`canvas-prompt-chip-input.tsx`、`canvas-resource-mention-textarea.tsx`）
+- 修复创作 Agent 对话内容无法选中复制的问题（两层原因）：① 画布容器的 `select-none` 阻止文本选择——Agent 面板根节点加 `select-text`/`userSelect: text` 恢复；② 画布全局 keydown 把 Ctrl+C 拦截为"复制选中节点"并 preventDefault，选中文字后复制进剪贴板的是节点数据——keydown 增加 `window.getSelection()` 非空时放行 c/x/a 快捷键的豁免逻辑（`canvas-client-page.tsx`），画布原有快捷键行为不变
+- `canvas-assistant-composer.tsx`：修复参数栏弹窗（比例/清晰度 chip）两个问题——① 点击选项无效：弹窗 portal 挂在 body 上但"外部点击关闭"未把弹窗内部排除，pointerdown 先关闭弹窗导致选项 onClick 丢失，现已用 popoverRef 纳入判断；② 选项挤压：9 个图片比例选项挤一行，现改为每行 4 个自动换行
+- `canvas-assistant-composer.tsx`：参数栏从 4 个 chip 合并为 2 个分组 chip——"图片 {比例} · {质量}"和"视频 {比例} · {清晰度}"，各弹一个分组弹窗（图片弹窗含比例+质量两组，视频弹窗含比例+清晰度两组），chip 文案实时反映当前选择；图片质量（标准/2K/4K）档位补齐暴露；弹窗内选完不自动关闭，可连续调整多组参数，点击外部关闭；修复 4 chip 挤出发送按钮的问题
+- `canvas-assistant-composer.tsx`：图片比例选项值从像素格式（1920x1080）改为项目标准的比例格式（16:9），与 image-settings-panel 的 aspectOptions 一致——此前 chip 显示"1920X1080"而非"16:9"，且像素值无法被生成请求层的比例折算逻辑解析；视频比例保持像素格式（视频模块的项目标准即像素值，label 正确折算显示）；图片弹窗中"智能比例"文案改为"智能"并移到选项列表末尾；弹窗选项去掉 flex-1，每行固定 4 格从左至右排列，不满一行时不再拉伸平分导致"单独一个居中"；输入框底部操作行加 flex-wrap，窄面板（默认 390px）下图片/视频 chip 自动换行到第二行，发送按钮不再被挤出面板；模型选择器从输入框操作行移到面板顶部标题栏（"创作 Agent"文字旁），历史记录视图不显示；主页输入框（showOptions=false）的模型选择器保留在原位
+
+### 验证步骤
+
+1. 主页输入框左下角出现模型选择器，默认显示全局文本模型；点开可选后台配置的所有文本模型
+2. 画布助手面板输入框同样出现模型选择器，选择后随画布保存，重新打开画布仍保留
+3. 选择指定模型后发送消息，Agent 使用该模型回复（可从回复风格或后端 AI 日志确认）
+4. 后台调整渠道/模型后，不重新选择模型直接发消息，不再出现"指定模型渠道不可用"
+5. 生图/生视频/生音频仍走各自场景的默认模型与渠道，不受文本模型选择影响
+6. 发送按钮左侧显示 ⚡ 价格数字，切换模型后价格跟随变化；本地直连模式不显示
+7. 画布助手面板触底时点开模型下拉，弹层向上弹出且完整可见可选
+8. 参数栏只有"图片"/"视频"两个 chip，发送按钮、价格均完整可见不被挤出
+9. 图片 chip 弹窗含"比例 + 质量"两组、视频 chip 弹窗含"比例 + 清晰度"两组；选选项后 chip 文案立即更新；弹窗不自动关闭可连续调整；点击外部关闭
+10. 图片质量选"4K"后让 Agent 生成图片，生成图片为高清档；视频清晰度选 1080p 生成的视频为 1080p
+
+## 功能模块可见性开关（生图工作台 / 视频创作台 / 工作流）
+
+### 可测试变更
+
+- 后端 `Go/model/setting.go`：`PublicSetting` 新增 `modules` 配置组（`PublicModuleSetting`：`imageWorkbench`/`videoWorkbench`/`workflows` 三个 `*bool`）；`Go/service/settings.go`：normalize 时 nil 默认开启，无需数据迁移
+- 前端 `next/src/services/api/admin.ts`：`AdminPublicSettings` 补 `modules` 类型；`settings-shared.ts`：默认值、归一化、`syncPublicSettingsFromSaved` 同步 `modules`
+- 管理后台「偏好设置」新增「功能模块」卡片，三个开关；保存后通过 `syncPublicSettingsFromSaved` 即时同步全局 `publicSettings`（当前浏览器无需刷新生效）
+- 导航过滤：`navigation-tools.ts` 新增 `navigationModuleKeys` 映射和 `filterNavigationTools` 过滤函数；`app-top-nav.tsx`（桌面端）和 `mobile-nav-drawer.tsx`（移动端抽屉）按开关隐藏对应 tab；`publicSettings` 未加载完成时暂不过滤
+- 页面守卫：新增 `next/src/hooks/use-module-guard.ts`，`/image`、`/video`、`/workflows` 三个页面接入；模块关闭时 `router.replace("/")` 重定向回首页（所有用户包括管理员），加载期间渲染 `null` 防止内容闪现
+
+### 验证步骤
+
+1. 重启后端后 `GET /api/settings` 返回 `modules` 三项均为 `true`
+2. 管理后台「偏好设置 → 功能模块」三个开关默认开启，保存后刷新确认持久化
+3. 关闭「生图工作台」并保存：普通用户（或未登录）和管理员顶部导航、移动端抽屉均不再显示"生图工作台"，直接访问 `/image` 都被重定向回首页
+4. 同样验证「视频创作台」（`/video`）和「工作流」（`/workflows`）
+5. 管理后台保存开关后不刷新页面，导航 tab 即时消失（需 `publicSettings` 已加载）
+6. 重新打开开关后导航 tab 恢复、页面可正常访问
+7. 「我的画布」「提示词库」「我的素材」等其他导航项不受影响；管理后台页面不受开关影响，可随时改回
+
+## 修复管理后台保存设置后模型选择器显示"暂无可用模型"的问题
+
+### 可测试变更
+
+- 后端 `Go/service/settings.go` 的 `SaveSettings`：持久化前重算 `public.modelChannel.channels = publicChannelInfos(private.channels)`，与 `PublicSettings()` 动态返回保持一致
+- 根因：存储快照里的 `channels` 一直是渠道页首次保存时的空数组；`PublicSettings()` 每次动态重算所以用户端正常，但偏好设置页保存后 `syncPublicSettingsFromSaved` 把保存响应里的空 `channels` 同步进全局 `publicSettings`，模型选择器立即变空，刷新后恢复
+- 影响范围：管理后台任一设置页（偏好设置、定价、渠道等）保存后模型选择器不再丢失模型列表
+
+### 验证步骤
+
+1. 在管理后台「偏好设置」点保存，确认模型选择器仍正常显示模型列表（不出现"暂无可用模型"）
+2. 「渠道管理」页新增/编辑渠道并保存后，同样确认模型选择器正常
+3. 刷新页面后模型列表保持正常
+
 ## 修复素材图片拖入画布后输入框误显示图片芯片的问题
 
 ### 可测试变更

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/service"
+	"infinite-canvas/model"
+	"infinite-canvas/service"
 )
 
 func StartVideoTaskPoller() {

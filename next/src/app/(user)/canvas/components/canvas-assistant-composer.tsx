@@ -7,8 +7,11 @@ import { Dropdown } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { imageSizeLabel } from "@/components/image-settings-panel";
+import { imageQualityTierLabel, imageSizeLabel, panoramaTierOfQuality } from "@/components/image-settings-panel";
 import { videoResolutionLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
+import { ModelPicker } from "@/components/model-picker";
+import { CreditSymbol, requestCreditCost } from "@/constant/credits";
+import { useConfigStore, type AiConfig } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasAgentConfig, type CanvasAssistantReference } from "../types";
 import { isCanvasImageNodeType } from "../utils/canvas-panorama";
 
@@ -16,6 +19,7 @@ export type CanvasAssistantComposerProps = {
     prompt: string;
     isRunning: boolean;
     references: CanvasAssistantReference[];
+    config: AiConfig;
     agentConfig: CanvasAgentConfig;
     onAgentConfigChange: (patch: Partial<CanvasAgentConfig>) => void;
     onPromptChange: (prompt: string) => void;
@@ -28,17 +32,17 @@ export type CanvasAssistantComposerProps = {
     showOptions?: boolean;
 };
 
-// 选项常量：仅用于底部条 chip 的展示与选择，不引入新数据流
+// 选项常量：仅用于底部条 chip 的展示与选择，不引入新数据流；比例值与 image-settings-panel 的 aspectOptions 保持一致（w:h 格式，实际像素由质量档位折算）
 const imageRatioOptions = [
+    { value: "1:1", label: "1:1" },
+    { value: "3:2", label: "3:2" },
+    { value: "2:3", label: "2:3" },
+    { value: "4:3", label: "4:3" },
+    { value: "3:4", label: "3:4" },
+    { value: "16:9", label: "16:9" },
+    { value: "9:16", label: "9:16" },
+    { value: "21:9", label: "21:9" },
     { value: "auto", label: "智能" },
-    { value: "1024x1024", label: "1:1" },
-    { value: "1536x1024", label: "3:2" },
-    { value: "1024x1536", label: "2:3" },
-    { value: "1024x768", label: "4:3" },
-    { value: "768x1024", label: "3:4" },
-    { value: "1920x1080", label: "16:9" },
-    { value: "1080x1920", label: "9:16" },
-    { value: "1568x672", label: "21:9" },
 ];
 const videoRatioOptions = [
     { value: "1280x720", label: "16:9" },
@@ -52,11 +56,17 @@ const videoQualityOptions = [
     { value: "720", label: "720p" },
     { value: "1080", label: "1080p" },
 ];
+const imageQualityOptions = [
+    { value: "standard", label: "标准" },
+    { value: "2k", label: "2K" },
+    { value: "4k", label: "4K" },
+];
 
 export function CanvasAssistantComposer({
     prompt,
     isRunning,
     references,
+    config,
     agentConfig,
     onAgentConfigChange,
     onPromptChange,
@@ -69,6 +79,9 @@ export function CanvasAssistantComposer({
     showOptions = true,
 }: CanvasAssistantComposerProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
+    const agentModel = agentConfig.textModel || config.textModel || config.model;
+    const credits = requestCreditCost({ channelMode: config.channelMode, modelCosts, model: agentModel, count: 1 });
 
     return (
         <div className="px-2 pb-2" onWheelCapture={(event) => event.stopPropagation()}>
@@ -98,7 +111,7 @@ export function CanvasAssistantComposer({
                     style={{ color: theme.node.text }}
                     placeholder="描述创作目标，或让我继续操作画布"
                 />
-                <div className="mt-1.5 flex min-h-8 items-center gap-1.5">
+                <div className="mt-1.5 flex min-h-8 flex-wrap items-center gap-1.5">
                     <Dropdown
                         trigger={["click"]}
                         menu={{
@@ -119,32 +132,65 @@ export function CanvasAssistantComposer({
                             <Plus className="size-4" />
                         </button>
                     </Dropdown>
+                    {showOptions ? null : (
+                        <ModelPicker
+                            config={config}
+                            capability="text"
+                            value={agentConfig.textModel || config.textModel || config.model}
+                            channelId={agentConfig.textChannelId || config.textChannelId}
+                            placeholder="选择模型"
+                            onChange={(model, channelId) => onAgentConfigChange({ textModel: model, textChannelId: channelId || "" })}
+                        />
+                    )}
                     {showOptions ? (
                         <>
-                            <ComposerOptionChip
-                                label={imageSizeLabel(agentConfig.imageSize || "auto")}
-                                options={imageRatioOptions}
-                                value={agentConfig.imageSize || "auto"}
+                            <ComposerMediaChip
+                                label={"图片 " + (agentConfig.imageSize === "auto" || !agentConfig.imageSize ? "智能" : imageSizeLabel(agentConfig.imageSize)) + " · " + imageQualityTierLabel(agentConfig.imageQuality)}
+                                title="图片参数"
+                                groups={[
+                                    {
+                                        title: "比例",
+                                        options: imageRatioOptions,
+                                        value: agentConfig.imageSize || "auto",
+                                        onSelect: (value) => onAgentConfigChange({ imageSize: value }),
+                                    },
+                                    {
+                                        title: "质量",
+                                        options: imageQualityOptions,
+                                        value: panoramaTierOfQuality(agentConfig.imageQuality),
+                                        onSelect: (value) => onAgentConfigChange({ imageQuality: value }),
+                                    },
+                                ]}
                                 theme={theme}
-                                onSelect={(value) => onAgentConfigChange({ imageSize: value })}
                             />
-                            <ComposerOptionChip
-                                label={videoSizeRatioLabel(agentConfig.videoSize)}
-                                options={videoRatioOptions}
-                                value={agentConfig.videoSize}
+                            <ComposerMediaChip
+                                label={"视频 " + videoSizeRatioLabel(agentConfig.videoSize) + " · " + videoResolutionLabel(agentConfig.videoQuality)}
+                                title="视频参数"
+                                groups={[
+                                    {
+                                        title: "比例",
+                                        options: videoRatioOptions,
+                                        value: agentConfig.videoSize,
+                                        onSelect: (value) => onAgentConfigChange({ videoSize: value }),
+                                    },
+                                    {
+                                        title: "清晰度",
+                                        options: videoQualityOptions,
+                                        value: agentConfig.videoQuality,
+                                        onSelect: (value) => onAgentConfigChange({ videoQuality: value }),
+                                    },
+                                ]}
                                 theme={theme}
-                                onSelect={(value) => onAgentConfigChange({ videoSize: value })}
-                            />
-                            <ComposerOptionChip
-                                label={videoResolutionLabel(agentConfig.videoQuality)}
-                                options={videoQualityOptions}
-                                value={agentConfig.videoQuality}
-                                theme={theme}
-                                onSelect={(value) => onAgentConfigChange({ videoQuality: value })}
                             />
                         </>
                     ) : null}
                     <div className="flex-1" />
+                    {config.channelMode === "remote" ? (
+                        <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums" style={{ color: theme.node.muted }} title="本次对话消耗的算力点">
+                            <CreditSymbol />
+                            {credits.toLocaleString()}
+                        </span>
+                    ) : null}
                     <button
                         type="button"
                         disabled={!isRunning && !prompt.trim()}
@@ -162,9 +208,10 @@ export function CanvasAssistantComposer({
     );
 }
 
-// 可灵风格 chip：点击弹出设置弹窗，选中项高亮
-function ComposerOptionChip({ label, options, value, theme, onSelect }: { label: string; options: { value: string; label: string }[]; value: string; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onSelect: (value: string) => void }) {
+// 可灵风格 chip：点击弹出分组设置弹窗（如"图片参数"含比例+质量两组）
+function ComposerMediaChip({ label, title, groups, theme }: { label: string; title: string; groups: { title: string; options: { value: string; label: string }[]; value: string; onSelect: (value: string) => void }[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
     const ref = useRef<HTMLButtonElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [rect, setRect] = useState<DOMRect | null>(null);
 
@@ -174,7 +221,8 @@ function ComposerOptionChip({ label, options, value, theme, onSelect }: { label:
         const close = (event: PointerEvent) => {
             const target = event.target;
             if (!(target instanceof Node)) return;
-            if (ref.current?.contains(target)) return;
+            // chip 按钮和弹窗内部（portal 挂在 body）的点击都不算外部点击
+            if (ref.current?.contains(target) || popoverRef.current?.contains(target)) return;
             setOpen(false);
         };
         sync();
@@ -203,14 +251,14 @@ function ComposerOptionChip({ label, options, value, theme, onSelect }: { label:
             >
                 <span>{label}</span>
             </button>
-            {open && rect ? createPortal(<ComposerOptionPopover rect={rect} options={options} value={value} theme={theme} onSelect={(v) => { onSelect(v); setOpen(false); }} onClose={() => setOpen(false)} />, document.body) : null}
+            {open && rect ? createPortal(<ComposerMediaPopover popoverRef={popoverRef} rect={rect} title={title} groups={groups} theme={theme} />, document.body) : null}
         </>
     );
 }
 
-// 可灵风格弹窗：浮在 chip 上方，标题 + 灰底 list + 选中高亮
-function ComposerOptionPopover({ rect, options, value, theme, onSelect, onClose }: { rect: DOMRect; options: { value: string; label: string }[]; value: string; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onSelect: (value: string) => void; onClose: () => void }) {
-    const width = 200;
+// 可灵风格弹窗：浮在 chip 上方，按组展示选项（组标题 + 自动换行选项 + 选中高亮），选完不自动关闭，可连续调整多组参数
+function ComposerMediaPopover({ popoverRef, rect, title, groups, theme }: { popoverRef: React.RefObject<HTMLDivElement | null>; rect: DOMRect; title: string; groups: { title: string; options: { value: string; label: string }[]; value: string; onSelect: (value: string) => void }[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
+    const width = 216;
     const gap = 8;
     const margin = 12;
     const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rect.left + rect.width / 2 - width / 2));
@@ -231,30 +279,34 @@ function ComposerOptionPopover({ rect, options, value, theme, onSelect, onClose 
     };
     return (
         <div
+            ref={popoverRef}
             style={style}
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <div className="flex min-w-0 gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.fill }}>
-                {options.map((option) => {
-                    const active = option.value === value;
-                    return (
-                        <button
-                            key={option.value}
-                            type="button"
-                            className="flex flex-1 items-center justify-center rounded-md px-2 py-1.5 text-xs transition hover:opacity-80"
-                            style={{ background: active ? theme.toolbar.panel : "transparent", color: active ? theme.toolbar.activeText : theme.node.muted }}
-                            onClick={() => {
-                                onSelect(option.value);
-                                onClose();
-                            }}
-                        >
-                            {option.label}
-                        </button>
-                    );
-                })}
-            </div>
+            <div className="px-1 pb-1 text-xs font-medium" style={{ color: theme.node.muted }}>{title}</div>
+            {groups.map((group) => (
+                <div key={group.title} className="mb-1.5 last:mb-0">
+                    <div className="px-1 py-1 text-[10px]" style={{ color: theme.node.muted }}>{group.title}</div>
+                    <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.fill }}>
+                        {group.options.map((option) => {
+                            const active = option.value === group.value;
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className="flex min-w-0 basis-[calc(25%-2px)] items-center justify-center rounded-md px-1.5 py-1.5 text-xs transition hover:opacity-80"
+                                    style={{ background: active ? theme.toolbar.panel : "transparent", color: active ? theme.toolbar.activeText : theme.node.muted }}
+                                    onClick={() => group.onSelect(option.value)}
+                                >
+                                    {option.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
         </div>
     );
 }

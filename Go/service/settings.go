@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/repository"
+	"infinite-canvas/model"
+	"infinite-canvas/repository"
 )
 
 var adminModelHTTPClient = &http.Client{Timeout: 30 * time.Second}
@@ -56,6 +56,8 @@ func SaveSettings(settings model.Settings) (model.Settings, error) {
 		enabledChannelModels(normalizePrivateSetting(saved.Private).Channels),
 		enabledChannelModels(settings.Private.Channels),
 	)
+	// 存储快照按 private 渠道重算，与 PublicSettings() 返回保持一致，避免管理页保存响应同步到过期 channels
+	settings.Public.ModelChannel.Channels = publicChannelInfos(settings.Private.Channels)
 	result, err := repository.SaveSettings(settings, now())
 	if err == nil {
 		RefreshStorageCapacityScheduler()
@@ -193,6 +195,18 @@ func normalizePublicSettingWithChannels(setting model.PublicSetting, channels []
 	if setting.Auth.AllowRegister == nil {
 		enabled := true
 		setting.Auth.AllowRegister = &enabled
+	}
+	if setting.Modules.ImageWorkbench == nil {
+		enabled := true
+		setting.Modules.ImageWorkbench = &enabled
+	}
+	if setting.Modules.VideoWorkbench == nil {
+		enabled := true
+		setting.Modules.VideoWorkbench = &enabled
+	}
+	if setting.Modules.Workflows == nil {
+		enabled := true
+		setting.Modules.Workflows = &enabled
 	}
 	setting.ModelChannel.AvailableModels = filterEnabledModels(setting.ModelChannel.AvailableModels, enabledChannelModels(channels))
 	if len(setting.ModelChannel.AvailableModels) == 0 {

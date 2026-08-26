@@ -16,8 +16,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/service"
+	"infinite-canvas/model"
+	"infinite-canvas/service"
 )
 
 const apimartImageUploadPath = "/uploads/images"

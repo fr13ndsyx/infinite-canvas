@@ -126,6 +126,7 @@ export default function IndexPage() {
                             prompt={prompt}
                             isRunning={false}
                             references={pendingAssets.map((asset) => asset.reference)}
+                            config={effectiveConfig}
                             agentConfig={agentConfig}
                             onAgentConfigChange={(patch) => setAgentConfig((current) => ({ ...current, ...patch }))}
                             onPromptChange={setPrompt}

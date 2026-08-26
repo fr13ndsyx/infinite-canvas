@@ -6,8 +6,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/repository"
+	"infinite-canvas/model"
+	"infinite-canvas/repository"
 )
 
 type UserConfigPayload struct {

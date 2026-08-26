@@ -3,7 +3,7 @@ package repository
 import (
 	"encoding/json"
 
-	"github.com/tigerowo/infinite-canvas/model"
+	"infinite-canvas/model"
 	"gorm.io/gorm/clause"
 )
 

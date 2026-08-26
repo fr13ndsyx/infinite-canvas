@@ -248,6 +248,11 @@ export type AdminPublicSettings = {
     storage: {
         mode: string;
     };
+    modules: {
+        imageWorkbench: boolean;
+        videoWorkbench: boolean;
+        workflows: boolean;
+    };
 };
 
 export type AdminStorageProvider = {

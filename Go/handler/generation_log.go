@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/service"
+	"infinite-canvas/service"
 )
 
 func UserVideoGenerationLogs(w http.ResponseWriter, r *http.Request) {

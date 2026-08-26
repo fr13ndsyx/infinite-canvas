@@ -37,4 +37,24 @@ export const navigationSlugs: string[] = navigationTools.flatMap((tool) =>
     tool.kind === "link" ? [tool.slug] : tool.children.map((child) => child.slug),
 );
 
+// slug → 功能模块可见性配置 key 映射，用于按后台开关过滤导航项
+export type NavigationModuleKey = "imageWorkbench" | "videoWorkbench" | "workflows";
+export const navigationModuleKeys: Record<string, NavigationModuleKey | undefined> = {
+    image: "imageWorkbench",
+    video: "videoWorkbench",
+    workflows: "workflows",
+};
+
+// 按后台功能模块开关过滤导航项；modules 为空（未加载完成）时不过滤。
+export function filterNavigationTools(
+    tools: NavigationTool[],
+    modules: Partial<Record<NavigationModuleKey, boolean>> | undefined | null,
+): NavigationTool[] {
+    if (!modules) return tools;
+    return tools.filter((tool) => {
+        const key = navigationModuleKeys[tool.slug];
+        return !key || modules[key] !== false;
+    });
+}
+
 export type NavigationSlug = (typeof navigationSlugs)[number];
