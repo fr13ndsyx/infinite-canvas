@@ -46,7 +46,6 @@ const VIDEO_PANEL_TYPE_OPTIONS = [
 const VIDEO_PROVIDER_OPTIONS = [
     { label: "不区分（空）", value: "" },
     { label: "apimart", value: "apimart" },
-    { label: "kie", value: "kie" },
 ];
 const VIDEO_RATIO_OPTIONS = [
     { label: "16:9", value: "16:9" },

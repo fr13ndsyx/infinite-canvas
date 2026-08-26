@@ -17,11 +17,13 @@ export function CanvasPromptLibrary({ onSelect }: { onSelect: (prompt: string) =
             <Tooltip title="提示词库">
                 <Button
                     type="text"
-                    className="!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !bg-transparent !p-0"
-                    style={{ color: theme.node.text }}
+                    className="!h-8 !w-8 !min-w-8 shrink-0 !rounded-full !p-0"
+                    style={{ background: "transparent", color: theme.node.text, transition: "background-color 120ms" }}
                     icon={<BookOpen className="size-3.5" />}
                     onClick={() => setOpen(true)}
                     aria-label="提示词库"
+                    onMouseEnter={(event) => { event.currentTarget.style.background = theme.toolbar.activeBg; }}
+                    onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                 />
             </Tooltip>
             <PromptSelectDialog open={open} onOpenChange={setOpen} onSelect={onSelect} />

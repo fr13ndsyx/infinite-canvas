@@ -22,6 +22,68 @@ import (
 
 const apimartImageUploadPath = "/uploads/images"
 
+func escapeMultipartFormFilename(filename string) string {
+	filename = strings.ReplaceAll(filename, "\\", "\\\\")
+	return strings.ReplaceAll(filename, `"`, `\"`)
+}
+
+func toStringSafe(value any) string {
+	if value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case string:
+		return v
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return ""
+		}
+		s := strings.TrimSpace(string(b))
+		s = strings.TrimPrefix(s, "\"")
+		s = strings.TrimSuffix(s, "\"")
+		return s
+	}
+}
+
+func isEmptyValue(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v) == ""
+	case []any:
+		return len(v) == 0
+	case []string:
+		return len(v) == 0
+	default:
+		return false
+	}
+}
+
+func boolLike(value any) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "1", "true", "yes", "on":
+			return true
+		default:
+			return false
+		}
+	case float64:
+		return v != 0
+	case int:
+		return v != 0
+	default:
+		return false
+	}
+}
+
 type apimartInputConfig struct {
 	aspectField         string
 	durationField       string
@@ -1489,7 +1551,7 @@ func uploadAPIMartImageBytes(channel model.ModelChannel, data []byte, filename s
 	writer := multipart.NewWriter(&requestBody)
 	filename = normalizeAPIMartReferenceFilename(filename, contentType)
 	partHeader := textproto.MIMEHeader{}
-	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, escapeKIEFormFilename(filename)))
+	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, escapeMultipartFormFilename(filename)))
 	partHeader.Set("Content-Type", contentType)
 	part, err := writer.CreatePart(partHeader)
 	if err != nil {

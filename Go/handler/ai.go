@@ -138,14 +138,7 @@ func proxyAIRequest(w http.ResponseWriter, r *http.Request, path string) {
 		credits *= readAIRequestCount(body, contentType)
 	}
 	upstreamPath := resolveAIProxyPath(channel, modelName, path)
-	if isKIEChannel(channel, modelName) && upstreamPath == "/jobs/createTask" {
-		body, contentType, err = normalizeKIEVideoBody(body, contentType, modelName, channel)
-		if err != nil {
-			log.Printf("AI proxy normalize KIE request failed: model=%s err=%v", modelName, err)
-			Fail(w, "AI 接口请求失败")
-			return
-		}
-	} else if isAPIMartChannel(channel, modelName) && upstreamPath == "/videos/generations" {
+	if isAPIMartChannel(channel, modelName) && upstreamPath == "/videos/generations" {
 		body, contentType, err = normalizeAPIMartVideoBody(body, contentType, modelName, channel)
 		if err != nil {
 			log.Printf("AI proxy normalize APIMart video request failed: model=%s err=%v", modelName, err)
@@ -231,9 +224,6 @@ func copyAIResponse(w http.ResponseWriter, request *http.Request, channel model.
 		return
 	}
 
-	if copyKIEVideoResponse(w, response, request, channel, logContext, onFailure) {
-		return
-	}
 	if isAPIMartChannel(channel, logContext.Model) {
 		if copyAPIMartImageResponse(w, response, request, channel, logContext, onFailure) {
 			return
@@ -499,18 +489,6 @@ func agnesVideoQueryID(modelName string, path string) (string, bool) {
 }
 
 func resolveAIProxyPath(channel model.ModelChannel, modelName string, path string) string {
-	if isKIEChannel(channel, modelName) {
-		if path == "/videos" || path == "/images/generations" || path == "/images/edits" {
-			return "/jobs/createTask"
-		}
-		if strings.HasPrefix(path, "/videos/") && !strings.HasSuffix(path, "/content") {
-			taskID := strings.TrimSpace(strings.TrimPrefix(path, "/videos/"))
-			if taskID != "" && !strings.Contains(taskID, "/") {
-				return "/jobs/recordInfo?taskId=" + url.QueryEscape(taskID)
-			}
-		}
-		return path
-	}
 	if isAPIMartChannel(channel, modelName) {
 		if path == "/videos" {
 			return "/videos/generations"

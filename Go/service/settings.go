@@ -582,11 +582,6 @@ func resolveAdminChannel(index *int, channel model.ModelChannel) (model.ModelCha
 }
 
 func fetchAdminChannelModels(channel model.ModelChannel) ([]string, error) {
-	if isKIEAdminChannel(channel) {
-		result := kieMarketModels()
-		sort.Strings(result)
-		return result, nil
-	}
 	request, err := http.NewRequest(http.MethodGet, BuildModelChannelURL(channel, "/models"), nil)
 	if err != nil {
 		return nil, err
@@ -618,125 +613,6 @@ func fetchAdminChannelModels(channel model.ModelChannel) ([]string, error) {
 	}
 	sort.Strings(result)
 	return result, nil
-}
-
-func isKIEAdminChannel(channel model.ModelChannel) bool {
-	protocol := strings.ToLower(strings.TrimSpace(channel.Protocol))
-	baseURL := strings.ToLower(strings.TrimSpace(channel.BaseURL))
-	return protocol == "kie" || strings.Contains(baseURL, "kie.ai")
-}
-
-func kieMarketModels() []string {
-	return []string{
-		"bytedance/seedream",
-		"bytedance/seedream-v4-text-to-image",
-		"bytedance/seedream-v4-edit",
-		"seedream/4.5-text-to-image",
-		"seedream/4.5-edit",
-		"seedream/5-lite-text-to-image",
-		"seedream/5-lite-image-to-image",
-		"seedream/5-pro-text-to-image",
-		"seedream/5-pro-image-to-image",
-		"z-image",
-		"nano-banana-2",
-		"nano-banana-2-lite",
-		"google/imagen4-fast",
-		"google/imagen4-ultra",
-		"google/imagen4",
-		"google/nano-banana-edit",
-		"google/nano-banana",
-		"nano-banana-pro",
-		"flux-2/pro-image-to-image",
-		"flux-2/pro-text-to-image",
-		"flux-2/flex-image-to-image",
-		"flux-2/flex-text-to-image",
-		"grok-imagine/text-to-image",
-		"grok-imagine/image-to-image",
-		"gpt-image/1.5-text-to-image",
-		"gpt-image/1.5-image-to-image",
-		"gpt-image-2-text-to-image",
-		"gpt-image-2-image-to-image",
-		"topaz/image-upscale",
-		"recraft/remove-background",
-		"recraft/crisp-upscale",
-		"ideogram/character-edit",
-		"ideogram/character-remix",
-		"ideogram/character",
-		"ideogram/v3-text-to-image",
-		"ideogram/v3-edit",
-		"ideogram/v3-remix",
-		"qwen/text-to-image",
-		"qwen/image-to-image",
-		"qwen/image-edit",
-		"qwen2/image-edit",
-		"qwen2/text-to-image",
-		"wan/2-7-image",
-		"wan/2-7-image-pro",
-		"grok-imagine/text-to-video",
-		"grok-imagine/image-to-video",
-		"grok-imagine/upscale",
-		"grok-imagine/extend",
-		"grok-imagine-video-1-5-preview",
-		"kling-2.6/text-to-video",
-		"kling-2.6/image-to-video",
-		"kling/v2-5-turbo-image-to-video-pro",
-		"kling/v2-5-turbo-text-to-video-pro",
-		"kling/ai-avatar-standard",
-		"kling/ai-avatar-pro",
-		"kling/v2-1-master-image-to-video",
-		"kling/v2-1-master-text-to-video",
-		"kling/v2-1-pro",
-		"kling/v2-1-standard",
-		"kling-2.6/motion-control",
-		"kling-3.0/motion-control",
-		"kling-3.0/video",
-		"kling/v3-turbo-text-to-video",
-		"kling/v3-turbo-image-to-video",
-		"bytedance/seedance-2",
-		"bytedance/seedance-2-fast",
-		"bytedance/seedance-2-mini",
-		"bytedance/seedance-1.5-pro",
-		"bytedance/v1-pro-fast-image-to-video",
-		"bytedance/v1-pro-image-to-video",
-		"bytedance/v1-pro-text-to-video",
-		"bytedance/v1-lite-image-to-video",
-		"bytedance/v1-lite-text-to-video",
-		"hailuo/2-3-image-to-video-pro",
-		"hailuo/2-3-image-to-video-standard",
-		"hailuo/02-text-to-video-pro",
-		"hailuo/02-image-to-video-pro",
-		"hailuo/02-text-to-video-standard",
-		"hailuo/02-image-to-video-standard",
-		"wan/2-2-a14b-image-to-video-turbo",
-		"wan/2-2-a14b-speech-to-video-turbo",
-		"wan/2-2-a14b-text-to-video-turbo",
-		"wan/2-2-animate-move",
-		"wan/2-2-animate-replace",
-		"wan/2-6-image-to-video",
-		"wan/2-6-text-to-video",
-		"wan/2-6-video-to-video",
-		"wan/2-6-flash-image-to-video",
-		"wan/2-6-flash-video-to-video",
-		"wan/2-5-image-to-video",
-		"wan/2-5-text-to-video",
-		"wan/2-7-text-to-video",
-		"wan/2-7-image-to-video",
-		"wan/2-7-videoedit",
-		"wan/2-7-r2v",
-		"topaz/video-upscale",
-		"infinitalk/from-audio",
-		"happyhorse/text-to-video",
-		"happyhorse/image-to-video",
-		"happyhorse/reference-to-video",
-		"happyhorse/video-edit",
-		"happyhorse-1-1/text-to-video",
-		"happyhorse-1-1/image-to-video",
-		"happyhorse-1-1/reference-to-video",
-		"happyhorse-1-1/text-to-video",
-		"happyhorse-1-1/image-to-video",
-		"happyhorse-1-1/reference-to-video",
-		"gemini-omni-video",
-	}
 }
 
 func testAdminChannelModel(channel model.ModelChannel, modelName string) (string, error) {

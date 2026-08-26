@@ -229,7 +229,7 @@ export function resolveVideoPanelType(cap: AdminModelCapability | undefined): st
     return cap?.videoPanelType || "";
 }
 
-// 视频厂商：空=不区分；apimart/kie。
+// 视频厂商：空=不区分；apimart。
 export function resolveVideoProvider(cap: AdminModelCapability | undefined): string {
     return cap?.videoProvider || "";
 }

@@ -5,10 +5,12 @@ import { createPortal } from "react-dom";
 import { Settings2 } from "lucide-react";
 import { Button } from "antd";
 
-import { ImageSettingsPanel, imageQualityTierLabel, imageSizeLabel } from "@/components/image-settings-panel";
+import { ImageSettingsPanel, imageQualityTierLabel, imageSizeLabel, imageResolutionTierLabel } from "@/components/image-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { AiConfig } from "@/stores/use-config-store";
+import { PopoverToggleIndicator } from "@/components/popover-toggle-indicator";
+import { PopoverArrow } from "@/components/popover-arrow";
 
 type CanvasImageSettingsPopoverProps = {
     config: AiConfig;
@@ -54,10 +56,17 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
         window.addEventListener("resize", syncPosition);
         window.addEventListener("scroll", syncPosition, true);
         window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+        const trigger = buttonRef.current;
+        const node = trigger?.closest<HTMLElement>("[data-node-id]");
+        const canvasLayer = node?.parentElement;
+        const observer = new MutationObserver(syncPosition);
+        if (node) observer.observe(node, { attributes: true, attributeFilter: ["style"] });
+        if (canvasLayer) observer.observe(canvasLayer, { attributes: true, attributeFilter: ["style"] });
         return () => {
             window.removeEventListener("resize", syncPosition);
             window.removeEventListener("scroll", syncPosition, true);
             window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+            observer.disconnect();
         };
     }, [onOpenChange, open]);
 
@@ -65,11 +74,17 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
 
     return (
         <>
-            <span ref={buttonRef} className="inline-flex min-w-0 shrink-0">
-                <Button size="small" type="text" className={buttonClassName || "!h-8 !justify-start !rounded-full !px-2.5"} style={{ background: "transparent", color: theme.node.text }} icon={buttonIcon || <Settings2 className="size-3" />} onClick={() => updateOpen(!open)}>
+            <span ref={buttonRef} className="group inline-flex min-w-0 shrink-0">
+                <Button size="small" type="text" className={buttonClassName || "!h-8 !justify-start !rounded-full !px-2.5"} style={{ background: "transparent", color: theme.node.text, transition: "background-color 120ms" }} icon={buttonIcon || <Settings2 className="size-3" />} onClick={() => updateOpen(!open)} onMouseEnter={(event) => { event.currentTarget.style.background = theme.toolbar.activeBg; }} onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}>
                     <span className="inline-flex items-center whitespace-nowrap">
                         {showSize ? (
                             <>
+                                {activeSize !== "auto" ? (
+                                    <>
+                                        {imageResolutionTierLabel(activeSize)}
+                                        <span className="shrink-0 px-1 opacity-30">·</span>
+                                    </>
+                                ) : null}
                                 {imageSizeLabel(activeSize)}
                                 {showCount ? <><span className="shrink-0 px-1 opacity-30">·</span>{count} 张</> : null}
                             </>
@@ -80,6 +95,7 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
                                 {showCount ? `${count} 张` : "设置"}
                             </>
                         )}
+                        <PopoverToggleIndicator open={open} />
                     </span>
                 </Button>
             </span>
@@ -113,7 +129,7 @@ function ImageSettingsPortal({
     const gap = 8;
     const margin = 12;
     const left = buttonRect.left + buttonRect.width / 2 - width / 2;
-    const topPlacement = placement?.startsWith("top");
+    const topPlacement = window.innerHeight - buttonRect.bottom < 320;
     const style = {
         position: "fixed",
         zIndex: 1200,
@@ -130,16 +146,19 @@ function ImageSettingsPortal({
     } as const;
 
     return createPortal(
-        <div
-            ref={panelRef}
-            className="canvas-image-settings-popover"
-            style={style}
-            onPointerDown={(event) => event.stopPropagation()}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
-        >
-            <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-3" showSize={showSize} showCount={showCount} panorama={panorama} capabilities={config.modelCapabilities?.find((item) => item.model === config.model)} />
-        </div>,
+        <>
+            <div
+                ref={panelRef}
+                className="canvas-image-settings-popover"
+                style={style}
+                onPointerDown={(event) => event.stopPropagation()}
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+            >
+                <ImageSettingsPanel config={config} onConfigChange={(key, value) => onConfigChange(key, value)} theme={theme} className="space-y-3" showTitle={false} showSize={showSize} showCount={showCount} panorama={panorama} capabilities={config.modelCapabilities?.find((item) => item.model === config.model)} />
+            </div>
+            <PopoverArrow buttonRect={buttonRect} direction={topPlacement ? "down" : "up"} gap={8} background={theme.toolbar.panel} border={theme.toolbar.border} />
+        </>,
         document.body,
     );
 }
