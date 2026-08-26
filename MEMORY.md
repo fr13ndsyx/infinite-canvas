@@ -13,6 +13,24 @@
 - `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
 
+## prompt-v2 合并（2026-08-26）
+
+- 分支：prompt-v2 → main（PR 合并，commit 2f0131e / main 1a4da0f）
+- 改动范围：功能模块可见性开关 + 画布创作 Agent 模型指定与交互系列修复 + Go module 路径改名
+- 关键变更：
+  - 功能模块可见性开关：`settings` public 新增 `modules`（imageWorkbench/videoWorkbench/workflows 三个 `*bool`，nil=开启）；管理后台偏好设置页新增「功能模块」卡片；前端 `filterNavigationTools` 过滤导航 tab + `use-module-guard.ts` 守卫页面（关闭时重定向首页，所有用户一致含管理员）；API 层不拦截
+  - Go module 路径：`github.com/tigerowo/infinite-canvas` → `infinite-canvas`（54 文件 88 处 import 替换）；删除孤儿测试 `Go/service/auth_redirect_test.go`（测的 safeRedirectPath/decodeState 已不存在）
+  - 修复"暂无可用模型"：`SaveSettings` 持久化前重算 `public.modelChannel.channels = publicChannelInfos(private.Channels)`，与 `PublicSettings()` 一致；根因是偏好设置页保存后 `syncPublicSettingsFromSaved` 把存储快照里的空 channels 同步进全局
+  - 修复"指定模型渠道不可用"：`use-config-store.ts` 的 `channelIdForActiveModel` 远程模式校验渠道包含当前模型，不包含时回退到包含该模型的渠道（旧渠道 ID 残留 + 模型自动回退不同步渠道 ID）
+  - 画布 Agent 指定模型：`CanvasAgentConfig` 新增 `textModel`/`textChannelId` 随画布项目持久化；模型选择器在助手面板标题栏（主页输入框保留原位）；发送按钮左侧显示算力点价格
+  - Agent 参数栏：合并为「图片」「视频」两个 chip，各一个分组弹窗（图片：比例+质量档位；视频：比例+清晰度）；图片比例用标准值（16:9 而非 1920x1080），选项从左至右网格排列，「智能」放最后；修复 portal 弹窗点击选项无效（外部点击判断未排除弹窗内部）
+  - 修复 Agent 对话无法复制：面板根节点加 `data-canvas-no-zoom` + `select-text`（画布全局 select-none 连坐）；keydown 拦截增加"有选中文字时放行 Ctrl+C/X/A"（此前 Ctrl+C 被画布拦截成复制节点）
+  - ModelPicker 弹层下方空间不足 300px 时向上弹出（修复触底选不到）
+  - 添加节点/引用节点生成两个弹窗删除选项 description；@引用弹窗删除内容预览行
+- 涉及文件：后端 `Go/{go.mod, model/setting.go, service/settings.go, service/auth_redirect_test.go(删)}` + 全部 import；前端 `next/src/{app/(admin)/admin/{preferences/page.tsx, settings-shared.ts}, constant/navigation-tools.ts, hooks/use-module-guard.ts(新), components/layout/{app-top-nav,mobile-nav-drawer}.tsx, components/model-picker.tsx, stores/use-config-store.ts, services/api/admin.ts, app/(user)/{image,video,workflows}/page.tsx, app/(user)/page.tsx, app/(user)/canvas/types.ts, app/(user)/canvas/[id]/canvas-client-page.tsx, app/(user)/canvas/components/{canvas-assistant-panel,canvas-assistant-composer,canvas-prompt-chip-input,canvas-resource-mention-textarea}.tsx}`；文档 `docs/{backend/system-settings.md, progress/{module-visibility-switch.md(新), pending-test.md, todo.md}}`
+- 待验证：见 `docs/progress/pending-test.md`（模块开关/Agent 模型与参数/复制修复等）
+- 待办（已写入 todo.md）：视频节点参数 UI 优化；首页布局优化
+
 ## refactor/prompt-v1 合并（2026-08-21）
 
 - 分支：refactor/prompt-v1 → main（fast-forward，commit d622ad8）
