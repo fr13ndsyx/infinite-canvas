@@ -23,6 +23,7 @@ export const emptySettings: AdminSettings = {
         },
         auth: { allowRegister: true },
         storage: { mode: "local_indexeddb" },
+        modules: { imageWorkbench: true, videoWorkbench: true, workflows: true },
     },
     private: { channels: [], aiLog: { localDirectReportEnabled: false, cleanup: { enabled: false, retentionDays: 14, cron: "0 3 * * *" } }, storage: { mode: "local_indexeddb", allowUserProvider: false, allowUserGlobalProvider: true, providers: [], roundRobinCursor: 0, capacityCheck: { enabled: false, cron: "0 */6 * * *" }, capacityLimitBytes: 9 * 1024 * 1024 * 1024 } },
 };
@@ -64,6 +65,11 @@ export function normalizePublicSetting(setting: Partial<AdminSettings["public"]>
         },
         storage: {
             mode: setting.storage?.mode || "local_indexeddb",
+        },
+        modules: {
+            imageWorkbench: setting.modules?.imageWorkbench !== false,
+            videoWorkbench: setting.modules?.videoWorkbench !== false,
+            workflows: setting.modules?.workflows !== false,
         },
     };
 }
@@ -247,6 +253,7 @@ export function syncPublicSettingsFromSaved(saved: AdminSettings) {
             modelChannel: saved.public.modelChannel,
             auth: saved.public.auth,
             storage: saved.public.storage,
+            modules: saved.public.modules,
         } as AdminPublicSettings,
     });
 }

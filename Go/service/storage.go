@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/repository"
+	"infinite-canvas/model"
+	"infinite-canvas/repository"
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"

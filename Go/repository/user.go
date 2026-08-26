@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/model"
+	"infinite-canvas/model"
 	"gorm.io/gorm"
 )
 

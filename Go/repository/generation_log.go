@@ -3,7 +3,7 @@ package repository
 import (
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/model"
+	"infinite-canvas/model"
 )
 
 func ListVideoGenerationLogs(userID string, limit int) ([]model.VideoGenerationLog, error) {

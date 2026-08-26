@@ -3,8 +3,8 @@ package service
 import (
 	"time"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/repository"
+	"infinite-canvas/model"
+	"infinite-canvas/repository"
 )
 
 func ListAssets(q model.Query) (model.AssetList, error) {

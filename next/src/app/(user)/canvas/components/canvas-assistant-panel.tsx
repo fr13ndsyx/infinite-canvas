@@ -19,6 +19,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { ImageGenerationPending } from "@/components/image-generation-pending";
+import { ModelPicker } from "@/components/model-picker";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { cn } from "@/lib/utils";
 import { imageToDataUrl } from "@/services/image-storage";
@@ -226,9 +227,9 @@ export function CanvasAssistantPanel({
 
         const requestConfig = {
             ...effectiveConfig,
-            model: effectiveConfig.textModel || effectiveConfig.model,
-            activeChannelId: effectiveConfig.textChannelId || effectiveConfig.activeChannelId,
-            textChannelId: effectiveConfig.textChannelId,
+            model: agentConfig.textModel || effectiveConfig.textModel || effectiveConfig.model,
+            activeChannelId: agentConfig.textChannelId || effectiveConfig.textChannelId || effectiveConfig.activeChannelId,
+            textChannelId: agentConfig.textChannelId || effectiveConfig.textChannelId,
         };
         if (!isAiConfigReady(requestConfig, requestConfig.model)) {
             updateMessage(session.id, assistantId, {
@@ -353,19 +354,36 @@ export function CanvasAssistantPanel({
             style={{ overflow: "clip", pointerEvents: closing ? "none" : undefined }}
         >
             <motion.aside
-                className="relative flex shrink-0 flex-col border-l"
+                data-canvas-no-zoom
+                className="relative flex shrink-0 flex-col border-l select-text"
                 initial={{ x: 48 }}
                 animate={{ x: closing ? 28 : 0 }}
                 transition={{ duration: resizing ? 0 : PANEL_MOTION_SECONDS, ease: [0.22, 1, 0.36, 1] }}
-                style={{ width, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+                style={{ width, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text, userSelect: "text" }}
             >
                 <button type="button" className="absolute inset-y-0 left-0 z-40 w-4 -translate-x-1/2 cursor-col-resize" onMouseDown={startResize} aria-label="调整右侧面板宽度" />
                 <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: theme.node.stroke }}>
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                        <Bot className="size-4" />
-                        {view === "history" ? "历史记录" : "创作 Agent"}
+                    <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                        <Bot className="size-4 shrink-0" />
+                        {view === "history" ? (
+                            "历史记录"
+                        ) : (
+                            <>
+                                <span className="shrink-0">创作 Agent</span>
+                                <span className="min-w-0 flex-1 overflow-hidden">
+                                    <ModelPicker
+                                        config={effectiveConfig}
+                                        capability="text"
+                                        value={agentConfig.textModel || effectiveConfig.textModel || effectiveConfig.model}
+                                        channelId={agentConfig.textChannelId || effectiveConfig.textChannelId}
+                                        placeholder="选择模型"
+                                        onChange={(model, channelId) => onAgentConfigChange({ textModel: model, textChannelId: channelId || "" })}
+                                    />
+                                </span>
+                            </>
+                        )}
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                         {view === "history" ? (
                             <>
                                 <Tooltip title="删除选中">
@@ -443,6 +461,7 @@ export function CanvasAssistantPanel({
                             prompt={prompt}
                             isRunning={isRunning}
                             references={selectedReferences}
+                            config={effectiveConfig}
                             agentConfig={agentConfig}
                             onAgentConfigChange={onAgentConfigChange}
                             onPromptChange={setPrompt}

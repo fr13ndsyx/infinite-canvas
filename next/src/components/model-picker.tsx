@@ -144,13 +144,16 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
     const gap = 8;
     const margin = 12;
     const left = buttonRect.left + buttonRect.width / 2 - width / 2;
+    // 下方空间不足时改为向上弹出，避免输入框位于页面底部时弹层被裁掉
+    const openUpward = window.innerHeight - buttonRect.bottom < 300;
     const style = {
         position: "fixed",
         zIndex: 1200,
         width,
         left: Math.max(margin, Math.min(window.innerWidth - width - margin, left)),
-        top: buttonRect.bottom + gap,
-        maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2),
+        ...(openUpward
+            ? { bottom: window.innerHeight - buttonRect.top + gap, maxHeight: Math.max(260, buttonRect.top - margin * 2) }
+            : { top: buttonRect.bottom + gap, maxHeight: Math.max(260, window.innerHeight - buttonRect.bottom - margin * 2) }),
         background: theme.toolbar.panel,
         border: `1px solid ${theme.toolbar.border}`,
         borderRadius: 18,

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/repository"
+	"infinite-canvas/model"
+	"infinite-canvas/repository"
 )
 
 const generationLogLimit = 1000

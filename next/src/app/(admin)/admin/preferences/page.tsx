@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { fetchAdminSettings, saveAdminSettings, type AdminSettings } from "@/services/api/admin";
 import { useUserStore } from "@/stores/use-user-store";
 
-import { emptySettings, finalizeSettingsForSave, normalizeSettings } from "../settings-shared";
+import { emptySettings, finalizeSettingsForSave, normalizeSettings, syncPublicSettingsFromSaved } from "../settings-shared";
 
 export default function AdminPreferencesPage() {
     const token = useUserStore((state) => state.token);
@@ -40,6 +40,7 @@ export default function AdminPreferencesPage() {
             const values = finalizeSettingsForSave(form.getFieldsValue(true) as AdminSettings);
             const saved = normalizeSettings(await saveAdminSettings(token, values));
             form.setFieldsValue(saved);
+            syncPublicSettingsFromSaved(saved);
             message.success("已保存");
         } catch (error) {
             message.error(error instanceof Error ? error.message : "保存失败");
@@ -77,6 +78,26 @@ export default function AdminPreferencesPage() {
                             </Col>
                             <Col xs={24} md={12}>
                                 <Form.Item name={["public", "modelChannel", "allowGuestConfig"]} label="允许未登录用户使用配置功能" extra="关闭后，未登录用户看不到配置入口，也无法通过模型选择器触发配置弹窗。用于引流期到变现期的切换" valuePropName="checked">
+                                    <Switch />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </Card>
+
+                    <Card variant="borderless" title="功能模块">
+                        <Row gutter={16}>
+                            <Col xs={24} md={12}>
+                                <Form.Item name={["public", "modules", "imageWorkbench"]} label="生图工作台" extra="关闭后所有用户都看不到生图工作台页面和导航入口，直接访问会被跳回首页" valuePropName="checked">
+                                    <Switch />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item name={["public", "modules", "videoWorkbench"]} label="视频创作台" extra="关闭后所有用户都看不到视频创作台页面和导航入口，直接访问会被跳回首页" valuePropName="checked">
+                                    <Switch />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item name={["public", "modules", "workflows"]} label="工作流" extra="关闭后所有用户都看不到工作流页面和导航入口，直接访问会被跳回首页" valuePropName="checked">
                                     <Switch />
                                 </Form.Item>
                             </Col>

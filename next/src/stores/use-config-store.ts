@@ -595,15 +595,21 @@ export function normalizeLocalChannels(config: Partial<AiConfig>) {
 }
 
 export function channelIdForActiveModel(config: AiConfig) {
-    if (modelMatchesCapability(config.model, "image") && config.imageChannelId) return config.imageChannelId;
-    if (modelMatchesCapability(config.model, "video") && config.videoChannelId) return config.videoChannelId;
-    if (modelMatchesCapability(config.model, "audio") && config.audioChannelId) return config.audioChannelId;
-    if (modelMatchesCapability(config.model, "text") && config.textChannelId) return config.textChannelId;
-    if (config.activeChannelId) return config.activeChannelId;
-    if (config.model === config.videoModel) return config.videoChannelId;
-    if (config.model === config.textModel) return config.textChannelId;
-    if (config.model === config.audioModel) return config.audioChannelId;
-    return config.imageChannelId;
+    const preferredId = modelMatchesCapability(config.model, "image") && config.imageChannelId
+        ? config.imageChannelId
+        : modelMatchesCapability(config.model, "video") && config.videoChannelId
+          ? config.videoChannelId
+          : modelMatchesCapability(config.model, "audio") && config.audioChannelId
+            ? config.audioChannelId
+            : modelMatchesCapability(config.model, "text") && config.textChannelId
+              ? config.textChannelId
+              : config.activeChannelId || (config.model === config.videoModel ? config.videoChannelId : config.model === config.textModel ? config.textChannelId : config.model === config.audioModel ? config.audioChannelId : config.imageChannelId);
+    // 远程模式下校验渠道确实包含当前模型，否则回退到包含该模型的渠道，避免后端报“指定模型渠道不可用”
+    if (config.channelMode === "remote" && config.publicChannels?.length) {
+        if (config.publicChannels.some((channel) => channel.id === preferredId && channel.models?.includes(config.model))) return preferredId;
+        return config.publicChannels.find((channel) => channel.models?.includes(config.model))?.id || "";
+    }
+    return preferredId;
 }
 
 export function localChannelForActiveModel(config: AiConfig) {

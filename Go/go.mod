@@ -1,4 +1,4 @@
-module github.com/tigerowo/infinite-canvas
+module infinite-canvas
 
 go 1.25.0
 

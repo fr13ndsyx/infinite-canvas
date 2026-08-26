@@ -3,7 +3,8 @@
 import { Drawer } from "antd";
 import Link from "next/link";
 
-import { navigationTools, type NavigationSlug } from "@/constant/navigation-tools";
+import { filterNavigationTools, navigationTools, type NavigationSlug } from "@/constant/navigation-tools";
+import { useConfigStore } from "@/stores/use-config-store";
 import { cn } from "@/lib/utils";
 
 type MobileNavDrawerProps = {
@@ -13,6 +14,8 @@ type MobileNavDrawerProps = {
 };
 
 export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDrawerProps) {
+    const publicSettings = useConfigStore((state) => state.publicSettings);
+    const visibleTools = filterNavigationTools(navigationTools, publicSettings?.modules);
     const rowClassName = (active: boolean) =>
         cn(
             "flex items-center gap-3 rounded-lg px-3 py-3 text-base transition",
@@ -22,7 +25,7 @@ export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDraw
     return (
         <Drawer title="导航" placement="left" size={280} open={open} onClose={onClose} className="md:hidden">
             <div className="space-y-1">
-                {navigationTools.map((tool) => {
+                {visibleTools.map((tool) => {
                     // link 或 dropdown 单子项 → 渲染为单行 Link
                     if (tool.kind === "link" || tool.children.length === 1) {
                         const target = tool.kind === "link" ? tool : tool.children[0];

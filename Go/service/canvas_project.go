@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tigerowo/infinite-canvas/model"
-	"github.com/tigerowo/infinite-canvas/repository"
+	"infinite-canvas/model"
+	"infinite-canvas/repository"
 )
 
 type canvasProjectMetadata struct {

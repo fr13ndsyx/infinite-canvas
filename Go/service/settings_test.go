@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tigerowo/infinite-canvas/model"
+	"infinite-canvas/model"
 )
 
 func TestFetchAdminChannelModelsParsesOpenAIModels(t *testing.T) {

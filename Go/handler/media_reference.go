@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tigerowo/infinite-canvas/config"
+	"infinite-canvas/config"
 	"github.com/google/uuid"
 )
 

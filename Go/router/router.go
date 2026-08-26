@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tigerowo/infinite-canvas/handler"
-	"github.com/tigerowo/infinite-canvas/middleware"
+	"infinite-canvas/handler"
+	"infinite-canvas/middleware"
 )
 
 func New() *gin.Engine {
