@@ -87,8 +87,18 @@ description: 当前项目后续值得处理的事项
 - 改动范围：
   - 前端：✅ 已实施（`image-settings-panel.tsx` 重构、`use-config-store.ts` 加 `imageTier` + 迁移、请求折算与下游消费点适配，见 pending-test）
   - 后端：`(ratio, tier)` 映射不写代码，作为 `ModelCapability` 适配层配置数据填入（gpt-image-1 → size+quality、grok-imagine → aspect_ratio+resolution、seedream → size=2K/4K+prompt 比例）——待实施，需按各模型接口文档逐项配置，配错用 AI 日志排查
+  - 说明：**非阻塞优化**。②完成后前端已把 `(比例, 档位)` 折算成像素 size 发后端、链路可用；③是让后端按各模型原生协议翻译（如 gpt-image 走 quality 而非像素、seedream 走 size 档位），避免像素被上游再 normalize。接入新模型时顺手配即可，不急
 - 关键点：
   - `config.imageTier`（standard/2k/4k）与 `config.size`（纯比例）正交，切档位不重置比例、切比例不动档位
   - 智能比例（auto）+ 2K/4K 成为合法组合
   - 存量像素/带档位后缀的 size 加载时自动迁移
+
+### 视频侧适配层配置化
+
+- 状态：暂未实施，需单独设计
+- 背景：视频侧 `apimartVideoConfig`（`Go/handler/apimart_video.go`）同样有按模型名硬编码的 switch，与图片侧本轮删掉的是同类问题；但视频的 `imageRefKind`（roles / first_last / skyreels / happyhorse 等）是**行为枚举**——每个 kind 对应一段专门处理"参考图如何组装进请求体"的代码，无法像图片参数那样纯配置化
+- 待定方向：
+  - 方案 A：把 kind 也配置化（配置只选 kind，每个 kind 的处理代码仍留在后端）——比图片侧轻，但仍需逐 kind 设计配置项
+  - 方案 B：维持现状（视频模型清单相对稳定时成本可接受）
+- 触发条件：视频模型频繁新增 / 运营商要求视频侧也零代码接入时优先
 
