@@ -37,7 +37,7 @@ type WorkflowVariable = {
 
 export type WorkflowGenerationConfig = Pick<
     AiConfig,
-    "model" | "imageModel" | "imageChannelId" | "quality" | "size" | "count" | "apiMode" | "timeout" | "streamImages" | "streamPartialImages" | "responseFormatB64Json" | "codexCli"
+    "model" | "imageModel" | "imageChannelId" | "quality" | "size" | "imageTier" | "count" | "apiMode" | "timeout" | "streamImages" | "streamPartialImages" | "responseFormatB64Json" | "codexCli"
 > & {
     systemPrompt: string;
     promptTemplate: string;

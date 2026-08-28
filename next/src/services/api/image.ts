@@ -2,7 +2,7 @@ import axios from "axios";
 
 import { dataUrlToFile } from "@/lib/image-utils";
 import { imageToDataUrl, resolveImageUrl } from "@/services/image-storage";
-import { buildApiUrl, channelIdForActiveModel, localChannelForActiveModel, type AiConfig } from "@/stores/use-config-store";
+import { buildApiUrl, channelIdForActiveModel, IMAGE_TIER_PIXELS, localChannelForActiveModel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { ReferenceImage } from "@/types/image";
 import { nanoid } from "nanoid";
@@ -131,12 +131,18 @@ function resolveSize(quality: string, ratio: string): string | undefined {
     return `${(w / a) * unit}x${(h / a) * unit}`;
 }
 
-function resolveRequestSize(quality: string | undefined, size: string) {
+// 比例 + 档位 → 上游像素尺寸：
+// - 存量像素值（如节点元数据里的 2048x2048）直传；
+// - 2K/4K 档查档位像素表，表外比例按 2048/4096 基准折算；
+// - 标准档按 1024 基准折算（与旧版行为一致）。
+function resolveRequestSize(tier: string | undefined, size: string) {
     const value = size.trim();
     if (!value || value === "auto") return undefined;
     if (/^\d+x\d+$/.test(value)) return value;
-    // 用户只选了宽高比时,即使 quality=auto 也要折算成具体像素尺寸,避免 "1:1" 这种非法值发到 API。
-    return resolveSize(quality && QUALITY_BASE[quality] ? quality : "low", value);
+    if (tier === "2k" || tier === "4k") {
+        return IMAGE_TIER_PIXELS[tier][value] || resolveSize(tier === "2k" ? "medium" : "high", value);
+    }
+    return resolveSize("low", value);
 }
 
 function createImageRequestParams(config: AiConfig): ImageRequestParams {
@@ -144,7 +150,7 @@ function createImageRequestParams(config: AiConfig): ImageRequestParams {
     return {
         n: normalizeBoundedInteger(config.count, 1, 1, 10),
         quality,
-        size: resolveRequestSize(quality, config.size),
+        size: resolveRequestSize(config.imageTier, config.size),
         timeoutSeconds: IMAGE_REQUEST_TIMEOUT_SECONDS,
         streamPartialImages: normalizeBoundedInteger(config.streamPartialImages, 1, 0, 3),
     };
@@ -1051,12 +1057,12 @@ function applyAgnesImageSize(
         if (params.size) body.size = params.size;
         return;
     }
+    // Agnes 2.1：size 走档位（1K/2K/4K），比例走 ratio（config.size 为纯比例）。
     body.size = ({
-        auto: "1K",
-        low: "2K",
-        medium: "3K",
-        high: "4K",
-    } as Record<string, string>)[params.quality] || "1K";
+        standard: "1K",
+        "2k": "2K",
+        "4k": "4K",
+    } as Record<string, string>)[config.imageTier || "standard"] || "1K";
     body.ratio = normalizeAgnesImage21Ratio(config.size);
 }
 

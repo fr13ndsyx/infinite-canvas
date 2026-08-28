@@ -79,12 +79,8 @@ export function CanvasImageSettingsPopover({ config, onConfigChange, onOpenChang
                     <span className="inline-flex items-center whitespace-nowrap">
                         {showSize ? (
                             <>
-                                {activeSize !== "auto" ? (
-                                    <>
-                                        {imageResolutionTierLabel(activeSize)}
-                                        <span className="shrink-0 px-1 opacity-30">·</span>
-                                    </>
-                                ) : null}
+                                {imageResolutionTierLabel(config.imageTier)}
+                                <span className="shrink-0 px-1 opacity-30">·</span>
                                 {imageSizeLabel(activeSize)}
                                 {showCount ? <><span className="shrink-0 px-1 opacity-30">·</span>{count} 张</> : null}
                             </>

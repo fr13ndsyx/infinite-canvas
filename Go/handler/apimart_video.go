@@ -95,6 +95,7 @@ type apimartInputConfig struct {
 	hasQuality          bool
 	maxImageRefs        int
 	hasOutput           bool
+	requireImageRefs    bool
 	modeFromRes         bool
 	dropAspectWithImage bool
 	imageRefField       string

@@ -52,6 +52,7 @@ export type AiConfig = {
     audioModels: string[];
     quality: string;
     size: string;
+    imageTier: string;
     videoSize: string;
     count: string;
     canvasImageCount: string;
@@ -116,6 +117,7 @@ export const defaultConfig: AiConfig = {
     audioModels: [],
     quality: "auto",
     size: "1:1",
+    imageTier: "standard",
     videoSize: "adaptive",
     count: "1",
     canvasImageCount: "1",
@@ -212,6 +214,7 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
         modelInfos,
         apiMode: effectiveApiMode,
         size: resolveEffectiveImageSize(config.size, imageCap),
+        imageTier: resolveEffectiveImageTier(config.imageTier || "standard", imageCap),
         vquality: resolveEffectiveVideoQuality(config.vquality, videoCap),
         videoSeconds: resolveEffectiveVideoSeconds(config.videoSeconds, videoCap),
     };
@@ -317,12 +320,52 @@ function resolveEffectiveVideoSeconds(seconds: string, cap: AdminModelCapability
 
 // 切换模型时若当前 size 的比例不在新模型能力内，回退到 auto。
 // !cap（未传能力）保持原值；cap 有值但 imageAspects 空 = 无比例可选，回退 auto。
+// 生图档位像素表（比例 → 上游像素尺寸）：2K/4K 档按面板既定尺寸直发，标准档走折算公式。
+export const IMAGE_TIER_PIXELS: Record<"2k" | "4k", Record<string, string>> = {
+    "2k": { "1:1": "2048x2048", "3:2": "2048x1360", "2:3": "1360x2048", "4:3": "2048x1536", "3:4": "1536x2048", "16:9": "2048x1152", "9:16": "1152x2048", "21:9": "3136x1344" },
+    "4k": { "1:1": "4096x4096", "3:2": "4096x2720", "2:3": "2720x4096", "4:3": "4096x3072", "3:4": "3072x4096", "16:9": "3840x2160", "9:16": "2160x3840", "21:9": "6272x2688" },
+};
+
+const IMAGE_RATIOS = ["1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9"];
+
+// 旧版 size 迁移：像素尺寸（2048x2048 等）或带 -2k/-4k 后缀的比例 → 纯比例 + 档位。
+export function migrateImageSizeValue(size: string | undefined, imageTier?: string): { size: string; imageTier: string } {
+    const value = (size || "").trim();
+    const tier = imageTier === "2k" || imageTier === "4k" ? imageTier : "standard";
+    const suffix = value.match(/^(.+)-(2k|4k)$/);
+    if (suffix) return { size: suffix[1], imageTier: suffix[2] };
+    const pixels = value.match(/^(\d+)x(\d+)$/);
+    if (pixels) {
+        const w = Number(pixels[1]);
+        const h = Number(pixels[2]);
+        let ratio = "auto";
+        let best = Infinity;
+        for (const item of IMAGE_RATIOS) {
+            const [rw, rh] = item.split(":").map(Number);
+            const diff = Math.abs(Math.log(w / h) - Math.log(rw / rh));
+            if (diff < best) {
+                best = diff;
+                ratio = item;
+            }
+        }
+        if (best > 0.05) ratio = "auto";
+        return { size: ratio, imageTier: Math.max(w, h) >= 3840 ? "4k" : Math.max(w, h) >= 2000 ? "2k" : "standard" };
+    }
+    return { size: value || "1:1", imageTier: tier };
+}
+
 function resolveEffectiveImageSize(size: string, cap: AdminModelCapability | undefined): string {
     if (!cap) return size;
     if (size === "auto" || /^\d+x\d+$/.test(size)) return size;
     if (!cap.imageAspects || cap.imageAspects.length === 0) return "auto";
-    const aspect = size.replace(/-(2k|4k)$/, "");
-    return cap.imageAspects.includes(aspect) ? size : "auto";
+    return cap.imageAspects.includes(size) ? size : "auto";
+}
+
+// 切换模型时若当前档位不在新模型能力内，回退到第一个支持的档位（standard 优先）。
+function resolveEffectiveImageTier(tier: string, cap: AdminModelCapability | undefined): string {
+    if (!cap || !cap.imageTiers || cap.imageTiers.length === 0) return tier;
+    if (cap.imageTiers.includes(tier as "standard" | "2k" | "4k")) return tier;
+    return cap.imageTiers.includes("standard") ? "standard" : cap.imageTiers[0];
 }
 
 // 切换模型时若当前 vquality 不在新模型能力内，回退到第一个支持的档位。
@@ -498,6 +541,11 @@ export const useConfigStore = create<ConfigStore>()(
                         models: localModels,
                         baseUrl: localChannels[0]?.baseUrl || config.baseUrl,
                         apiKey: localChannels[0]?.apiKey || config.apiKey,
+                        // 存量 size（像素/带档位后缀）迁移为纯比例 + imageTier
+                        ...(() => {
+                            const migrated = migrateImageSizeValue(config.size, config.imageTier);
+                            return { size: migrated.size, imageTier: migrated.imageTier };
+                        })(),
                         imageChannelId: config.imageChannelId || localChannels[0]?.id || "",
                         videoChannelId: config.videoChannelId || localChannels[0]?.id || "",
                         textChannelId: config.textChannelId || localChannels[0]?.id || "",

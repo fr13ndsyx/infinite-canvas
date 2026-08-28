@@ -28,6 +28,14 @@ description: 把图片生成的比例和分辨率档位拆成两个独立参数�
 - 比例和档位可独立切换，互不影响
 - 后端按模型把 `(ratio, tier)` 映射到各家 API 的 `size`/`quality`/`aspect_ratio`/`resolution`
 
+## 已确认决策
+
+- **gpt-image-1 档位映射**：档位映射到 `quality` 参数（standard→`low`、2k→`medium`、4k→`high`）。注意 gpt-image 的 4K 档实际输出仍是 ~1536px 级别像素而非真 4K；是否对用户暴露 4K 按钮，由后台该模型的 `imageTiers` 配置决定
+- **Seedream 比例控制**：比例写入 prompt 自然语言，接受生成比例轻微漂移，不做参数级精确控制
+- **4K 降级策略**：UI 侧用现有 `imageTiers` 能力控制（档位不在能力内不显示按钮），后端仅做兜底截断，不新增智能降级逻辑
+- **后端映射承载方式**：`(ratio,tier)→API` 映射不写代码，作为 `ModelCapability` 适配层配置数据。前置依赖「渠道适配层全配置化」（删除 `apimartImageConfig` 按模型名硬编码 switch、通用默认值兜底，见 todo.md 生图/视频模型能力配置收尾项）
+- **实施顺序**：① 适配层全配置化（后端 + 后台配置项，前端零改动）→ ② 前端拆分 `size`+`imageTier` + 存量迁移（根治切档位 bug，standard 档行为不变）→ ③ 后端映射作为配置数据填入（「智能比例 + 2K/4K」上线）
+
 ## 数据模型变更
 
 ### 前端 `AiConfig`（`next/src/stores/use-config-store.ts`）
@@ -91,8 +99,8 @@ description: 把图片生成的比例和分辨率档位拆成两个独立参数�
 需要：
 
 - 在图片请求归一化阶段（`ai.go` 的 image 分支 / `apimart_image.go`）拿到 `(size, imageTier)`，按 `channel` + `model` 查模型能力，映射出对应 API 的 `size`/`quality`/`aspect_ratio`/`resolution` 等字段。
-- 模型能力表（`ModelCapability`）已有 `imageAspects`/`imageTiers`，可作为映射依据；后端新增一个 `resolveImageRequestParams(channel, model, ratio, tier)` 类的 helper（参照 `kieModelInputConfig`/`apimartImageConfig` 的配置驱动模式）。
-- 各家差异较大，建议后端这部分**单独出详细映射表**（本方案先定方向，映射细节在实施时按模型逐个补，并补到 `model-capabilities-refactor.md` 体系）。
+- **映射规则不写代码，全部进 `ModelCapability` 适配层配置数据**（见「已确认决策」）。适配层全配置化先行实施：删除 `apimartImageConfig` 按模型名硬编码的 switch，通用默认值兜底；本方案的 `(ratio,tier)` 映射作为配置数据填入同一套配置体系。
+- 后端只保留一个 `resolveImageRequestParams(channel, model, ratio, tier)` 类的 helper，从配置读规则做翻译；配置缺失时按通用默认（OpenAI images 标准协议）兜底。
 
 ## 数据迁移
 
@@ -132,14 +140,14 @@ description: 把图片生成的比例和分辨率档位拆成两个独立参数�
 
 ## 风险与未决
 
-- **后端映射是工作量大头**：每家模型 `(ratio,tier)→API` 映射不同，且 gpt-image-1 的 size 不按 2k/4k（档位只能映射到 quality），需要逐模型确认映射表。建议实施时先补一份「模型→映射」详表。
+- **映射配置化后，配错由管理员承担**：映射规则进 `ModelCapability` 配置数据后，需按各模型接口文档逐项确认；配错会导致该模型请求报错，用 AI 日志（`saveAIProxyLog`）排查上游报错。存量模型行为靠实施时一次性把现有硬编码规则 seed 成配置数据保证不变。
 - **`config.size` 下游依赖排查**：前端多处读写 size，需逐个确认没有依赖像素尺寸的逻辑（如节点预览尺寸、导出尺寸等），迁移可能遗漏。
-- **4K 截断**：部分模型（grok 仅 1k/2k）不支持 4k，需在 UI 或后端做降级提示/截断。
-- 本方案只定方向，后端逐模型映射细节、前端下游排查清单在实施时补。
+- **4K 截断**：UI 侧用 `imageTiers` 能力控制显隐（已确认）；后端仍保留兜底截断，防止绕过 UI 的请求。
+- 前端下游排查清单在实施时补。
 
 ## 待办状态
 
-- 状态：方案待审，加入 `todo.md` 待办列表
+- 状态：方案已确认，待实施
 - 优先级：中（对齐模型能力 + 修复切档位脆弱性，非阻塞但体验提升明显）
-- 触发条件：确认要支持「智能比例 + 2K/4K」、或切档位 bug 再发时优先实施
-- 前置：建议先单独确认后端各模型的 `(ratio,tier)→API` 映射表再动后端代码
+- 实施顺序：① 适配层全配置化（见 todo.md 生图/视频模型能力配置收尾项）→ ② 前端拆分与存量迁移 → ③ 后端映射配置数据填入
+- 触发条件：已确认需要「智能比例 + 2K/4K」；适配层全配置化完成后即可启动前端拆分

@@ -88,6 +88,7 @@ export function normalizeModelInfos(items: Partial<AdminModelInfo>[]): AdminMode
 export function normalizeModelCapabilities(items: Partial<AdminModelCapability>[]): AdminModelCapability[] {
     return items.filter((item) => item.model).map((item) => ({
         model: item.model || "",
+        imageAdapter: item.imageAdapter && Object.keys(item.imageAdapter).length > 0 ? item.imageAdapter : undefined,
         imageAspects: uniqueModels(item.imageAspects || []),
         imageTiers: uniqueModels(item.imageTiers || []) as ("standard" | "2k" | "4k")[],
         videoResolutions: uniqueModels(item.videoResolutions || []),
