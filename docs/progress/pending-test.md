@@ -5,6 +5,54 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+## 图片比例与分辨率解耦（前端拆分 + 存量迁移）
+
+### 可测试变更
+
+- `use-config-store.ts`：`AiConfig` 新增 `imageTier`（standard/2k/4k，默认 standard）；新增 `IMAGE_TIER_PIXELS` 档位像素表与 `migrateImageSizeValue`（把存量像素尺寸/带 `-2k`-`-4k` 后缀的比例迁移为纯比例+档位）；store 持久化加载时自动迁移；`resolveEffectiveImageSize` 简化为纯比例校验，新增 `resolveEffectiveImageTier` 按模型 `imageTiers` 能力夹紧
+- `image-settings-panel.tsx`：`aspectOptions` 改为纯比例 9 条（去掉打包的 tier/size）；删除 `tierOfAspect`/`resolutionTier` local state/`changeResolutionTier` 绕路逻辑；档位按钮独立写 `imageTier`，比例按钮独立写 `size`，两者互不影响；`imageResolutionTierLabel` 改为直接读档位值
+- `services/api/image.ts`：`resolveRequestSize` 改为 `(tier, size)`——像素值直传、2K/4K 查 `IMAGE_TIER_PIXELS` 表、标准档按 1024 基准折算；`createImageRequestParams` 传入 `config.imageTier`；Agnes 2.1 生图 `size` 档位映射改用 `imageTier`（standard→1K/2k→2K/4k→4K），修复旧逻辑里档位被 quality=auto 吞掉的问题
+- `canvas-image-settings-popover.tsx`：按钮标签始终显示 `档位·比例`（智能比例+2K 等组合也显示档位）
+- `canvas/[id]/canvas-client-page.tsx`：Agent 生成链路 `agentConfig.imageQuality`（档位值）映射到 `imageTier`；画布节点元数据 `buildImageGenerationMetadata` 持久化 `imageTier`，节点配置构建处回填 `imageTier`
+- `canvas/types.ts`：`CanvasNodeMetadata` 新增 `imageTier`
+- `canvas-config-node-panel.tsx` / `canvas-node-prompt-panel.tsx`：节点配置回填 `imageTier`
+- `image/page.tsx`：快捷尺寸去掉像素项（改纯比例）；历史日志回填时用 `migrateImageSizeValue` 迁移；设置摘要显示 `档位·比例`
+- `creative-workflow-workspace.tsx`：`WorkflowGenerationConfig` Pick 增加 `imageTier`
+- 视频侧不受影响（仍走像素 `videoSize`）
+
+### 验证步骤
+
+1. 默认配置：`size=1:1`、`imageTier=standard`，面板按钮显示「标准·1:1」
+2. 选 `16:9` → 切 `2K`：`size=16:9`、`imageTier=2k`，按钮 `2K·16:9`，**比例不变**（旧版切档位会换 size）
+3. 选「智能比例(auto)」→ 切 `2K`：`size=auto`、`imageTier=2k`，按钮 `2K·智能比例`（**解耦新增能力**）
+4. 切档位不重置比例、切比例不重置档位（两个独立维度）
+5. 切模型（能力不同）：比例/档位不在新模型 `imageAspects`/`imageTiers` 内时各自回退，不互相牵连
+6. 存量配置打开：旧 `size=2048x2048` 自动迁移为 `size=1:1`+`imageTier=2k`，按钮显示一致；旧 `16:9-2k` 迁移为 `16:9`+`2k`
+7. 画布节点元数据存量像素 `size` 仍可正常生成（请求层像素直传兼容）；重新在面板选比例后变为纯比例+档位并持久化
+8. Agnes 2.1 生图：选 2K 档实际发出 `size=2K`+`ratio`（旧版档位被吞为 1K 的问题已修复）
+9. 图片工作台历史日志「应用配置」：旧像素 size 迁移为比例+档位回填
+10. 全景模式行为不变（仍走 quality low/medium/high）
+
+## 生图渠道适配层全配置化（删除按模型硬编码）
+
+### 可测试变更
+
+- `Go/model/setting.go`：`ModelCapability` 新增 `imageAdapter`（`ImageAdapterConfig`：比例字段名、分辨率参数与大小写、min/max 分辨率、数量 n、quality、output_format、参考图支持/字段名/上限、必须参考图）。未配置 = 走通用默认（OpenAI images 标准协议：size=比例、resolution 大写、支持 n、无 quality/output_format、参考图字段 image_urls）
+- `Go/service/image_adapter.go`（新增）：`ImageAdapterFor` 按模型名读取适配配置；`SeedImageAdapterConfigs` 启动时一次性把旧版 `apimartImageConfig` 按模型名硬编码规则翻译成 `imageAdapter` 配置写入后台——只填充尚无配置的模型，已有配置一律不动，保证存量模型行为不变；幂等，重复启动不再写入
+- `Go/handler/apimart_image.go`：删除按模型名硬编码的 switch 与 `apimartImageReferenceExcluded`，归一化配置改为「后台 `imageAdapter` 优先 + 通用默认兜底」；不支持参考图的模型统一走 `clearAPIMartImageReferenceFields` 清理；`validateAPIMartImageRequiredInputs` 改由 `requireRefs` 配置驱动。视频侧按模型 switch 本轮不动（`imageRefKind` 是行为枚举，无法纯配置化，另行安排）
+- `Go/main.go`：启动时调用 `service.SeedImageAdapterConfigs()`
+- 管理后台「开放与定价」页图片模型能力卡片新增「渠道适配参数（高级）」表单：比例字段名、分辨率参数、分辨率大小写、分辨率上/下限、数量 n、quality、output_format、参考图支持、参考图字段名、参考图上限、必须参考图；布尔项三态（默认/支持/不支持），全部留空 = 移除 `imageAdapter` 走通用默认
+- `next/src/services/api/admin.ts`：新增 `AdminImageAdapterConfig` 类型，`AdminModelCapability` 加 `imageAdapter` 字段；`settings-shared.ts` 的 `normalizeModelCapabilities` 透传 `imageAdapter`
+
+### 验证步骤
+
+1. 渠道中存在 gpt-image-1 / seedream / grok-imagine 等模型时重启后端：启动日志出现 `seed image adapter config: <model>`，后台「开放与定价」对应模型自动带上与旧硬编码规则一致的适配参数
+2. 再次重启：不再出现 seed 日志（幂等）
+3. 用已 seed 的模型生成图片：请求行为与改造前一致（对比 AI 日志中的上游请求体：gpt-image-1 无 resolution 有 quality；seedream-5 分辨率最小 2K；imagen/z-image 参考图字段被清理）
+4. 后台把某模型「分辨率参数」改为「不支持」并保存：该模型生图请求体不再携带 resolution
+5. 后台清空某模型全部适配参数并保存：该模型 `imageAdapter` 字段消失，请求走 OpenAI 标准协议归一化
+6. 新接入一个未配置适配参数的模型：生图请求直接按通用默认协议归一化，代码无需改动
+
 ## 画布创作 Agent 支持指定模型 + 修复"指定模型渠道不可用"
 
 ### 可测试变更

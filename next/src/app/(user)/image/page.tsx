@@ -27,12 +27,12 @@ import { App, Button, Checkbox, Empty, Image, Input, Modal, Segmented, Tag, Typo
 import localforage from "localforage";
 import { saveAs } from "file-saver";
 
-import { ImageSettingsPanel, imageFormatLabel, imageSizeLabel } from "@/components/image-settings-panel";
+import { ImageSettingsPanel, imageFormatLabel, imageResolutionTierLabel, imageSizeLabel } from "@/components/image-settings-panel";
 import { ModelPicker } from "@/components/model-picker";
 import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
 import { AssetPickerModal, type InsertAssetPayload } from "@/app/(user)/canvas/components/asset-picker-modal";
 import { canvasThemes } from "@/lib/canvas-theme";
-import { normalizeLocalChannels, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { migrateImageSizeValue, normalizeLocalChannels, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration, getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
@@ -828,7 +828,12 @@ export default function ImagePage() {
             updateConfig("imageChannelId", nextChannelId);
             updateConfig("activeChannelId", nextChannelId);
         }
-        if (log.config.size) updateConfig("size", log.config.size);
+        if (log.config.size) {
+            // 存量日志的 size 可能是像素/带档位后缀，迁移为纯比例 + 档位
+            const migrated = migrateImageSizeValue(log.config.size, log.config.imageTier);
+            updateConfig("size", migrated.size);
+            updateConfig("imageTier", migrated.imageTier);
+        }
         if (log.config.count) updateConfig("count", log.config.count);
         if (log.config.apiMode) updateConfig("apiMode", log.config.apiMode);
         if (typeof log.config.streamImages === "boolean") updateConfig("streamImages", log.config.streamImages);
@@ -1037,9 +1042,6 @@ const quickSizeOptions = [
     { value: "4:3", label: "4:3" },
     { value: "3:4", label: "3:4" },
     { value: "9:16", label: "9:16" },
-    { value: "2048x2048", label: "1:1 2k" },
-    { value: "2048x1152", label: "16:9 2k" },
-    { value: "1152x2048", label: "9:16 2k" },
 ];
 
 function WorkbenchPanel({
@@ -1287,7 +1289,7 @@ function QuickNumber({ label, value, min, max, disabled, onChange }: { label: st
 function settingsSummary(config: AiConfig, model: string) {
     return [
         model,
-        imageSizeLabel(config.size || "auto"),
+        `${imageResolutionTierLabel(config.imageTier)}·${imageSizeLabel(config.size || "auto")}`,
         `${config.count || "1"} 张`,
         config.streamImages ? `流式 ${config.streamPartialImages || "1"}` : "非流式",
     ].join(" · ");

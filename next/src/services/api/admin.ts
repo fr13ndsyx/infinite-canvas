@@ -200,8 +200,24 @@ export type AdminVideoModeOption = {
     desc?: string;
 };
 
+export type AdminImageAdapterConfig = {
+    aspectField?: string; // 比例参数字段名，空=默认 size
+    hasResolution?: boolean; // 是否支持 resolution 参数，缺省=支持
+    resolutionCase?: string; // 分辨率大小写：upper（默认）/ lower
+    minResolution?: string; // 分辨率下限（如 2K）
+    maxResolution?: string; // 分辨率上限（如 1K/2K）
+    hasCount?: boolean; // 是否支持 n 参数，缺省=支持
+    hasQuality?: boolean; // 是否支持 quality 参数，缺省=不支持
+    hasOutput?: boolean; // 是否支持 output_format 参数，缺省=不支持
+    hasImageRefs?: boolean; // 是否支持参考图，缺省=支持
+    imageRefField?: string; // 参考图字段名，空=默认 image_urls
+    maxImageRefs?: number; // 参考图数量上限，0=不限
+    requireRefs?: boolean; // 是否必须提供参考图，缺省=不强制
+};
+
 export type AdminModelCapability = {
     model: string;
+    imageAdapter?: AdminImageAdapterConfig | null;
     imageAspects?: string[];
     imageTiers?: ("standard" | "2k" | "4k")[];
     videoResolutions?: string[];

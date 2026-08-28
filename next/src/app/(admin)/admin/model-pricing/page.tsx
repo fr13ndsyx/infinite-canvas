@@ -3,9 +3,9 @@
 import { DeleteOutlined, PlusOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
 import { App, Button, Card, Checkbox, Col, Flex, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Typography } from "antd";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { fetchAdminSettings, saveAdminSettings, type AdminModelCapability, type AdminModelCost, type AdminModelInfo, type AdminSettings } from "@/services/api/admin";
+import { fetchAdminSettings, saveAdminSettings, type AdminImageAdapterConfig, type AdminModelCapability, type AdminModelCost, type AdminModelInfo, type AdminSettings } from "@/services/api/admin";
 import { modelMatchesCapability } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -59,6 +59,64 @@ const VIDEO_RATIO_OPTIONS = [
 
 function getModelCapability(items: AdminModelCapability[], model: string): AdminModelCapability {
     return items.find((item) => item.model === model) || { model, imageAspects: [], imageTiers: [], videoResolutions: [], videoSecondsMin: 4, videoSecondsMax: 20 };
+}
+
+// 渠道适配参数布尔项的三态选择："" = 默认（跟随通用协议），"true"/"false" = 显式覆盖
+function adapterBoolValue(value: string): boolean | undefined {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return undefined;
+}
+
+function setModelCapabilityAdapter(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, patch: Partial<AdminImageAdapterConfig>) {
+    const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
+    const index = current.findIndex((item) => item.model === model);
+    const merged: AdminImageAdapterConfig = { ...(index >= 0 ? current[index].imageAdapter || {} : {}), ...patch };
+    // 清理空值：全部为空时移除整个 imageAdapter（= 走通用默认）
+    const cleaned: AdminImageAdapterConfig = {};
+    let hasValue = false;
+    (Object.keys(merged) as (keyof AdminImageAdapterConfig)[]).forEach((key) => {
+        const value = merged[key];
+        if (value !== undefined && value !== null && value !== "") {
+            (cleaned as Record<string, unknown>)[key] = value;
+            hasValue = true;
+        }
+    });
+    const next = [...current];
+    const adapter = hasValue ? cleaned : undefined;
+    if (index >= 0) {
+        next[index] = { ...next[index], imageAdapter: adapter };
+    } else {
+        next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], imageAdapter: adapter });
+    }
+    form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
+    setModelCapabilities(next);
+}
+
+function AdapterField({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <div style={{ minWidth: 130 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>{label}</Typography.Text>
+            {children}
+        </div>
+    );
+}
+
+// 渠道适配参数三态下拉（默认 / 支持 / 不支持）
+function AdapterTriState({ value, onChange, defaultLabel }: { value: boolean | undefined; onChange: (value: boolean | undefined) => void; defaultLabel: string }) {
+    return (
+        <Select
+            size="small"
+            style={{ width: 120 }}
+            value={value === undefined || value === null ? "" : String(value)}
+            onChange={(v) => onChange(adapterBoolValue(v))}
+            options={[
+                { label: defaultLabel, value: "" },
+                { label: "支持", value: "true" },
+                { label: "不支持", value: "false" },
+            ]}
+        />
+    );
 }
 
 function setModelCapabilityField(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "imageAspects" | "imageTiers" | "videoResolutions" | "videoRatios", values: string[]) {
@@ -424,6 +482,59 @@ export default function AdminModelPricingPage() {
                                                         />
                                                     </div>
                                                 </Flex>
+                                                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--ant-color-border)" }}>
+                                                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
+                                                        渠道适配参数（高级）：后端请求归一化规则，全部默认时走 OpenAI images 标准协议；仅聚合渠道等非标准上游需要按模型接口文档配置
+                                                    </Typography.Text>
+                                                    <Flex gap={16} wrap>
+                                                        <AdapterField label="比例字段名">
+                                                            <Input size="small" style={{ width: 110 }} placeholder="size" value={cap.imageAdapter?.aspectField || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { aspectField: e.target.value })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="分辨率参数">
+                                                            <AdapterTriState value={cap.imageAdapter?.hasResolution} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasResolution: v })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="分辨率大小写">
+                                                            <Select
+                                                                size="small"
+                                                                style={{ width: 120 }}
+                                                                value={cap.imageAdapter?.resolutionCase || ""}
+                                                                onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { resolutionCase: v })}
+                                                                options={[
+                                                                    { label: "默认（大写）", value: "" },
+                                                                    { label: "大写（2K）", value: "upper" },
+                                                                    { label: "小写（2k）", value: "lower" },
+                                                                ]}
+                                                            />
+                                                        </AdapterField>
+                                                        <AdapterField label="分辨率下限">
+                                                            <Input size="small" style={{ width: 90 }} placeholder="如 2K" value={cap.imageAdapter?.minResolution || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { minResolution: e.target.value })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="分辨率上限">
+                                                            <Input size="small" style={{ width: 90 }} placeholder="如 1K" value={cap.imageAdapter?.maxResolution || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { maxResolution: e.target.value })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="数量 n">
+                                                            <AdapterTriState value={cap.imageAdapter?.hasCount} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasCount: v })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="quality">
+                                                            <AdapterTriState value={cap.imageAdapter?.hasQuality} defaultLabel="默认（不支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasQuality: v })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="output_format">
+                                                            <AdapterTriState value={cap.imageAdapter?.hasOutput} defaultLabel="默认（不支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasOutput: v })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="参考图">
+                                                            <AdapterTriState value={cap.imageAdapter?.hasImageRefs} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasImageRefs: v })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="参考图字段名">
+                                                            <Input size="small" style={{ width: 120 }} placeholder="image_urls" value={cap.imageAdapter?.imageRefField || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { imageRefField: e.target.value })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="参考图上限">
+                                                            <InputNumber size="small" min={0} max={20} style={{ width: 90 }} placeholder="0=不限" value={cap.imageAdapter?.maxImageRefs || undefined} onChange={(value) => setModelCapabilityAdapter(form, setModelCapabilities, model, { maxImageRefs: Number(value) || 0 })} />
+                                                        </AdapterField>
+                                                        <AdapterField label="必须参考图">
+                                                            <AdapterTriState value={cap.imageAdapter?.requireRefs} defaultLabel="默认（否）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { requireRefs: v })} />
+                                                        </AdapterField>
+                                                    </Flex>
+                                                </div>
                                             </div>
                                         );
                                     })}

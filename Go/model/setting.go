@@ -50,6 +50,10 @@ type ModelCapability struct {
 	VideoSecondsMin  *int     `json:"videoSecondsMin,omitempty"`
 	VideoSecondsMax  *int     `json:"videoSecondsMax,omitempty"`
 
+	// 生图渠道适配参数：后端把统一生图请求归一化为各上游 API 方言的规则。
+	// nil（未配置）= 走通用默认（OpenAI images 标准协议），代码里不做任何按模型的特殊分支。
+	ImageAdapter *ImageAdapterConfig `json:"imageAdapter,omitempty"`
+
 	// 视频面板类型与厂商，替代前端按模型名+渠道硬编码判断面板和请求体格式。
 	VideoPanelType string `json:"videoPanelType,omitempty"`
 	VideoProvider  string `json:"videoProvider,omitempty"`
@@ -91,6 +95,24 @@ type VideoModeOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 	Desc  string `json:"desc,omitempty"`
+}
+
+// ImageAdapterConfig 生图渠道适配参数（按模型在后台配置）。
+// 各字段留空 = 走通用默认（OpenAI images 标准协议：比例字段 size、resolution 大写、
+// 支持比例/分辨率/n、不支持 quality/output_format、参考图字段 image_urls 且不限数量）。
+type ImageAdapterConfig struct {
+	AspectField    string `json:"aspectField,omitempty"`    // 比例参数字段名，空=默认 size
+	HasResolution  *bool  `json:"hasResolution,omitempty"`  // 是否支持 resolution 参数，空=支持
+	ResolutionCase string `json:"resolutionCase,omitempty"` // 分辨率大小写：upper（默认）/ lower
+	MinResolution  string `json:"minResolution,omitempty"`  // 分辨率下限（如 2K），低于则抬高；空=不限
+	MaxResolution  string `json:"maxResolution,omitempty"`  // 分辨率上限（如 1K/2K），高于则压低；空=不限
+	HasCount       *bool  `json:"hasCount,omitempty"`       // 是否支持 n 参数，空=支持
+	HasQuality     *bool  `json:"hasQuality,omitempty"`     // 是否支持 quality 参数，空=不支持
+	HasOutput      *bool  `json:"hasOutput,omitempty"`      // 是否支持 output_format 参数，空=不支持
+	HasImageRefs   *bool  `json:"hasImageRefs,omitempty"`   // 是否支持参考图，空=支持
+	ImageRefField  string `json:"imageRefField,omitempty"`  // 参考图字段名，空=默认 image_urls
+	MaxImageRefs   int    `json:"maxImageRefs,omitempty"`   // 参考图数量上限，0=不限
+	RequireRefs    *bool  `json:"requireRefs,omitempty"`    // 是否必须提供参考图（如图生图编辑模型），空=不强制
 }
 
 // PublicModelChannelSetting 公开模型渠道配置。
