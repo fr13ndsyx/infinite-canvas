@@ -133,13 +133,6 @@ https://infinite-canvas-cpco.onrender.com?apiKey={key}&baseUrl={address}
 - [系统配置数据结构](docs/backend/system-settings.md)
 - [接口响应约定](docs/backend/api-response.md)
 
-## 联系方式
-
-项目定制二次开发需求，广告赞助合作其他可联系
-
-邮箱：yhb293933@gmail.com
-
-
 ## 开源协议
 
 本项目使用 MIT License，见 [LICENSE](LICENSE)。
