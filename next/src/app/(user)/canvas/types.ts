@@ -52,7 +52,6 @@ export type CanvasNodeMetadata = {
     seconds?: string;
     vquality?: string;
     mode?: string;
-    negativePrompt?: string;
     generateAudio?: string;
     characterOrientation?: string;
     watermark?: string;
@@ -88,7 +87,6 @@ export type CanvasNodeMetadata = {
     shotType?: string;
     klingImageNodeIds?: string[];
     klingMultiPrompt?: { textNodeId?: string; duration?: string }[];
-    klingElementList?: { name?: string; description?: string; nodeIds?: string[] }[];
     klingActiveTab?: "frames" | "reference";
     cameraControl?: CameraControlOptions;
     panoramaSourcePrompt?: string;

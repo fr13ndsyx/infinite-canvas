@@ -229,7 +229,7 @@ func normalizeAPIMartVideoParams(payload map[string]any, modelName string, chann
 	normalizeAPIMartAspect(payload, config)
 	normalizeAPIMartDuration(payload, config)
 	normalizeAPIMartVideoMode(payload, config)
-	normalizeAPIMartKlingV3Advanced(payload, modelName, channel)
+	normalizeAPIMartKlingV3Advanced(payload, modelName)
 	normalizeAPIMartResolution(payload, config)
 	normalizeAPIMartVideoQuality(payload, config)
 	normalizeAPIMartReferenceInputs(payload, modelName, config, channel)
@@ -245,7 +245,6 @@ func normalizeAPIMartVideoParams(payload map[string]any, modelName string, chann
 }
 
 func apimartVideoConfig(modelName string) apimartInputConfig {
-	model := normalizeAPIMartModelName(modelName)
 	config := apimartInputConfig{
 		aspectField:    "aspect_ratio",
 		durationField:  "duration",
@@ -255,155 +254,49 @@ func apimartVideoConfig(modelName string) apimartInputConfig {
 		imageRefKind:   "array",
 	}
 
-	switch {
-	case strings.Contains(model, "doubao-seedance-2"):
-		config.aspectField = "size"
-		config.imageRefKind = "seedance2"
-		config.videoRefField = "video_urls"
-		config.videoRefKind = "array"
-		config.audioRefField = "audio_urls"
-		config.audioRefKind = "array"
-	case strings.Contains(model, "doubao-seedance-1-0"):
-		config.aspectField = "aspect_ratio"
-		config.imageRefField = "image_with_roles"
-		config.imageRefKind = "roles"
-	case strings.Contains(model, "doubao-seedance-1-5"), strings.Contains(model, "seedance-1"):
-		config.aspectField = "aspect_ratio"
-		config.imageRefField = "image_with_roles"
-		config.imageRefKind = "roles"
-	case strings.Contains(model, "sora-2-pro"):
-		config.aspectField = "aspect_ratio"
-		config.dropAspectWithImage = true
-		config.maxImageRefs = 1
-	case strings.Contains(model, "sora-2"):
-		config.aspectField = "aspect_ratio"
-		config.maxResolution = "720p"
-		config.dropAspectWithImage = true
-		config.maxImageRefs = 1
-	case strings.Contains(model, "veo") && strings.Contains(model, "official"):
-		config.aspectField = "aspect_ratio"
-		config.imageRefField = "first_frame_image"
-		config.imageRefKind = "first_last"
-	case strings.Contains(model, "veo"):
-		config.aspectField = "aspect_ratio"
-	case model == "minimax-h3":
-		config.aspectField = "aspect_ratio"
-		config.imageRefField = "image_urls"
-		config.imageRefKind = "minimax_h3"
-		config.videoRefField = "video_urls"
-		config.videoRefKind = "array"
-		config.audioRefField = "audio_urls"
-		config.audioRefKind = "array"
-	case strings.Contains(model, "minimax-hailuo-2-3"):
+	adapter := service.VideoAdapterFor(modelName)
+	if adapter == nil {
+		return config
+	}
+	if adapter.AspectField == "none" {
 		config.aspectField = ""
-		config.imageRefField = "first_frame_image"
-		config.imageRefKind = "first_only"
-	case strings.Contains(model, "minimax"), strings.Contains(model, "hailuo"):
-		config.aspectField = ""
-		config.imageRefField = "first_frame_image"
-		config.imageRefKind = "first_last"
-	case strings.Contains(model, "skyreels"):
-		config.aspectField = "aspect_ratio"
-		config.imageRefField = "first_frame_image"
-		config.imageRefKind = "skyreels"
-		config.videoRefField = "ref_videos"
-		config.videoRefKind = "skyreels"
-		config.audioRefKind = "skyreels_ref_images"
-	case model == "kling-3-0-turbo":
-		config.aspectField = "aspect_ratio"
-		config.imageRefField = "first_frame_image"
-		config.imageRefKind = "first_only"
-		config.dropAspectWithImage = true
-	case model == "happyhorse-1-1":
-		config.aspectField = "size"
-		config.resolutionCase = "upper_video"
-		config.imageRefKind = "happyhorse11"
-	case strings.Contains(model, "happyhorse"):
-		config.aspectField = "size"
-		config.resolutionCase = "upper_video"
-		config.imageRefKind = "happyhorse"
-		config.videoRefField = "video_url"
-		config.videoRefKind = "single"
-	case strings.Contains(model, "gemini-omni-flash-preview"):
-		config.maxResolution = "720p"
-		config.videoRefField = "video_urls"
-		config.videoRefKind = "array"
-	case strings.Contains(model, "wan2-7-r2v"), strings.Contains(model, "wan2.7-r2v"):
-		config.aspectField = "size"
-		config.resolutionCase = "upper_video"
-		config.imageRefField = "image_with_roles"
-		config.imageRefKind = "roles"
-		config.videoRefField = "video_urls"
-		config.videoRefKind = "array"
-		config.audioRefKind = "wan_r2v_voice"
-	case strings.Contains(model, "wan2-7-videoedit"), strings.Contains(model, "wan2.7-videoedit"):
-		config.aspectField = "size"
-		config.resolutionCase = "upper_video"
-		config.videoRefField = "video_urls"
-		config.videoRefKind = "array"
-	case strings.Contains(model, "wan2-7"), strings.Contains(model, "wan2.7"):
-		config.aspectField = "size"
-		config.resolutionCase = "upper_video"
-		config.imageRefField = "image_with_roles"
-		config.imageRefKind = "roles"
-		config.videoRefField = "video_urls"
-		config.videoRefKind = "array"
-		config.audioRefField = "audio_url"
-		config.audioRefKind = "single"
-	case strings.Contains(model, "wan2-6-i2v-flash"), strings.Contains(model, "wan2.6-i2v-flash"):
-		config.aspectField = ""
-		config.audioRefField = "audio_url"
-		config.audioRefKind = "single"
-	case strings.Contains(model, "wan2-5"), strings.Contains(model, "wan2.5"):
-		config.aspectField = "size"
-		config.dropAspectWithImage = true
-		config.audioRefField = "audio_url"
-		config.audioRefKind = "single"
-	case strings.Contains(model, "wan2-6"), strings.Contains(model, "wan2.6"):
-		config.aspectField = "aspect_ratio"
-		config.dropAspectWithImage = true
-		config.audioRefField = "audio_url"
-		config.audioRefKind = "single"
-	case strings.Contains(model, "kling-v2-6-motion"), strings.Contains(model, "motion-control"):
-		config.aspectField = ""
-		config.hasResolution = false
-		config.imageRefField = "image_url"
-		config.imageRefKind = "single"
-		config.videoRefField = "video_url"
-		config.videoRefKind = "single"
-	case strings.Contains(model, "kling-v2-6"), strings.Contains(model, "kling-2-6"):
-		config.aspectField = "aspect_ratio"
-		config.hasResolution = false
-		config.imageRefKind = "array_frames"
-	case model == "kling-v3":
-		config.aspectField = "aspect_ratio"
-		config.hasResolution = false
-		config.imageRefKind = "array_frames"
-	case strings.Contains(model, "kling-v3-omni"), strings.Contains(model, "kling-video-o1"):
-		config.aspectField = "aspect_ratio"
-		config.hasResolution = false
-		config.modeFromRes = true
-		config.videoRefField = "video_list"
-		config.videoRefKind = "kling_video_list"
-	case strings.Contains(model, "kling"):
-		config.aspectField = "aspect_ratio"
-		config.hasResolution = false
-		config.modeFromRes = true
-	case strings.Contains(model, "vidu"):
-		config.aspectField = "aspect_ratio"
-		config.dropAspectWithImage = model != "viduq3" && model != "viduq3-mix"
-		config.imageRefKind = "array_frames"
-	case strings.Contains(model, "grok-imagine"):
-		config.aspectField = "size"
-		config.hasResolution = false
-		config.hasQuality = true
-	case strings.Contains(model, "pixverse"):
-		config.aspectField = "size"
-		config.imageRefKind = "pixverse"
-	case strings.Contains(model, "omni-flash"):
-		config.aspectField = "aspect_ratio"
-		config.videoRefField = "video_urls"
-		config.videoRefKind = "array"
+	} else if adapter.AspectField != "" {
+		config.aspectField = adapter.AspectField
+	}
+	if adapter.HasResolution != nil {
+		config.hasResolution = *adapter.HasResolution
+	}
+	if adapter.ResolutionCase != "" {
+		config.resolutionCase = adapter.ResolutionCase
+	}
+	config.maxResolution = adapter.MaxResolution
+	config.maxImageRefs = adapter.MaxImageRefs
+	if adapter.ModeFromRes != nil {
+		config.modeFromRes = *adapter.ModeFromRes
+	}
+	if adapter.HasQuality != nil {
+		config.hasQuality = *adapter.HasQuality
+	}
+	if adapter.DropAspectWithImage != nil {
+		config.dropAspectWithImage = *adapter.DropAspectWithImage
+	}
+	if adapter.ImageRefField != "" {
+		config.imageRefField = adapter.ImageRefField
+	}
+	if adapter.ImageRefKind != "" {
+		config.imageRefKind = adapter.ImageRefKind
+	}
+	if adapter.VideoRefField != "" {
+		config.videoRefField = adapter.VideoRefField
+	}
+	if adapter.VideoRefKind != "" {
+		config.videoRefKind = adapter.VideoRefKind
+	}
+	if adapter.AudioRefField != "" {
+		config.audioRefField = adapter.AudioRefField
+	}
+	if adapter.AudioRefKind != "" {
+		config.audioRefKind = adapter.AudioRefKind
 	}
 	return config
 }
@@ -501,11 +394,10 @@ func normalizeAPIMartVideoMode(payload map[string]any, config apimartInputConfig
 	payload["mode"] = mode
 }
 
-func normalizeAPIMartKlingV3Advanced(payload map[string]any, modelName string, channel model.ModelChannel) {
+func normalizeAPIMartKlingV3Advanced(payload map[string]any, modelName string) {
 	if normalizeAPIMartModelName(modelName) != "kling-v3" {
 		return
 	}
-	normalizeAPIMartKlingV3ElementList(payload, channel)
 	if !boolLike(payload["multi_shot"]) {
 		delete(payload, "multi_shot")
 		delete(payload, "shot_type")
@@ -521,42 +413,6 @@ func normalizeAPIMartKlingV3Advanced(payload map[string]any, modelName string, c
 	}
 	payload["shot_type"] = "customize"
 	payload["multi_prompt"] = normalizeAPIMartKlingV3MultiPrompt(payload["multi_prompt"])
-}
-
-func normalizeAPIMartKlingV3ElementList(payload map[string]any, channel model.ModelChannel) {
-	items, ok := payload["element_list"].([]any)
-	if !ok || len(items) == 0 {
-		delete(payload, "element_list")
-		return
-	}
-	result := make([]map[string]any, 0, len(items))
-	for _, item := range items {
-		record, _ := item.(map[string]any)
-		values, err := normalizeAPIMartReferenceValues(record["element_input_urls"], channel)
-		if err != nil {
-			payload["_apimart_reference_error"] = err.Error()
-			return
-		}
-		if len(values) == 0 {
-			continue
-		}
-		if len(values) > 4 {
-			values = values[:4]
-		}
-		result = append(result, map[string]any{
-			"name":               strings.TrimSpace(toStringSafe(record["name"])),
-			"description":        strings.TrimSpace(toStringSafe(record["description"])),
-			"element_input_urls": values,
-		})
-		if len(result) >= 3 {
-			break
-		}
-	}
-	if len(result) == 0 {
-		delete(payload, "element_list")
-		return
-	}
-	payload["element_list"] = result
 }
 
 func normalizeAPIMartKlingV3MultiPrompt(value any) []map[string]any {

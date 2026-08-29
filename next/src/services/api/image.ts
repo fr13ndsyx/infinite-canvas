@@ -600,7 +600,13 @@ async function requestImageGenerationSingle(config: AiConfig & { seedIndex?: num
         prompt: withPromptGuard(config, withSystemPrompt(config, prompt)),
     };
     if (params.n > 1) body.n = params.n;
-    if (params.size) body.size = params.size;
+    if (usesAccountProxy(config)) {
+        // 比例/档位解耦：代理请求直发比例 + 档位，由后端按模型适配配置翻译成上游原生参数
+        body.image_tier = config.imageTier || "standard";
+        if (config.size) body.size = config.size;
+    } else if (params.size) {
+        body.size = params.size;
+    }
     if (params.quality && !config.codexCli) body.quality = params.quality;
     if (config.responseFormatB64Json) body.response_format = "b64_json";
     if (config.streamImages) {
@@ -933,7 +939,9 @@ async function createCanvasImageTaskRequest(config: AiConfig & { seedIndex?: num
         model: config.model,
         prompt: withPromptGuard(config, withSystemPrompt(config, prompt)),
     };
-    if (params.size) body.size = params.size;
+    // 比例/档位解耦：画布任务请求直发比例 + 档位，由后端按模型适配配置翻译成上游原生参数
+    body.image_tier = config.imageTier || "standard";
+    if (config.size) body.size = config.size;
     if (params.quality && !config.codexCli) body.quality = params.quality;
     if (config.responseFormatB64Json) body.response_format = "b64_json";
     if (config.streamImages) {

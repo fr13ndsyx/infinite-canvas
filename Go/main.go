@@ -17,6 +17,7 @@ func main() {
 		log.Fatal(err)
 	}
 	service.SeedImageAdapterConfigs()
+	service.SeedVideoAdapterConfigs()
 	service.StartCanvasProjectCleanupScheduler()
 	handler.StartVideoTaskPoller()
 	log.Fatal(router.New().Run(":" + config.Cfg.Port))

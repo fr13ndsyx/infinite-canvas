@@ -8,7 +8,7 @@ import { ImageSettingsTheme } from "@/components/image-settings-panel";
 import { boolConfig, normalizeSeedanceRatio, seedanceRatioOptions } from "@/lib/seedance-video";
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AdminModelCapability } from "@/services/api/admin";
-import { resolveAudioRequiresMode, resolveSupportsAudioGeneration, resolveSupportsNegativePrompt, resolveSupportsWatermark, resolveVideoModes, resolveVideoRatios, resolveVideoSecondsRange, type AiConfig } from "@/stores/use-config-store";
+import { resolveAudioRequiresMode, resolveSupportsAudioGeneration, resolveSupportsWatermark, resolveVideoModes, resolveVideoRatios, resolveVideoSecondsRange, type AiConfig } from "@/stores/use-config-store";
 
 const resolutionOptions = [
     { value: "480", label: "480P" },
@@ -28,12 +28,11 @@ const sizeOptions = [
 type VideoSettingsPanelProps = {
     config: AiConfig;
     modelName?: string;
-    onConfigChange: (key: "vquality" | "size" | "videoSeconds" | "videoMode" | "videoNegativePrompt" | "videoGenerateAudio" | "videoWatermark", value: string) => void;
+    onConfigChange: (key: "vquality" | "size" | "videoSeconds" | "videoMode" | "videoGenerateAudio" | "videoWatermark", value: string) => void;
     theme: CanvasTheme;
     capabilities?: AdminModelCapability;
     showTitle?: boolean;
     className?: string;
-    hideNegativePrompt?: boolean;
     visualOnly?: boolean;
     variant?: "default" | "canvas";
     hideRatioResolution?: boolean;
@@ -41,7 +40,7 @@ type VideoSettingsPanelProps = {
 };
 
 // 通用视频设置面板：所有功能由 ModelCapability 能力开关驱动渲染，不再按面板类型分流。
-export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, capabilities, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", hideNegativePrompt = false, visualOnly = false, variant = "default", hideRatioResolution = false, sizeOnly = false }: VideoSettingsPanelProps) {
+export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, capabilities, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", visualOnly = false, variant = "default", hideRatioResolution = false, sizeOnly = false }: VideoSettingsPanelProps) {
     const size = normalizeVideoSizeValue(config.size);
     const resolution = normalizeVideoResolutionValue(config.vquality);
     const secondsRange = resolveVideoSecondsRange(capabilities);
@@ -79,7 +78,6 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
         : size;
 
     // 能力开关
-    const showNegativePrompt = !hideNegativePrompt && !visualOnly && resolveSupportsNegativePrompt(capabilities) === true;
     const audioGenerationEnabled = resolveSupportsAudioGeneration(capabilities) === true;
     const watermarkEnabled = resolveSupportsWatermark(capabilities) === true;
     const generateAudio = boolConfig(config.videoGenerateAudio, false);
@@ -94,19 +92,6 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
             <ImageSettingsTheme theme={theme}>
                 <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                     {showTitle && showOtherSections ? <div className="text-lg font-semibold">视频设置</div> : null}
-                    {showNegativePrompt && showOtherSections ? (
-                        <CanvasSection title="负面提示词">
-                            <Input.TextArea
-                                value={config.videoNegativePrompt || ""}
-                                placeholder="描述不希望出现在视频中的内容"
-                                autoSize={{ minRows: 3, maxRows: 6 }}
-                                className="rounded-xl placeholder:!text-[var(--canvas-placeholder)] placeholder:!opacity-55"
-                                style={{ background: theme.node.subtleFill, borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text, "--canvas-placeholder": theme.node.placeholder } as CSSProperties}
-                                onMouseDown={(event) => event.stopPropagation()}
-                                onChange={(event) => onConfigChange("videoNegativePrompt", event.target.value)}
-                            />
-                        </CanvasSection>
-                    ) : null}
                     {showOtherSections && !visualOnly && modes.length > 0 ? (
                         <CanvasSection title="视频生成方式">
                             <div className="flex gap-1.5">
@@ -215,19 +200,6 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-lg font-semibold">视频设置</div> : null}
-                {showNegativePrompt ? (
-                    <SettingGroup title="负面提示词" color={theme.node.muted}>
-                        <Input.TextArea
-                            value={config.videoNegativePrompt || ""}
-                            placeholder="描述不希望出现在视频中的内容"
-                            autoSize={{ minRows: 3, maxRows: 6 }}
-                            className="rounded-xl placeholder:!text-[var(--canvas-placeholder)] placeholder:!opacity-55"
-                            style={{ background: theme.node.subtleFill, borderColor: theme.node.stroke, color: theme.node.text, WebkitTextFillColor: theme.node.text, "--canvas-placeholder": theme.node.placeholder } as CSSProperties}
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onChange={(event) => onConfigChange("videoNegativePrompt", event.target.value)}
-                        />
-                    </SettingGroup>
-                ) : null}
                 {!visualOnly && modes.length > 0 ? (
                     <SettingGroup title="模式选择" color={theme.node.muted}>
                         <div className={`grid gap-2.5 ${modes.length >= 3 ? "grid-cols-3" : "grid-cols-2"}`}>

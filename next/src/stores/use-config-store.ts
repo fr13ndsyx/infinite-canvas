@@ -17,8 +17,6 @@ export type LocalModelChannel = {
 };
 
 export type VideoMultiPromptItem = { prompt: string; duration: string };
-export type VideoElementReference = { id: string; kind: "image" | "video" | "audio"; name: string; type: string; dataUrl?: string; url?: string; storageKey?: string; bytes?: number; width?: number; height?: number; durationMs?: number };
-export type VideoElementItem = { name: string; description: string; references: VideoElementReference[] };
 
 export type AiConfig = {
     channelMode: "remote" | "local";
@@ -35,11 +33,9 @@ export type AiConfig = {
     audioInstructions: string;
     videoSeconds: string;
     videoMode: string;
-    videoNegativePrompt: string;
     videoMultiShot: string;
     videoShotType: string;
     videoMultiPrompt: VideoMultiPromptItem[];
-    videoElementList: VideoElementItem[];
     vquality: string;
     videoGenerateAudio: string;
     videoWatermark: string;
@@ -100,11 +96,9 @@ export const defaultConfig: AiConfig = {
     audioInstructions: "",
     videoSeconds: "6",
     videoMode: "std",
-    videoNegativePrompt: "",
     videoMultiShot: "false",
     videoShotType: "intelligence",
     videoMultiPrompt: [{ prompt: "", duration: "1" }],
-    videoElementList: [{ name: "", description: "", references: [] }],
     vquality: "720",
     videoGenerateAudio: "false",
     videoWatermark: "false",
@@ -247,15 +241,7 @@ export function resolveVideoRatios(cap: AdminModelCapability | undefined): strin
     return cap?.videoRatios || [];
 }
 
-// 是否支持 -1 智能时长（Seedance）。
-export function resolveVideoSecondsSmart(cap: AdminModelCapability | undefined): boolean {
-    return Boolean(cap?.videoSecondsSmart);
-}
-
 // 能力开关：未配置（undefined）= 走前端默认硬编码兜底；有值 = 按配置。
-export function resolveSupportsNegativePrompt(cap: AdminModelCapability | undefined): boolean | undefined {
-    return cap?.supportsNegativePrompt;
-}
 export function resolveSupportsFirstLastFrame(cap: AdminModelCapability | undefined): boolean | undefined {
     return cap?.supportsFirstLastFrame;
 }
@@ -279,9 +265,6 @@ export function resolveSupportsWatermark(cap: AdminModelCapability | undefined):
 }
 export function resolveSupportsMultiShot(cap: AdminModelCapability | undefined): boolean | undefined {
     return cap?.supportsMultiShot;
-}
-export function resolveSupportsElementList(cap: AdminModelCapability | undefined): boolean | undefined {
-    return cap?.supportsElementList;
 }
 
 // 音频生成限制。
@@ -565,11 +548,9 @@ export const useConfigStore = create<ConfigStore>()(
                         audioInstructions: config.audioInstructions || "",
                         videoSeconds: config.videoSeconds || "6",
                         videoMode: config.videoMode || "std",
-                        videoNegativePrompt: config.videoNegativePrompt || "",
                         videoMultiShot: config.videoMultiShot || "false",
                         videoShotType: config.videoShotType || "intelligence",
                         videoMultiPrompt: Array.isArray(config.videoMultiPrompt) && config.videoMultiPrompt.length ? config.videoMultiPrompt : defaultConfig.videoMultiPrompt,
-                        videoElementList: Array.isArray(config.videoElementList) && config.videoElementList.length ? config.videoElementList : defaultConfig.videoElementList,
                         vquality: config.vquality || "720",
                         videoGenerateAudio: config.videoGenerateAudio || "false",
                         videoWatermark: config.videoWatermark || "false",
