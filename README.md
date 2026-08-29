@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="web/public/logo.svg" width="96" alt="infinite-canvas logo">
-</p>
 
 <h1 align="center">无限画布 (infinite-canvas)</h1>
 
