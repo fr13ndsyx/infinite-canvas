@@ -14,15 +14,12 @@
 | `videoRatios` | ✅ 已接入 | 比例选项，空=走默认 sizeOptions / klingV26RatioOptions / seedanceRatioOptions |
 | `videoSecondsMin`/`Max` | ✅ 已接入 | 秒数范围（Slider），空=默认 4-20 |
 | `videoSecondsPresets` | ✅ 已接入 | 秒数预设档位（Seedance 面板），空=走默认 seedanceDurationOptions |
-| `videoSecondsSmart` | ⚠️ 待接入 | 字段与 resolve 已定义，Seedance 面板仍硬编码显示 `-1` 智能选项 |
-| `supportsNegativePrompt` | ✅ 已接入 | 负面提示词显隐 |
 | `supportsFirstLastFrame` | ✅ 已接入 | 尾帧显隐（兼容字段：勾选=首尾帧都支持） |
 | `supportsFirstFrame` | ✅ 已接入 | 首帧显隐（仅首帧模型勾选；未配置时若 supportsFirstLastFrame=true 视为同时支持首帧） |
 | `supportsMotionControl` | ✅ 已接入 | 运动控制 |
 | `supportsAudioGeneration` | ✅ 已接入 | 音频生成开关 |
 | `supportsWatermark` | ✅ 已接入 | 水印开关（Seedance） |
 | `supportsMultiShot` | ✅ 已接入 | 多镜头分镜（Kling V3） |
-| `supportsElementList` | ✅ 已接入 | 元素列表（Kling V3） |
 | `audioRequiresMode` | ✅ 已接入 | 音频生成所需模式（Kling V26 pro） |
 | `audioMaxReferences` | ✅ 已接入 | 音频生成最大参考图数量 |
 | Seedance 分辨率 | ✅ 已接入 | UI 早已读 `videoResolutions`，本轮清理 `seedanceResolutionOptions` 等死代码 |
@@ -86,13 +83,6 @@
 
 适用条件：`resolveVideoPanelType(cap)` ∈ {`kling-v26`, `kling-v3`}（替代原 `modelKey(model)` + 渠道文本判断）；`videoProvider` 区分 `apimart`/`kie` 请求体格式。
 
-### 负面提示词（videoNegativePrompt）
-
-- 取值：任意文本
-- 显示条件：渠道非 kie（`resolveVideoProvider(cap) !== "kie"`）
-- 来源：`kling-v26-workbench-panel.tsx` L246 `!isKIEKlingV3`
-- 后台控制：✅ 已接入 `ModelCapability.videoProvider`（kie 隐藏）+ `supportsNegativePrompt`
-
 ### 模式（videoMode）
 
 - V26 取值：`std`（标准模式 720P 无声）/ `pro`（专业模式 1080P 音频）
@@ -137,14 +127,6 @@
 - 来源：`kling-v26-workbench-panel.tsx` L131-158
 - 后台控制：✅ 已接入 `ModelCapability.supportsMultiShot`
 
-### 元素列表（videoElementList）— 仅 V3
-
-- 取值：数组，每项含 `name` + `description` + `references`（图/视频/音频）
-- 限制：1-3 个元素，每个元素 1-4 个参考素材
-- 显示条件：`resolveVideoPanelType(cap) === "kling-v3"`
-- 来源：`kling-v26-workbench-panel.tsx` L173-189，L506-509 `normalizeElementList`
-- 后台控制：✅ 已接入 `ModelCapability.supportsElementList`
-
 ### 首帧 / 尾帧（firstFrame / lastFrame）
 
 - 取值：参考图对象
@@ -188,7 +170,7 @@
 - 默认：`5`
 - 范围：`-1` 表示智能时长，`4-15` 表示具体秒数
 - 来源：`seedance-video.ts` L30 `seedanceDurationOptions`，L90-94 `normalizeSeedanceDuration`
-- 后台控制：✅ 范围已接入 `ModelCapability.videoSecondsMin`/`videoSecondsMax`；✅ 预设档位已接入 `videoSecondsPresets`（空=走默认 `seedanceDurationOptions`）；⚠️ `videoSecondsSmart` 字段已定义但未接入 UI（仍硬编码显示 `-1`）
+- 后台控制：✅ 范围已接入 `ModelCapability.videoSecondsMin`/`videoSecondsMax`；✅ 预设档位已接入 `videoSecondsPresets`（空=走默认 `seedanceDurationOptions`）；`-1` 智能选项为 Seedance 面板固定行为
 
 ### 生成音频（videoGenerateAudio）
 
@@ -229,7 +211,6 @@ type ModelCapability struct {
     VideoSecondsMin      *int     `json:"videoSecondsMin,omitempty"`      // 默认 4
     VideoSecondsMax      *int     `json:"videoSecondsMax,omitempty"`      // 默认 20
     VideoSecondsPresets  []int    `json:"videoSecondsPresets,omitempty"`  // 预设档位（如 [5,10]），空=连续 Slider
-    VideoSecondsSmart    bool     `json:"videoSecondsSmart,omitempty"`    // 是否支持 -1 智能时长（Seedance）⚠️ 待接入 UI
 
     // 视频面板类型与厂商（替代前端按模型名+渠道硬编码判断）
     VideoPanelType string `json:"videoPanelType,omitempty"` // 空=通用；kling-v26/kling-v3/seedance/grok/motion-control/agnes
@@ -242,14 +223,12 @@ type ModelCapability struct {
     VideoRatios []string `json:"videoRatios,omitempty"` // ["16:9","9:16","1:1","adaptive"]
 
     // 能力开关
-    SupportsNegativePrompt     bool `json:"supportsNegativePrompt,omitempty"`
     SupportsFirstLastFrame     bool `json:"supportsFirstLastFrame,omitempty"` // 兼容字段：首尾帧都支持
     SupportsFirstFrame         bool `json:"supportsFirstFrame,omitempty"`     // 仅支持首帧
     SupportsMotionControl      bool `json:"supportsMotionControl,omitempty"`
     SupportsAudioGeneration    bool `json:"supportsAudioGeneration,omitempty"`
     SupportsWatermark          bool `json:"supportsWatermark,omitempty"`
     SupportsMultiShot          bool `json:"supportsMultiShot,omitempty"`
-    SupportsElementList        bool `json:"supportsElementList,omitempty"`
 
     // 音频生成限制
     AudioRequiresMode          string `json:"audioRequiresMode,omitempty"` // 如 Kling V26 要求 mode=pro
@@ -265,8 +244,7 @@ type VideoModeOption struct {
 
 ## 迁移策略
 
-1. **已完成**：`VideoPanelType` / `VideoProvider` / `VideoModes` / `VideoRatios` / `VideoSecondsMin`/`Max` / `VideoSecondsPresets` / 全部能力开关 / 音频限制字段接入，删除前端 `isSeedanceVideoConfig` / `isSeedanceVideoModel` / `supportsVideoFrameReferences` / `supportsVideoAudioGeneration` 等硬编码判断函数；Seedance 分辨率死代码清理（UI 早已读 `videoResolutions`）；Seedance 参考素材数量上限接入 `maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`（字节限制保持硬编码）
+1. **已完成**：`VideoPanelType` / `VideoProvider` / `VideoModes` / `VideoRatios` / `VideoSecondsMin`/`Max` / `VideoSecondsPresets` / 全部能力开关 / 音频限制字段接入，删除前端 `isSeedanceVideoConfig` / `isSeedanceVideoModel` / `supportsVideoFrameReferences` / `supportsVideoAudioGeneration` 等硬编码判断函数；Seedance 分辨率死代码清理（UI 早已读 `videoResolutions`）；Seedance 参考素材数量上限接入 `maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`（字节限制保持硬编码）；已删除负面提示词、元素列表能力和 `videoSecondsSmart` 字段（Seedance `-1` 智能时长为面板固定选项，不再配置化）
 2. **待办**：
-   - `VideoSecondsSmart` 接入 Seedance 面板 UI（控制 `-1` 智能时长选项显隐，目前仍硬编码显示）
    - 后端 `apimartImageConfig` / `kieModelInputConfig` 优先读配置、硬编码作 fallback 的改造
 3. **最终目标**：所有视频面板参数从后台 `ModelCapability` 读取，前端不再按模型名/渠道做硬编码分支，新增模型或厂商调整参数只需后台改配置

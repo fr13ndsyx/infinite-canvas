@@ -138,6 +138,14 @@ func proxyAIRequest(w http.ResponseWriter, r *http.Request, path string) {
 		credits *= readAIRequestCount(body, contentType)
 	}
 	upstreamPath := resolveAIProxyPath(channel, modelName, path)
+	if path == "/images/generations" {
+		body, contentType, err = normalizeImageTierBody(body, contentType, modelName)
+		if err != nil {
+			log.Printf("AI proxy normalize image tier failed: model=%s err=%v", modelName, err)
+			Fail(w, "AI 接口请求失败")
+			return
+		}
+	}
 	if isAPIMartChannel(channel, modelName) && upstreamPath == "/videos/generations" {
 		body, contentType, err = normalizeAPIMartVideoBody(body, contentType, modelName, channel)
 		if err != nil {

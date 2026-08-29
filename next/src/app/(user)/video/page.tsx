@@ -22,7 +22,7 @@ import { deleteStoredImages, resolveImageUrl, uploadImage } from "@/services/ima
 import { deleteVideoGenerationLogs, fetchVideoGenerationLogs, saveVideoGenerationLogs } from "@/services/api/generation-logs";
 import { createVideoGenerationTask, deleteVideoGenerationTask, listVideoGenerationTasks, pollVideoGenerationTaskStatus, VIDEO_POLL_INTERVAL_MS, VideoRequestError, type VideoResponse } from "@/services/api/video";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { findModelCapability, normalizeLocalChannels, resolveAudioMaxReferences, resolveAudioRequiresMode, resolveMaxAudioReferences, resolveMaxImageReferences, resolveMaxVideoReferences, resolveSupportsAudioGeneration, resolveSupportsElementList, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveSupportsNegativePrompt, resolveSupportsWatermark, resolveVideoPanelType, resolveVideoProvider, resolveVideoSecondsRange, useConfigStore, useEffectiveConfig, type AiConfig, type VideoElementItem, type VideoElementReference } from "@/stores/use-config-store";
+import { findModelCapability, normalizeLocalChannels, resolveAudioMaxReferences, resolveAudioRequiresMode, resolveMaxAudioReferences, resolveMaxImageReferences, resolveMaxVideoReferences, resolveSupportsAudioGeneration, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveSupportsWatermark, resolveVideoPanelType, resolveVideoProvider, resolveVideoSecondsRange, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { useModuleGuard } from "@/hooks/use-module-guard";
@@ -46,7 +46,6 @@ type GenerationResult = {
     taskLogId?: string;
     createdAt: number;
     prompt: string;
-    negativePrompt?: string;
     model: string;
     config: GenerationLogConfig;
     references: ReferenceImage[];
@@ -90,11 +89,11 @@ type GenerationLog = {
     lastPolledAt?: number;
 };
 
-type GenerationLogConfig = Pick<AiConfig, "channelMode" | "activeChannelId" | "videoChannelId" | "model" | "videoModel" | "size" | "vquality" | "videoSeconds" | "videoMode" | "videoNegativePrompt" | "videoMultiShot" | "videoShotType" | "videoMultiPrompt" | "videoElementList" | "videoGenerateAudio" | "videoWatermark" | "videoCharacterOrientation">;
+type GenerationLogConfig = Pick<AiConfig, "channelMode" | "activeChannelId" | "videoChannelId" | "model" | "videoModel" | "size" | "vquality" | "videoSeconds" | "videoMode" | "videoMultiShot" | "videoShotType" | "videoMultiPrompt" | "videoGenerateAudio" | "videoWatermark" | "videoCharacterOrientation">;
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
 type WorkbenchLayout = "side" | "bottom";
-type AssetPickerTarget = "general" | "image" | "video" | "audio" | "firstFrame" | "lastFrame" | "element";
+type AssetPickerTarget = "general" | "image" | "video" | "audio" | "firstFrame" | "lastFrame";
 
 const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
 const quickResolutionOptions = [
@@ -107,7 +106,6 @@ export default function VideoPage() {
     const moduleEnabled = useModuleGuard("videoWorkbench");
     const { message } = App.useApp();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const elementFileInputRef = useRef<HTMLInputElement>(null);
     const firstFrameInputRef = useRef<HTMLInputElement>(null);
     const lastFrameInputRef = useRef<HTMLInputElement>(null);
     const effectiveConfig = useEffectiveConfig();
@@ -126,7 +124,6 @@ export default function VideoPage() {
     const token = useUserStore((state) => state.token);
     const isUserReady = useUserStore((state) => state.isReady);
     const [prompt, setPrompt] = useState("");
-    const [negativePrompt, setNegativePrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
     const [firstFrame, setFirstFrame] = useState<ReferenceImage | null>(null);
     const [lastFrame, setLastFrame] = useState<ReferenceImage | null>(null);
@@ -140,8 +137,6 @@ export default function VideoPage() {
     const [promptDialogOpen, setPromptDialogOpen] = useState(false);
     const [assetPickerOpen, setAssetPickerOpen] = useState(false);
     const [assetPickerTarget, setAssetPickerTarget] = useState<AssetPickerTarget>("general");
-    const [elementPickerIndex, setElementPickerIndex] = useState(0);
-    const [elementUploadIndex, setElementUploadIndex] = useState(0);
     const [now, setNow] = useState(Date.now());
     const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
     const [previewLog, setPreviewLog] = useState<GenerationLog | null>(null);
@@ -241,76 +236,6 @@ export default function VideoPage() {
         setAssetPickerOpen(true);
     };
 
-    const openElementAssetPicker = (index: number) => {
-        setElementPickerIndex(index);
-        openAssetPicker("element");
-    };
-
-    const uploadElementReferences = (index: number) => {
-        setElementUploadIndex(index);
-        elementFileInputRef.current?.click();
-    };
-
-    const updateElementList = (items: VideoElementItem[]) => {
-        updateConfig("videoElementList", normalizeKlingElementList(items));
-    };
-
-    const updateElementReferences = (elementIndex: number, updater: (references: VideoElementReference[]) => VideoElementReference[]) => {
-        const list = normalizeKlingElementList(effectiveConfig.videoElementList);
-        updateElementList(list.map((item, index) => index === elementIndex ? { ...item, references: updater(item.references).slice(0, 4) } : item));
-    };
-
-    const addElementReferences = async (elementIndex: number, files?: FileList | null) => {
-        const selectedFiles = Array.from(files || []);
-        const list = normalizeKlingElementList(effectiveConfig.videoElementList);
-        const current = list[elementIndex];
-        if (!current) return;
-        const usable = selectedFiles.filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/") || isSupportedAudioFile(file)).slice(0, Math.max(0, 4 - current.references.length));
-        const unsupported = selectedFiles.length - usable.length;
-        if (unsupported > 0) message.warning("已忽略超出数量或不支持的元素资源");
-        const hideLoading = usable.length ? message.loading("正在上传元素资源...", 0) : null;
-        try {
-            const next = await Promise.all(usable.map(uploadElementReferenceFile));
-            const filtered = next.filter((item): item is VideoElementReference => Boolean(item));
-            updateElementReferences(elementIndex, (value) => [...value, ...filtered]);
-            if (filtered.length) message.success(`已上传 ${filtered.length} 个元素资源`);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "元素资源上传失败");
-        } finally {
-            hideLoading?.();
-        }
-    };
-
-    const addElementReferencesFromClipboard = async (elementIndex: number) => {
-        try {
-            const list = normalizeKlingElementList(effectiveConfig.videoElementList);
-            const current = list[elementIndex];
-            if (!current) return;
-            const items = await navigator.clipboard.read();
-            const blobs = await Promise.all(items.flatMap((item) => item.types.filter((type) => type.startsWith("image/")).map((type) => item.getType(type))));
-            if (!blobs.length) {
-                message.error("剪贴板里没有可读取的图片");
-                return;
-            }
-            const next = await Promise.all(blobs.slice(0, Math.max(0, 4 - current.references.length)).map(async (blob, index) => {
-                const image = await uploadImage(blob);
-                return { id: nanoid(), kind: "image" as const, name: `clipboard-element-${index + 1}.png`, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
-            }));
-            updateElementReferences(elementIndex, (value) => [...value, ...next]);
-            message.success(`已读取 ${next.length} 个元素图片`);
-        } catch {
-            message.error("剪贴板里没有可读取的图片");
-        }
-    };
-
-    const removeElementReference = (elementIndex: number, id: string) => {
-        updateElementReferences(elementIndex, (value) => value.filter((item) => item.id !== id));
-    };
-
-    const moveElementReference = (elementIndex: number, index: number, offset: number) => {
-        updateElementReferences(elementIndex, (value) => moveListItem(value, index, offset));
-    };
-
     const addReferences = async (files?: FileList | null) => {
         const selectedFiles = Array.from(files || []);
         const referenceImageLimit = isKlingWorkbench ? 2 : referenceLimits.images;
@@ -377,33 +302,6 @@ export default function VideoPage() {
         } finally {
             hideLoading();
         }
-    };
-
-    const uploadElementReferenceFile = async (file: File): Promise<VideoElementReference | null> => {
-        if (file.type.startsWith("image/")) {
-            if (file.size > SEEDANCE_REFERENCE_LIMITS.imageMaxBytes) return null;
-            const image = await uploadImage(file);
-            return { id: nanoid(), kind: "image", name: file.name, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
-        }
-        if (file.type.startsWith("video/")) {
-            if (file.size > SEEDANCE_REFERENCE_LIMITS.videoMaxBytes) return null;
-            const video = await uploadMediaFile(file, "video-reference");
-            if (video.durationMs && (video.durationMs < 3000 || video.durationMs > 8000)) {
-                message.warning("已忽略不符合时长要求的元素视频：3-8 秒");
-                return null;
-            }
-            return { id: nanoid(), kind: "video", name: file.name, type: video.mimeType, url: video.url, storageKey: video.storageKey, bytes: video.bytes, width: video.width, height: video.height, durationMs: video.durationMs };
-        }
-        if (isSupportedAudioFile(file)) {
-            if (file.size > SEEDANCE_REFERENCE_LIMITS.audioMaxBytes) return null;
-            const audio = await uploadMediaFile(file, "audio-reference");
-            if (audio.durationMs && (audio.durationMs < 5000 || audio.durationMs > 30000)) {
-                message.warning("已忽略不符合时长要求的元素音频：5-30 秒");
-                return null;
-            }
-            return { id: nanoid(), kind: "audio", name: file.name, type: audio.mimeType, url: audio.url, storageKey: audio.storageKey, durationMs: audio.durationMs };
-        }
-        return null;
     };
 
     const addReferencesFromClipboard = async () => {
@@ -555,9 +453,8 @@ export default function VideoPage() {
         await submitGenerationSnapshot(snapshot);
     };
 
-    const buildRequestSnapshot = ({ promptText = prompt, negativePromptText, referenceItems = references, firstFrameItem = firstFrame, lastFrameItem = lastFrame, videoReferenceItems = videoReferences, audioReferenceItems = audioReferences, configValue = videoConfig, modelValue = model }: { promptText?: string; negativePromptText?: string; referenceItems?: ReferenceImage[]; firstFrameItem?: ReferenceImage | null; lastFrameItem?: ReferenceImage | null; videoReferenceItems?: ReferenceVideo[]; audioReferenceItems?: ReferenceAudio[]; configValue?: AiConfig; modelValue?: string } = {}) => {
+    const buildRequestSnapshot = ({ promptText = prompt, referenceItems = references, firstFrameItem = firstFrame, lastFrameItem = lastFrame, videoReferenceItems = videoReferences, audioReferenceItems = audioReferences, configValue = videoConfig, modelValue = model }: { promptText?: string; referenceItems?: ReferenceImage[]; firstFrameItem?: ReferenceImage | null; lastFrameItem?: ReferenceImage | null; videoReferenceItems?: ReferenceVideo[]; audioReferenceItems?: ReferenceAudio[]; configValue?: AiConfig; modelValue?: string } = {}) => {
         const text = promptText.trim();
-        const currentNegativePrompt = (negativePromptText ?? configValue.videoNegativePrompt ?? negativePrompt).trim();
         const cap = findModelCapability(configValue, modelValue);
         const panelType = resolveVideoPanelType(cap);
         const klingV26 = panelType === "kling-v26";
@@ -586,13 +483,6 @@ export default function VideoPage() {
                 return null;
             }
         }
-        if (klingV3) {
-            const elementError = validateKlingElementList(configValue.videoElementList);
-            if (elementError) {
-                message.error(elementError);
-                return null;
-            }
-        }
         if (!kling) {
             const videoReferenceError = seedanceVideoReferenceError(videoReferenceItems);
             if (videoReferenceError) {
@@ -602,7 +492,7 @@ export default function VideoPage() {
         }
         const firstFrameEnabled = resolveSupportsFirstFrame(cap) === true;
         const lastFrameEnabled = resolveSupportsLastFrame(cap) === true;
-        return { text, model: modelValue, config: buildVideoConfig({ ...configValue, videoNegativePrompt: currentNegativePrompt }, modelValue), references: [...referenceItems].slice(0, kling ? 2 : referenceItems.length), firstFrame: firstFrameEnabled ? firstFrameItem : null, lastFrame: lastFrameEnabled ? lastFrameItem : null, videoReferences: kling ? [] : [...videoReferenceItems], audioReferences: kling ? [] : [...audioReferenceItems], taskCount: 1 };
+        return { text, model: modelValue, config: buildVideoConfig(configValue, modelValue), references: [...referenceItems].slice(0, kling ? 2 : referenceItems.length), firstFrame: firstFrameEnabled ? firstFrameItem : null, lastFrame: lastFrameEnabled ? lastFrameItem : null, videoReferences: kling ? [] : [...videoReferenceItems], audioReferences: kling ? [] : [...audioReferenceItems], taskCount: 1 };
     };
 
     const submitGenerationSnapshot = async (snapshot: { text: string; model: string; config: AiConfig; references: ReferenceImage[]; firstFrame?: ReferenceImage | null; lastFrame?: ReferenceImage | null; videoReferences: ReferenceVideo[]; audioReferences: ReferenceAudio[]; taskCount: number }) => {
@@ -654,7 +544,7 @@ export default function VideoPage() {
 
     const retryResult = (result: GenerationResult) => {
         const retryChannelId = videoTaskChannelId(result.task);
-        const snapshot = buildRequestSnapshot({ promptText: result.prompt, negativePromptText: result.config.videoNegativePrompt || "", referenceItems: result.references, firstFrameItem: result.firstFrame, lastFrameItem: result.lastFrame, videoReferenceItems: result.videoReferences, audioReferenceItems: result.audioReferences, configValue: { ...videoConfig, ...result.config, ...(retryChannelId ? { videoChannelId: retryChannelId, activeChannelId: retryChannelId } : {}), model: result.model, videoModel: result.model }, modelValue: result.model });
+        const snapshot = buildRequestSnapshot({ promptText: result.prompt, referenceItems: result.references, firstFrameItem: result.firstFrame, lastFrameItem: result.lastFrame, videoReferenceItems: result.videoReferences, audioReferenceItems: result.audioReferences, configValue: { ...videoConfig, ...result.config, ...(retryChannelId ? { videoChannelId: retryChannelId, activeChannelId: retryChannelId } : {}), model: result.model, videoModel: result.model }, modelValue: result.model });
         if (!snapshot) return;
         setResults((value) => value.filter((item) => item.id !== result.id));
         void submitGenerationSnapshot(snapshot);
@@ -664,7 +554,6 @@ export default function VideoPage() {
         setPreviewLog(null);
         setResults((value) => value.filter((item) => item.id !== result.id));
         setPrompt(result.prompt);
-        setNegativePrompt(result.config.videoNegativePrompt || "");
         setReferences(result.references || []);
         setFirstFrame(result.firstFrame || null);
         setLastFrame(result.lastFrame || null);
@@ -684,8 +573,6 @@ export default function VideoPage() {
         updateConfig("videoMultiShot", result.config.videoMultiShot || "false");
         updateConfig("videoShotType", result.config.videoShotType || "intelligence");
         updateConfig("videoMultiPrompt", normalizeKlingMultiPrompts(result.config.videoMultiPrompt));
-        updateConfig("videoElementList", normalizeKlingElementList(result.config.videoElementList));
-        updateConfig("videoNegativePrompt", result.config.videoNegativePrompt || "");
         if (result.config.videoGenerateAudio) updateConfig("videoGenerateAudio", result.config.videoGenerateAudio);
         if (result.config.videoWatermark) updateConfig("videoWatermark", result.config.videoWatermark);
         updateConfig("videoCharacterOrientation", normalizeCharacterOrientation(result.config.videoCharacterOrientation));
@@ -790,14 +677,7 @@ export default function VideoPage() {
             setAudioReferences((value) => [...value, ...next].slice(0, referenceLimits.audios));
         };
 
-        if (assetPickerTarget === "element") {
-            const next = elementReferenceFromAsset(payload);
-            if (!next) {
-                message.warning("请选择图片、视频或音频素材");
-            } else {
-                updateElementReferences(elementPickerIndex, (value) => [...value, next]);
-            }
-        } else if (assetPickerTarget === "firstFrame") {
+        if (assetPickerTarget === "firstFrame") {
             insertFrame("first");
         } else if (assetPickerTarget === "lastFrame") {
             insertFrame("last");
@@ -819,22 +699,13 @@ export default function VideoPage() {
         setAssetPickerOpen(false);
     };
 
-    const elementReferenceFromAsset = (payload: InsertAssetPayload): VideoElementReference | null => {
-        if (payload.kind === "image") return { id: nanoid(), kind: "image", name: payload.title, type: payload.mimeType || "image/*", dataUrl: payload.dataUrl, storageKey: payload.storageKey, bytes: payload.bytes, width: payload.width, height: payload.height };
-        if (payload.kind === "video") return { id: nanoid(), kind: "video", name: payload.title, type: payload.mimeType || "video/mp4", url: payload.url, storageKey: payload.storageKey, bytes: payload.bytes, width: payload.width, height: payload.height };
-        if (payload.kind === "audio") return { id: nanoid(), kind: "audio", name: payload.title, type: payload.mimeType || "audio/mpeg", url: payload.url, storageKey: payload.storageKey, durationMs: payload.durationMs };
-        return null;
-    };
-
     const createSession = () => {
         setPrompt("");
-        setNegativePrompt("");
         setReferences([]);
         setFirstFrame(null);
         setLastFrame(null);
         setVideoReferences([]);
         setAudioReferences([]);
-        updateConfig("videoElementList", defaultKlingElementList());
         setResults([]);
         setSelectedLogIds([]);
         setPreviewLog(null);
@@ -973,7 +844,6 @@ export default function VideoPage() {
     const previewGenerationLog = (log: GenerationLog) => {
         setPreviewLog(log);
         setPrompt(log.prompt);
-        setNegativePrompt(log.config.videoNegativePrompt || "");
         setReferences(log.references || []);
         setFirstFrame(log.firstFrame || null);
         setLastFrame(log.lastFrame || null);
@@ -993,7 +863,6 @@ export default function VideoPage() {
         updateConfig("videoMultiShot", log.config.videoMultiShot || "false");
         updateConfig("videoShotType", log.config.videoShotType || "intelligence");
         updateConfig("videoMultiPrompt", normalizeKlingMultiPrompts(log.config.videoMultiPrompt));
-        updateConfig("videoNegativePrompt", log.config.videoNegativePrompt || "");
         if (log.config.videoGenerateAudio) updateConfig("videoGenerateAudio", log.config.videoGenerateAudio);
         if (log.config.videoWatermark) updateConfig("videoWatermark", log.config.videoWatermark);
         updateConfig("videoCharacterOrientation", normalizeCharacterOrientation(log.config.videoCharacterOrientation));
@@ -1001,7 +870,7 @@ export default function VideoPage() {
 
     const retryGenerationLog = (log: GenerationLog) => {
         const retryChannelId = videoTaskChannelId(log.task);
-        const snapshot = buildRequestSnapshot({ promptText: log.prompt, negativePromptText: log.config.videoNegativePrompt || "", referenceItems: log.references || [], firstFrameItem: log.firstFrame || null, lastFrameItem: log.lastFrame || null, videoReferenceItems: log.videoReferences || [], audioReferenceItems: log.audioReferences || [], configValue: { ...videoConfig, ...log.config, ...(retryChannelId ? { videoChannelId: retryChannelId, activeChannelId: retryChannelId } : {}), model: log.model, videoModel: log.model }, modelValue: log.model });
+        const snapshot = buildRequestSnapshot({ promptText: log.prompt, referenceItems: log.references || [], firstFrameItem: log.firstFrame || null, lastFrameItem: log.lastFrame || null, videoReferenceItems: log.videoReferences || [], audioReferenceItems: log.audioReferences || [], configValue: { ...videoConfig, ...log.config, ...(retryChannelId ? { videoChannelId: retryChannelId, activeChannelId: retryChannelId } : {}), model: log.model, videoModel: log.model }, modelValue: log.model });
         if (!snapshot) return;
         void submitGenerationSnapshot(snapshot);
     };
@@ -1018,7 +887,6 @@ export default function VideoPage() {
                                 isKlingV3={klingWorkbenchVariant === "v3"}
                                 klingProvider={klingWorkbenchProvider}
                                 prompt={prompt}
-                                negativePrompt={negativePrompt}
                                 references={references}
                                 config={videoConfig}
                                 model={model}
@@ -1028,7 +896,6 @@ export default function VideoPage() {
                                 updateConfig={updateVideoConfig}
                                 openConfigDialog={openConfigDialog}
                                 onPromptChange={setPrompt}
-                                onNegativePromptChange={(value) => { setNegativePrompt(value); updateConfig("videoNegativePrompt", value); }}
                                 onOpenPromptLibrary={() => setPromptDialogOpen(true)}
                                 onOpenAssetPicker={openAssetPicker}
                                 onPastePrompt={() => void pastePromptFromClipboard()}
@@ -1037,11 +904,6 @@ export default function VideoPage() {
                                 onUploadReferences={() => fileInputRef.current?.click()}
                                 onRemoveReference={(id) => void removeReference(id)}
                                 onMoveReference={(index, offset) => setReferences((value) => moveListItem(value, index, offset))}
-                                onPasteElementReferences={(index) => void addElementReferencesFromClipboard(index)}
-                                onUploadElementReferences={uploadElementReferences}
-                                onOpenElementAssetPicker={openElementAssetPicker}
-                                onRemoveElementReference={removeElementReference}
-                                onMoveElementReference={moveElementReference}
                                 onGenerate={() => void generate()}
                             />
                         ) : (
@@ -1138,7 +1000,6 @@ export default function VideoPage() {
                         <WorkbenchPanel
                             layout="bottom"
                             prompt={prompt}
-                            negativePrompt={negativePrompt}
                             references={references}
                             firstFrame={firstFrame}
                             lastFrame={lastFrame}
@@ -1152,7 +1013,6 @@ export default function VideoPage() {
                             updateConfig={updateVideoConfig}
                             openConfigDialog={openConfigDialog}
                             onPromptChange={setPrompt}
-                            onNegativePromptChange={(value) => { setNegativePrompt(value); updateConfig("videoNegativePrompt", value); }}
                             onOpenPromptLibrary={() => setPromptDialogOpen(true)}
                             onOpenAssetPicker={openAssetPicker}
                             onPastePrompt={() => void pastePromptFromClipboard()}
@@ -1189,17 +1049,6 @@ export default function VideoPage() {
                 }}
             />
             <input
-                ref={elementFileInputRef}
-                type="file"
-                accept="image/*,video/mp4,video/quicktime,audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav"
-                multiple
-                className="hidden"
-                onChange={(event) => {
-                    void addElementReferences(elementUploadIndex, event.target.files);
-                    event.target.value = "";
-                }}
-            />
-            <input
                 ref={firstFrameInputRef}
                 type="file"
                 accept="image/*"
@@ -1231,7 +1080,6 @@ export default function VideoPage() {
 function WorkbenchPanel({
     layout,
     prompt,
-    negativePrompt = "",
     references,
     firstFrame,
     lastFrame,
@@ -1245,7 +1093,6 @@ function WorkbenchPanel({
     updateConfig,
     openConfigDialog,
     onPromptChange,
-    onNegativePromptChange,
     onOpenPromptLibrary,
     onOpenAssetPicker,
     onPastePrompt,
@@ -1269,7 +1116,6 @@ function WorkbenchPanel({
 }: {
     layout: WorkbenchLayout;
     prompt: string;
-    negativePrompt?: string;
     references: ReferenceImage[];
     firstFrame: ReferenceImage | null;
     lastFrame: ReferenceImage | null;
@@ -1283,7 +1129,6 @@ function WorkbenchPanel({
     updateConfig: UpdateAiConfig;
     openConfigDialog: (shouldPromptContinue?: boolean) => void;
     onPromptChange: (value: string) => void;
-    onNegativePromptChange?: (value: string) => void;
     onOpenPromptLibrary: () => void;
     onOpenAssetPicker: (target?: AssetPickerTarget) => void;
     onPastePrompt: () => void;
@@ -1354,15 +1199,6 @@ function WorkbenchPanel({
                                 </Button>
                             </div>
                         </div>
-                        {klingBottom && klingBottomProvider !== "kie" ? (
-                            <Input.TextArea
-                                value={negativePrompt}
-                                onChange={(event) => onNegativePromptChange?.(event.target.value)}
-                                placeholder="负面提示词"
-                                autoSize={{ minRows: 1, maxRows: 3 }}
-                                className="rounded-2xl"
-                            />
-                        ) : null}
                         <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${bottomSettingsGridClass} ${bottomSettingsCollapsed ? "hidden lg:grid" : "grid"}`}>
                             <label className="grid gap-1 text-xs text-stone-500 dark:text-stone-400">
                                 模型
@@ -2024,11 +1860,9 @@ function buildDisplayConfig(config: AiConfig, model: string): GenerationLogConfi
         vquality: normalizeResolution(config.vquality),
         videoSeconds: config.videoSeconds,
         videoMode: config.videoMode,
-        videoNegativePrompt: config.videoNegativePrompt,
         videoMultiShot: config.videoMultiShot,
         videoShotType: config.videoShotType,
         videoMultiPrompt: normalizeKlingMultiPrompts(config.videoMultiPrompt),
-        videoElementList: normalizeKlingElementList(config.videoElementList),
         videoGenerateAudio: config.videoGenerateAudio,
         videoWatermark: config.videoWatermark,
         videoCharacterOrientation: normalizeCharacterOrientation(config.videoCharacterOrientation),
@@ -2167,7 +2001,7 @@ function backendTaskToLog(task: VideoResponse, fallbackConfig: AiConfig): Genera
     const request = parseBackendVideoRequest(task.request_body);
     const model = task.model || request.model || fallbackConfig.videoModel || fallbackConfig.model || "";
     const taskChannelId = videoTaskChannelId(task);
-    const config = buildVideoConfig({ ...fallbackConfig, model, videoModel: model, activeChannelId: taskChannelId || fallbackConfig.activeChannelId, videoChannelId: taskChannelId || fallbackConfig.videoChannelId, size: request.size || fallbackConfig.size, vquality: request.resolution || fallbackConfig.vquality, videoSeconds: request.seconds || fallbackConfig.videoSeconds, videoMode: request.mode || fallbackConfig.videoMode, videoNegativePrompt: request.negativePrompt || fallbackConfig.videoNegativePrompt, videoCharacterOrientation: request.characterOrientation || fallbackConfig.videoCharacterOrientation, videoMultiShot: request.multiShot || fallbackConfig.videoMultiShot, videoShotType: request.shotType || fallbackConfig.videoShotType, videoMultiPrompt: request.multiPrompt.length ? request.multiPrompt : fallbackConfig.videoMultiPrompt, videoElementList: request.elementList.length ? request.elementList : fallbackConfig.videoElementList }, model);
+    const config = buildVideoConfig({ ...fallbackConfig, model, videoModel: model, activeChannelId: taskChannelId || fallbackConfig.activeChannelId, videoChannelId: taskChannelId || fallbackConfig.videoChannelId, size: request.size || fallbackConfig.size, vquality: request.resolution || fallbackConfig.vquality, videoSeconds: request.seconds || fallbackConfig.videoSeconds, videoMode: request.mode || fallbackConfig.videoMode, videoCharacterOrientation: request.characterOrientation || fallbackConfig.videoCharacterOrientation, videoMultiShot: request.multiShot || fallbackConfig.videoMultiShot, videoShotType: request.shotType || fallbackConfig.videoShotType, videoMultiPrompt: request.multiPrompt.length ? request.multiPrompt : fallbackConfig.videoMultiPrompt }, model);
     const createdAt = parseTaskTimestamp(task.createdAt ?? task.created_at) || Date.now();
     const status = isFailedVideoTask(task) ? "失败" : isCompletedVideoTask(task) ? "成功" : "生成中";
     const durationMs = Math.max(0, Date.now() - createdAt);
@@ -2233,12 +2067,10 @@ function parseBackendVideoRequest(value?: string) {
         resolution: normalizeResolution(pick("resolution_name", "vquality", "quality")),
         seconds: pick("seconds", "duration", "videoSeconds"),
         mode: pick("mode", "videoMode"),
-        negativePrompt: pick("negative_prompt", "videoNegativePrompt"),
         characterOrientation: pick("character_orientation", "videoCharacterOrientation"),
         multiShot: pick("multi_shot", "multi_shots", "videoMultiShot"),
         shotType: pick("shot_type", "videoShotType"),
         multiPrompt: parseRequestMultiPrompt(fields?.multi_prompt ?? parsed.multi_prompt),
-        elementList: parseRequestElementList(fields?.element_list ?? fields?.kling_elements ?? parsed.element_list ?? parsed.kling_elements),
     };
 }
 
@@ -2575,7 +2407,6 @@ function serializeLog(log: GenerationLog): GenerationLog {
         lastFrame: log.lastFrame?.storageKey ? { ...log.lastFrame, dataUrl: "" } : log.lastFrame,
         videoReferences: log.videoReferences.map((item) => (item.storageKey ? { ...item, url: "" } : item)),
         audioReferences: log.audioReferences.map((item) => (item.storageKey ? { ...item, url: "" } : item)),
-        config: { ...log.config, videoElementList: serializeKlingElementList(log.config.videoElementList) },
         video: log.video?.storageKey ? { ...log.video, url: "" } : log.video,
     };
 }
@@ -2634,11 +2465,9 @@ function normalizeLogConfig(log: Partial<GenerationLog>): GenerationLogConfig {
         vquality: normalizeResolution(log.config?.vquality || log.resolution || ""),
         videoSeconds: log.config?.videoSeconds || log.seconds || "",
         videoMode: log.config?.videoMode || "std",
-        videoNegativePrompt: log.config?.videoNegativePrompt || "",
         videoMultiShot: log.config?.videoMultiShot || "false",
         videoShotType: log.config?.videoShotType || "intelligence",
         videoMultiPrompt: normalizeKlingMultiPrompts(log.config?.videoMultiPrompt),
-        videoElementList: normalizeKlingElementList(log.config?.videoElementList),
         videoGenerateAudio: log.config?.videoGenerateAudio || "false",
         videoWatermark: log.config?.videoWatermark || "false",
         videoCharacterOrientation: normalizeCharacterOrientation(log.config?.videoCharacterOrientation),
@@ -2656,11 +2485,9 @@ function buildLog({ prompt, model, config, references, firstFrame, lastFrame, vi
         vquality: normalizeResolution(config.vquality),
         videoSeconds: config.videoSeconds,
         videoMode: config.videoMode,
-        videoNegativePrompt: config.videoNegativePrompt,
         videoMultiShot: config.videoMultiShot,
         videoShotType: config.videoShotType,
         videoMultiPrompt: normalizeKlingMultiPrompts(config.videoMultiPrompt),
-        videoElementList: config.videoElementList,
         videoGenerateAudio: config.videoGenerateAudio,
         videoWatermark: config.videoWatermark,
         videoCharacterOrientation: normalizeCharacterOrientation(config.videoCharacterOrientation),
@@ -2713,11 +2540,9 @@ function buildVideoConfig(config: AiConfig, model: string): AiConfig {
         size: kling ? normalizeKlingV26Ratio(config.size) : seedance ? normalizeSeedanceRatio(config.size) : normalizeVideoSize(config.size),
         videoSeconds: klingV3 ? normalizeKlingV3Seconds(config.videoSeconds) : klingV26 ? normalizeKlingV26Seconds(config.videoSeconds) : normalizeVideoSeconds(config.videoSeconds),
         videoMode,
-        videoNegativePrompt: kieKlingV3 ? "" : config.videoNegativePrompt || "",
         videoMultiShot: klingV3 ? String(boolConfig(config.videoMultiShot, false)) : "false",
         videoShotType: apimartKlingV3 ? normalizeKlingShotType(config.videoShotType) : "intelligence",
         videoMultiPrompt: klingV3 ? normalizeKlingMultiPrompts(config.videoMultiPrompt) : defaultKlingMultiPrompts(),
-        videoElementList: klingV3 ? normalizeKlingElementList(config.videoElementList) : defaultKlingElementList(),
         vquality: normalizeResolution(config.vquality),
         videoGenerateAudio: String(boolConfig(config.videoGenerateAudio, false) && (!klingV26 || videoMode === "pro")),
         videoWatermark: String(boolConfig(config.videoWatermark, false)),
@@ -2758,57 +2583,6 @@ function normalizeKlingV26Ratio(value: string) {
     if (["9:16", "720x1280", "1080x1920"].includes(normalized)) return "9:16";
     if (["1:1", "1024x1024", "1080x1080"].includes(normalized)) return "1:1";
     return "16:9";
-}
-
-function defaultKlingElementList(): VideoElementItem[] {
-    return [{ name: "", description: "", references: [] }];
-}
-
-function normalizeKlingElementList(value: VideoElementItem[] | undefined): VideoElementItem[] {
-    if (!Array.isArray(value) || !value.length) return defaultKlingElementList();
-    return value.slice(0, 3).map((item) => ({ name: item?.name || "", description: item?.description || "", references: Array.isArray(item?.references) ? item.references.slice(0, 4) : [] }));
-}
-
-function activeKlingElements(value: VideoElementItem[] | undefined) {
-    return normalizeKlingElementList(value).filter((item) => item.references.length > 0);
-}
-
-function validateKlingElementList(value: VideoElementItem[] | undefined) {
-    for (const item of activeKlingElements(value)) {
-        if (!item.name.trim()) return "请填写元素名称";
-        if (!item.description.trim()) return "请填写元素描述";
-        if (item.references.length < 2 || item.references.length > 4) return "元素资源数量需要 2-4 个";
-    }
-    return "";
-}
-
-function parseRequestElementList(value: unknown): VideoElementItem[] {
-    const source = typeof value === "string" ? safeParseArray(value) : value;
-    if (!Array.isArray(source)) return [];
-    return source.map((item) => {
-        const record = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-        const urls = Array.isArray(record.element_input_urls) ? record.element_input_urls : [];
-        const audioUrls = Array.isArray(record.element_input_audio_urls) ? record.element_input_audio_urls : [];
-        return {
-            name: fieldString(record.name),
-            description: fieldString(record.description),
-            references: [...urls.map((url, index) => ({ id: nanoid(), kind: elementReferenceKind(String(url)), name: `element-${index + 1}`, type: "", url: String(url) })), ...audioUrls.map((url, index) => ({ id: nanoid(), kind: "audio" as const, name: `element-audio-${index + 1}`, type: "", url: String(url) }))],
-        };
-    });
-}
-
-function serializeKlingElementList(value: VideoElementItem[] | undefined): VideoElementItem[] {
-    return normalizeKlingElementList(value).map((item) => ({
-        ...item,
-        references: item.references.map((reference) => reference.storageKey ? { ...reference, dataUrl: "", url: reference.kind === "image" ? "" : reference.url || "" } : reference),
-    }));
-}
-
-function elementReferenceKind(value: string): VideoElementReference["kind"] {
-    const lower = value.toLowerCase();
-    if (/\.(mp4|mov|webm)(\?|$)/.test(lower) || lower.startsWith("data:video/")) return "video";
-    if (/\.(mp3|wav|m4a)(\?|$)/.test(lower) || lower.startsWith("data:audio/")) return "audio";
-    return "image";
 }
 
 function safeParseArray(value: string) {

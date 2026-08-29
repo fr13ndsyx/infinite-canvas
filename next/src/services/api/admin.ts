@@ -213,11 +213,34 @@ export type AdminImageAdapterConfig = {
     imageRefField?: string; // 参考图字段名，空=默认 image_urls
     maxImageRefs?: number; // 参考图数量上限，0=不限
     requireRefs?: boolean; // 是否必须提供参考图，缺省=不强制
+    tierField?: string; // 档位映射目标字段（quality/resolution/size），空=折算像素（OpenAI 标准协议）
+    tierStandard?: string; // standard 档映射值（如 low / 1k / 2K）
+    tier2k?: string; // 2k 档映射值（如 medium / 2k / 2K）
+    tier4k?: string; // 4k 档映射值（如 high / 2k / 4K）
+    ratioMode?: string; // 比例处理：空=折算像素；field=直传比例字段；prompt=写入提示词
+};
+
+export type AdminVideoAdapterConfig = {
+    aspectField?: string; // 比例字段名：空=默认 aspect_ratio；none=不支持；如 size
+    hasResolution?: boolean; // 是否支持 resolution 参数，缺省=支持
+    resolutionCase?: string; // 分辨率表达：video（默认，720p）/ upper_video
+    maxResolution?: string; // 分辨率上限（如 720p）
+    modeFromRes?: boolean; // 分辨率反推 std/pro 模式（Kling 系），缺省=否
+    hasQuality?: boolean; // 是否支持 quality 参数（Grok），缺省=不支持
+    dropAspectWithImage?: boolean; // 带参考图时丢弃比例参数，缺省=否
+    imageRefField?: string; // 参考图字段名，空=默认 image_urls
+    imageRefKind?: string; // 参考图组装模式，空=默认 array（纯 URL 数组）
+    maxImageRefs?: number; // 参考图数量上限，0=不限
+    videoRefField?: string; // 参考视频字段名，空=不支持
+    videoRefKind?: string; // 参考视频组装模式，空=不支持
+    audioRefField?: string; // 参考音频字段名，空=不支持
+    audioRefKind?: string; // 参考音频组装模式，空=不支持
 };
 
 export type AdminModelCapability = {
     model: string;
     imageAdapter?: AdminImageAdapterConfig | null;
+    videoAdapter?: AdminVideoAdapterConfig | null;
     imageAspects?: string[];
     imageTiers?: ("standard" | "2k" | "4k")[];
     videoResolutions?: string[];
@@ -228,15 +251,12 @@ export type AdminModelCapability = {
     videoModes?: AdminVideoModeOption[];
     videoRatios?: string[];
     videoSecondsPresets?: number[];
-    videoSecondsSmart?: boolean;
-    supportsNegativePrompt?: boolean;
     supportsFirstLastFrame?: boolean; // 兼容字段：首尾帧都支持时勾选
     supportsFirstFrame?: boolean; // 仅支持首帧（部分模型只支持首帧）
     supportsMotionControl?: boolean;
     supportsAudioGeneration?: boolean;
     supportsWatermark?: boolean;
     supportsMultiShot?: boolean;
-    supportsElementList?: boolean;
     audioRequiresMode?: string;
     audioMaxReferences?: number;
     maxImageReferences?: number;

@@ -3,7 +3,7 @@ import { imageReferenceLabel } from "@/lib/image-reference-prompt";
 import { seedanceReferenceLabel } from "@/lib/seedance-video";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
-import type { VideoElementItem, VideoElementReference, VideoMultiPromptItem } from "@/stores/use-config-store";
+import type { VideoMultiPromptItem } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "../types";
 import { isCanvasImageNodeType } from "../utils/canvas-panorama";
 import { getGenerationResourceNodes } from "../utils/canvas-resource-references";
@@ -16,7 +16,6 @@ export type NodeGenerationContext = {
     referenceVideos: ReferenceVideo[];
     referenceAudios: ReferenceAudio[];
     videoMultiPrompt: VideoMultiPromptItem[];
-    videoElementList: VideoElementItem[];
     textCount: number;
     imageCount: number;
     videoCount: number;
@@ -61,7 +60,6 @@ export function buildNodeGenerationContext(nodeId: string, nodes: CanvasNodeData
         referenceVideos,
         referenceAudios,
         videoMultiPrompt: advanced.videoMultiPrompt,
-        videoElementList: advanced.videoElementList,
         textCount: inputs.filter((input) => input.type === "text").length,
         imageCount: referenceImages.length,
         videoCount: referenceVideos.length,
@@ -116,7 +114,6 @@ function buildComposerGenerationContext(inputs: NodeGenerationInput[], prompt: s
             referenceVideos: [],
             referenceAudios: [],
             videoMultiPrompt: advanced.videoMultiPrompt,
-            videoElementList: advanced.videoElementList,
             textCount: 0,
             imageCount: 0,
             videoCount: 0,
@@ -132,7 +129,6 @@ function buildComposerGenerationContext(inputs: NodeGenerationInput[], prompt: s
         referenceVideos,
         referenceAudios,
         videoMultiPrompt: advanced.videoMultiPrompt,
-        videoElementList: advanced.videoElementList,
         textCount: counts.text,
         imageCount: referenceImages.length,
         videoCount: referenceVideos.length,
@@ -145,7 +141,6 @@ type CanvasVideoAdvancedContext = {
     referenceNodeIds: Set<string>;
     klingImageReferences: ReferenceImage[];
     videoMultiPrompt: VideoMultiPromptItem[];
-    videoElementList: VideoElementItem[];
 };
 
 function buildCanvasVideoAdvancedContext(sourceNode: CanvasNodeData | undefined, inputs: NodeGenerationInput[]): CanvasVideoAdvancedContext {
@@ -167,27 +162,7 @@ function buildCanvasVideoAdvancedContext(sourceNode: CanvasNodeData | undefined,
             return { prompt: input.text, duration: item.duration || "1" };
         })
         .filter((item): item is VideoMultiPromptItem => Boolean(item));
-    const videoElementList = (sourceNode?.metadata?.klingElementList || [])
-        .slice(0, 3)
-        .map((item) => {
-            const references = (item.nodeIds || [])
-                .slice(0, 4)
-                .map((nodeId) => {
-                    referenceNodeIds.add(nodeId);
-                    return inputToElementReference(inputByNodeId.get(nodeId));
-                })
-                .filter((reference): reference is VideoElementReference => Boolean(reference));
-            return references.length ? { name: item.name || "", description: item.description || "", references } : null;
-        })
-        .filter((item): item is VideoElementItem => Boolean(item));
-    return { textNodeIds, referenceNodeIds, klingImageReferences, videoMultiPrompt, videoElementList };
-}
-
-function inputToElementReference(input: NodeGenerationInput | undefined): VideoElementReference | null {
-    if (input?.image) return { id: input.nodeId, kind: "image", name: input.image.name, type: input.image.type, dataUrl: input.image.dataUrl, storageKey: input.image.storageKey };
-    if (input?.video) return { id: input.nodeId, kind: "video", name: input.video.name, type: input.video.type, url: input.video.url, storageKey: input.video.storageKey, bytes: input.video.bytes, width: input.video.width, height: input.video.height, durationMs: input.video.durationMs };
-    if (input?.audio) return { id: input.nodeId, kind: "audio", name: input.audio.name, type: input.audio.type, url: input.audio.url, storageKey: input.audio.storageKey, durationMs: input.audio.durationMs };
-    return null;
+    return { textNodeIds, referenceNodeIds, klingImageReferences, videoMultiPrompt };
 }
 
 export function buildNodeGenerationInputs(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]): NodeGenerationInput[] {

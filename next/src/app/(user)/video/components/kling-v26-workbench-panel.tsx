@@ -1,10 +1,10 @@
-import { ArrowLeft, ArrowRight, Plus, BookOpen, ClipboardPaste, FolderPlus, Music2, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, BookOpen, ClipboardPaste, FolderPlus, Sparkles, Trash2, Upload } from "lucide-react";
 import { App, Button, Input, Slider, Switch, Tag } from "antd";
 import { type ReactNode } from "react";
 
 import { ModelPicker } from "@/components/model-picker";
 import { boolConfig } from "@/lib/seedance-video";
-import { resolveVideoSecondsRange, type AiConfig, type VideoElementItem, type VideoElementReference, type VideoMultiPromptItem } from "@/stores/use-config-store";
+import { resolveVideoSecondsRange, type AiConfig, type VideoMultiPromptItem } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
@@ -17,8 +17,6 @@ const TEXT = {
     promptLibrary: "提示词库",
     assets: "我的素材",
     promptPlaceholder: "描述镜头运动、主体动作、场景氛围和画面风格",
-    negativePrompt: "负面提示词",
-    negativePlaceholder: "描述不希望出现在视频中的内容",
     referenceImage: "首尾帧",
     clipboard: "剪贴板",
     upload: "上传",
@@ -51,19 +49,12 @@ const TEXT = {
     image: "图",
     removeImage: "移除参考图",
     emptyImages: "暂无首尾帧，支持单首帧",
-    elementList: "元素列表",
-    elementName: "元素名称，在提示词中使用@前缀引用",
-    elementDescription: "元素描述",
-    elementEmpty: "暂无参考图，最多 2-4 张\n暂无参考视频，有效长度需至少 3-8 秒\n暂无参考音频，音频时长必须为 5-30 秒",
-    addElement: "新增元素",
-    deleteElement: "删除元素",
 };
 
 export function KlingV26WorkbenchPanel({
     isKlingV3,
     klingProvider = "apimart",
     prompt,
-    negativePrompt,
     references,
     config,
     model,
@@ -75,7 +66,6 @@ export function KlingV26WorkbenchPanel({
     updateConfig,
     openConfigDialog,
     onPromptChange,
-    onNegativePromptChange,
     onOpenPromptLibrary,
     onOpenAssetPicker,
     onPastePrompt,
@@ -84,17 +74,11 @@ export function KlingV26WorkbenchPanel({
     onUploadReferences,
     onRemoveReference,
     onMoveReference,
-    onPasteElementReferences,
-    onUploadElementReferences,
-    onOpenElementAssetPicker,
-    onRemoveElementReference,
-    onMoveElementReference,
     onGenerate,
 }: {
     isKlingV3: boolean;
     klingProvider?: "apimart" | "kie";
     prompt: string;
-    negativePrompt: string;
     references: ReferenceImage[];
     config: AiConfig;
     model: string;
@@ -106,7 +90,6 @@ export function KlingV26WorkbenchPanel({
     updateConfig: UpdateAiConfig;
     openConfigDialog: (shouldPromptContinue?: boolean) => void;
     onPromptChange: (value: string) => void;
-    onNegativePromptChange: (value: string) => void;
     onOpenPromptLibrary: () => void;
     onOpenAssetPicker: (target?: AssetPickerTarget) => void;
     onPastePrompt: () => void;
@@ -115,11 +98,6 @@ export function KlingV26WorkbenchPanel({
     onUploadReferences: () => void;
     onRemoveReference: (id: string) => void;
     onMoveReference: (index: number, offset: number) => void;
-    onPasteElementReferences: (elementIndex: number) => void;
-    onUploadElementReferences: (elementIndex: number) => void;
-    onOpenElementAssetPicker: (elementIndex: number) => void;
-    onRemoveElementReference: (elementIndex: number, id: string) => void;
-    onMoveElementReference: (elementIndex: number, index: number, offset: number) => void;
     onGenerate: () => void;
 }) {
     const { message } = App.useApp();
@@ -133,7 +111,6 @@ export function KlingV26WorkbenchPanel({
     const isKIEKlingV3 = isKlingV3 && klingProvider === "kie";
     const shotType = config.videoShotType === "customize" ? "customize" : "intelligence";
     const multiPrompts = normalizeMultiPrompts(config.videoMultiPrompt);
-    const elementList = normalizeElementList(config.videoElementList);
 
     const setMode = (value: string) => {
         updateConfig("videoMode", value);
@@ -164,24 +141,6 @@ export function KlingV26WorkbenchPanel({
         updateConfig("videoMultiPrompt", multiPrompts.filter((_, itemIndex) => itemIndex !== index));
     };
 
-    const updateElementList = (items: VideoElementItem[]) => {
-        updateConfig("videoElementList", normalizeElementList(items));
-    };
-
-    const updateElement = (index: number, patch: Partial<VideoElementItem>) => {
-        updateElementList(elementList.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
-    };
-
-    const addElement = () => {
-        if (elementList.length >= 3) return;
-        updateElementList([...elementList, defaultElementItem()]);
-    };
-
-    const removeElement = (index: number) => {
-        if (elementList.length <= 1) return;
-        updateElementList(elementList.filter((_, itemIndex) => itemIndex !== index));
-    };
-
     const pasteMultiPrompt = async (index: number) => {
         try {
             const text = (await navigator.clipboard.readText()).trim();
@@ -190,20 +149,6 @@ export function KlingV26WorkbenchPanel({
                 return;
             }
             updateMultiPrompt(index, { prompt: text });
-            message.success("已读取剪切板文本");
-        } catch {
-            message.error("剪切板里没有可读取的文本");
-        }
-    };
-
-    const pasteNegativePrompt = async () => {
-        try {
-            const text = (await navigator.clipboard.readText()).trim();
-            if (!text) {
-                message.error("剪切板里没有可读取的文本");
-                return;
-            }
-            onNegativePromptChange(text);
             message.success("已读取剪切板文本");
         } catch {
             message.error("剪切板里没有可读取的文本");
@@ -237,15 +182,6 @@ export function KlingV26WorkbenchPanel({
                         <Input.TextArea value={prompt} onChange={(event) => onPromptChange(event.target.value)} rows={6} placeholder={TEXT.promptPlaceholder} />
                     </div>
                 </KlingSection>
-                {!isKIEKlingV3 ? <KlingSection title={TEXT.negativePrompt}>
-                    <div className="space-y-2">
-                        <div className="flex flex-wrap gap-1">
-                            <Button size="small" icon={<ClipboardPaste className="size-3.5" />} onClick={() => void pasteNegativePrompt()}>{TEXT.pastePrompt}</Button>
-                            <Button size="small" icon={<Trash2 className="size-3.5" />} onClick={() => onNegativePromptChange("")}>{TEXT.clear}</Button>
-                        </div>
-                        <Input.TextArea value={negativePrompt} onChange={(event) => onNegativePromptChange(event.target.value)} rows={4} placeholder={TEXT.negativePlaceholder} />
-                    </div>
-                </KlingSection> : null}
                 <KlingSection title={TEXT.referenceImage} count={references.length}>
                     <div className="space-y-2">
                         <div className="flex flex-wrap gap-1">
@@ -256,19 +192,6 @@ export function KlingV26WorkbenchPanel({
                         <KlingReferenceImageStrip references={references} onRemoveReference={onRemoveReference} onMoveReference={onMoveReference} />
                     </div>
                 </KlingSection>
-                {isKlingV3 ? (
-                    <KlingElementListSection
-                        items={elementList}
-                        onAddElement={addElement}
-                        onRemoveElement={removeElement}
-                        onUpdateElement={updateElement}
-                        onPasteElementReferences={onPasteElementReferences}
-                        onUploadElementReferences={onUploadElementReferences}
-                        onOpenElementAssetPicker={onOpenElementAssetPicker}
-                        onRemoveElementReference={onRemoveElementReference}
-                        onMoveElementReference={onMoveElementReference}
-                    />
-                ) : null}
                 {multiShot && !isKIEKlingV3 ? (
                     <KlingSection title={TEXT.shotType}>
                         <OptionGrid columns={2} options={[{ value: "customize", label: TEXT.shotCustom }, { value: "intelligence", label: TEXT.shotSmart }]} value={shotType} onChange={(value) => updateConfig("videoShotType", value)} />
@@ -289,7 +212,7 @@ export function KlingV26WorkbenchPanel({
                                 </div>
                                 <KlingNumberInput value={item.duration || "1"} min={1} max={15} onChange={(value) => updateMultiPrompt(index, { duration: value })} />
                             </div>
-                            <Input.TextArea value={item.prompt} onChange={(event) => updateMultiPrompt(index, { prompt: event.target.value })} rows={4} placeholder={TEXT.negativePlaceholder} />
+                            <Input.TextArea value={item.prompt} onChange={(event) => updateMultiPrompt(index, { prompt: event.target.value })} rows={4} placeholder={TEXT.promptPlaceholder} />
                         </div>
                     </KlingSection>
                 )) : null}
@@ -372,62 +295,6 @@ function optionClass(active: boolean) {
     ].join(" ");
 }
 
-function KlingElementListSection({ items, onAddElement, onRemoveElement, onUpdateElement, onPasteElementReferences, onUploadElementReferences, onOpenElementAssetPicker, onRemoveElementReference, onMoveElementReference }: { items: VideoElementItem[]; onAddElement: () => void; onRemoveElement: (index: number) => void; onUpdateElement: (index: number, patch: Partial<VideoElementItem>) => void; onPasteElementReferences: (elementIndex: number) => void; onUploadElementReferences: (elementIndex: number) => void; onOpenElementAssetPicker: (elementIndex: number) => void; onRemoveElementReference: (elementIndex: number, id: string) => void; onMoveElementReference: (elementIndex: number, index: number, offset: number) => void }) {
-    return (
-        <KlingSection title={TEXT.elementList}>
-            <div className="space-y-3">
-                {items.map((item, index) => (
-                    <div key={index} className="overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
-                        <div className="flex items-center justify-between gap-2 border-b border-stone-200 px-3 py-2 dark:border-stone-800">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">{TEXT.elementList}{index + 1}</span>
-                                <Tag className="m-0 text-xs">{item.references.length}</Tag>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <Button size="small" type="text" title={TEXT.addElement} className="!h-6 !w-6 !p-0" icon={<Plus className="size-3.5" />} disabled={items.length >= 3} onClick={onAddElement} />
-                                <Button size="small" type="text" danger title={TEXT.deleteElement} className="!h-6 !w-6 !p-0" icon={<Trash2 className="size-3.5" />} disabled={items.length <= 1} onClick={() => onRemoveElement(index)} />
-                            </div>
-                        </div>
-                        <div className="space-y-2 p-3">
-                            <div className="flex flex-wrap gap-1">
-                                <Button size="small" icon={<ClipboardPaste className="size-3.5" />} onClick={() => onPasteElementReferences(index)}>{TEXT.clipboard}</Button>
-                                <Button size="small" icon={<Upload className="size-3.5" />} onClick={() => onUploadElementReferences(index)}>{TEXT.upload}</Button>
-                                <Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => onOpenElementAssetPicker(index)}>{TEXT.chooseAsset}</Button>
-                            </div>
-                            <div style={{ display: "grid", gap: 8 }}>
-                                <Input value={item.name} onChange={(event) => onUpdateElement(index, { name: event.target.value })} placeholder={TEXT.elementName} />
-                                <Input value={item.description} onChange={(event) => onUpdateElement(index, { description: event.target.value })} placeholder={TEXT.elementDescription} />
-                            </div>
-                            <div className="pt-2">
-                                <KlingElementReferenceStrip references={item.references} onRemoveReference={(id) => onRemoveElementReference(index, id)} onMoveReference={(itemIndex, offset) => onMoveElementReference(index, itemIndex, offset)} />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </KlingSection>
-    );
-}
-
-function KlingElementReferenceStrip({ references, onRemoveReference, onMoveReference }: { references: VideoElementReference[]; onRemoveReference: (id: string) => void; onMoveReference: (index: number, offset: number) => void }) {
-    return (
-        <div className="hover-scrollbar flex w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden min-h-24 rounded-lg border border-dashed border-stone-300 p-2 pb-3 overscroll-x-contain dark:border-stone-700">
-            {references.map((item, index) => (
-                <div key={item.id} className="group relative size-20 shrink-0 overflow-hidden rounded-md border border-stone-200 bg-stone-50 dark:border-stone-800 dark:bg-stone-900">
-                    {item.kind === "image" ? <img src={item.dataUrl || item.url} alt={item.name} className="size-full object-cover" /> : item.kind === "video" ? <video src={item.url} className="size-full object-cover" muted preload="metadata" /> : <div className="flex size-full flex-col items-center justify-center gap-1 px-1 text-center text-xs text-stone-500"><Music2 className="size-5" /><span className="line-clamp-2">{item.name}</span></div>}
-                    {item.kind === "video" ? <VideoIcon className="absolute bottom-1 left-1 size-3.5 text-white drop-shadow" /> : null}
-                    <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{index + 1}</span>
-                    <KlingReferenceOrderButtons index={index} total={references.length} onMove={(offset) => onMoveReference(index, offset)} />
-                    <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => onRemoveReference(item.id)} aria-label={TEXT.removeImage}>
-                        <Trash2 className="size-3.5" />
-                    </button>
-                </div>
-            ))}
-            {!references.length ? <div className="flex min-w-full items-center justify-center whitespace-pre-line text-center text-sm text-stone-500">{TEXT.elementEmpty}</div> : null}
-        </div>
-    );
-}
-
 function KlingReferenceImageStrip({ references, onRemoveReference, onMoveReference }: { references: ReferenceImage[]; onRemoveReference: (id: string) => void; onMoveReference: (index: number, offset: number) => void }) {
     return (
         <div className="hover-scrollbar flex w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden min-h-24 rounded-lg border border-dashed border-stone-300 p-2 pb-3 overscroll-x-contain dark:border-stone-700">
@@ -483,15 +350,6 @@ function normalizeKlingV3Seconds(value: string) {
 
 function defaultMultiPrompts(): VideoMultiPromptItem[] {
     return [{ prompt: "", duration: "1" }];
-}
-
-function defaultElementItem(): VideoElementItem {
-    return { name: "", description: "", references: [] };
-}
-
-function normalizeElementList(value: VideoElementItem[] | undefined): VideoElementItem[] {
-    if (!Array.isArray(value) || !value.length) return [defaultElementItem()];
-    return value.slice(0, 3).map((item) => ({ name: item?.name || "", description: item?.description || "", references: Array.isArray(item?.references) ? item.references.slice(0, 4) : [] }));
 }
 
 function normalizeMultiPrompts(value: VideoMultiPromptItem[] | undefined): VideoMultiPromptItem[] {

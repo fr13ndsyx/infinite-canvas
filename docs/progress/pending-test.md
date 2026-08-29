@@ -5,33 +5,28 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
-## 图片比例与分辨率解耦（前端拆分 + 存量迁移）
+## 删除视频模型能力：负面提示词、智能时长、元素列表
 
 ### 可测试变更
 
-- `use-config-store.ts`：`AiConfig` 新增 `imageTier`（standard/2k/4k，默认 standard）；新增 `IMAGE_TIER_PIXELS` 档位像素表与 `migrateImageSizeValue`（把存量像素尺寸/带 `-2k`-`-4k` 后缀的比例迁移为纯比例+档位）；store 持久化加载时自动迁移；`resolveEffectiveImageSize` 简化为纯比例校验，新增 `resolveEffectiveImageTier` 按模型 `imageTiers` 能力夹紧
-- `image-settings-panel.tsx`：`aspectOptions` 改为纯比例 9 条（去掉打包的 tier/size）；删除 `tierOfAspect`/`resolutionTier` local state/`changeResolutionTier` 绕路逻辑；档位按钮独立写 `imageTier`，比例按钮独立写 `size`，两者互不影响；`imageResolutionTierLabel` 改为直接读档位值
-- `services/api/image.ts`：`resolveRequestSize` 改为 `(tier, size)`——像素值直传、2K/4K 查 `IMAGE_TIER_PIXELS` 表、标准档按 1024 基准折算；`createImageRequestParams` 传入 `config.imageTier`；Agnes 2.1 生图 `size` 档位映射改用 `imageTier`（standard→1K/2k→2K/4k→4K），修复旧逻辑里档位被 quality=auto 吞掉的问题
-- `canvas-image-settings-popover.tsx`：按钮标签始终显示 `档位·比例`（智能比例+2K 等组合也显示档位）
-- `canvas/[id]/canvas-client-page.tsx`：Agent 生成链路 `agentConfig.imageQuality`（档位值）映射到 `imageTier`；画布节点元数据 `buildImageGenerationMetadata` 持久化 `imageTier`，节点配置构建处回填 `imageTier`
-- `canvas/types.ts`：`CanvasNodeMetadata` 新增 `imageTier`
-- `canvas-config-node-panel.tsx` / `canvas-node-prompt-panel.tsx`：节点配置回填 `imageTier`
-- `image/page.tsx`：快捷尺寸去掉像素项（改纯比例）；历史日志回填时用 `migrateImageSizeValue` 迁移；设置摘要显示 `档位·比例`
-- `creative-workflow-workspace.tsx`：`WorkflowGenerationConfig` Pick 增加 `imageTier`
-- 视频侧不受影响（仍走像素 `videoSize`）
+- 后端 `Go/model/setting.go`：`ModelCapability` 删除 `SupportsNegativePrompt` / `SupportsElementList` / `VideoSecondsSmart` 三个字段
+- 后端 `Go/handler/apimart_video.go`：删除 `normalizeAPIMartKlingV3ElementList` 及元素列表请求体组装逻辑
+- 前端 `use-config-store.ts`：删除 `videoNegativePrompt` / `videoElementList` 状态与 `resolveSupportsNegativePrompt` / `resolveVideoSecondsSmart` / `resolveSupportsElementList` resolver，删除 `VideoElementReference` / `VideoElementItem` 类型
+- 管理后台「模型开放与定价」能力开关复选框删除「负面提示词」「元素列表」「智能时长(-1)」三项
+- 视频工作台 `/video`：`VideoSettingsPanel` 与 Kling 工作台面板删除负面提示词输入框、元素列表区块
+- 画布视频节点：`canvas-video-settings-popover.tsx` 删除 `KlingElementListSection` / `MultiResourcePicker`；`canvas-node-generation.ts` 删除元素列表上下文构建（`inputToElementReference` 等）；`canvas-client-page.tsx` 节点元数据不再写 `negativePrompt` / `klingElementList`；`types.ts` 删除对应元数据字段
+- `services/api/video.ts`：请求体不再组装 `negative_prompt` / `element_list`
+- 保留：水印、多镜头、运动控制、音频生成能力开关；Seedance 面板 `-1` 智能时长选项（固定行为，不再配置化）
+- 文档同步：`backend-database.md` / `video-exclusive-panels-params.md` 删除对应字段说明
 
 ### 验证步骤
 
-1. 默认配置：`size=1:1`、`imageTier=standard`，面板按钮显示「标准·1:1」
-2. 选 `16:9` → 切 `2K`：`size=16:9`、`imageTier=2k`，按钮 `2K·16:9`，**比例不变**（旧版切档位会换 size）
-3. 选「智能比例(auto)」→ 切 `2K`：`size=auto`、`imageTier=2k`，按钮 `2K·智能比例`（**解耦新增能力**）
-4. 切档位不重置比例、切比例不重置档位（两个独立维度）
-5. 切模型（能力不同）：比例/档位不在新模型 `imageAspects`/`imageTiers` 内时各自回退，不互相牵连
-6. 存量配置打开：旧 `size=2048x2048` 自动迁移为 `size=1:1`+`imageTier=2k`，按钮显示一致；旧 `16:9-2k` 迁移为 `16:9`+`2k`
-7. 画布节点元数据存量像素 `size` 仍可正常生成（请求层像素直传兼容）；重新在面板选比例后变为纯比例+档位并持久化
-8. Agnes 2.1 生图：选 2K 档实际发出 `size=2K`+`ratio`（旧版档位被吞为 1K 的问题已修复）
-9. 图片工作台历史日志「应用配置」：旧像素 size 迁移为比例+档位回填
-10. 全景模式行为不变（仍走 quality low/medium/high）
+1. 管理后台「模型开放与定价」视频模型能力开关区：确认只剩首尾帧/首帧/运动控制/音频生成/水印/多镜头等，无「负面提示词」「元素列表」「智能时长」
+2. 视频工作台选 Kling V3 模型：工作台与底部栏无负面提示词输入框、无元素列表区块；多镜头分镜功能正常
+3. 视频工作台选 Seedance 模型：秒数仍保留 `-1` 智能选项
+4. 画布视频节点设置弹窗：无元素列表区块；多镜头/运动控制/首尾帧按能力开关正常显示
+5. 用 Kling V3 生成视频：AI 日志中上游请求体不再包含 `negative_prompt` / `element_list`
+6. 画布已有旧项目（含 `klingElementList` 元数据）：正常打开，生成请求不再读取元素列表
 
 ## 生图渠道适配层全配置化（删除按模型硬编码）
 

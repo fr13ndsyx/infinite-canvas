@@ -5,7 +5,7 @@ import { boolConfig, normalizeSeedanceRatio } from "@/lib/seedance-video";
 import { modelKey } from "@/lib/video-model-capabilities";
 import { resolveMediaUrl } from "@/services/file-storage";
 import { imageToDataUrl, resolveImageUrl } from "@/services/image-storage";
-import { buildApiUrl, channelIdForActiveModel, findModelCapability, localChannelForActiveModel, resolveSupportsAudioGeneration, resolveVideoPanelType, resolveVideoProvider, type AiConfig, type VideoElementReference } from "@/stores/use-config-store";
+import { buildApiUrl, channelIdForActiveModel, findModelCapability, localChannelForActiveModel, resolveSupportsAudioGeneration, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
@@ -202,7 +202,6 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
         body.append("mode", klingV3 ? normalizeKlingV3Mode(config.videoMode) : normalizeKlingV26Mode(config.videoMode));
         body.append("duration", klingV3 ? normalizeKlingV3Duration(config.videoSeconds) : normalizeKlingV26Duration(config.videoSeconds));
         body.append("aspect_ratio", normalizeKlingV26AspectRatio(config.size));
-        if (!kieKlingV3 && config.videoNegativePrompt?.trim()) body.append("negative_prompt", config.videoNegativePrompt.trim());
         if (klingV3 && boolConfig(config.videoMultiShot, false)) {
             body.append("multi_shot", "true");
             if (kieKlingV3) {
@@ -212,10 +211,6 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
                 body.append("shot_type", shotType);
                 if (shotType === "customize") body.append("multi_prompt", JSON.stringify(normalizeKlingMultiPrompt(config.videoMultiPrompt)));
             }
-        }
-        if (klingV3) {
-            const elementList = await (kieKlingV3 ? normalizeKIEKlingElementList(config.videoElementList) : normalizeKlingElementList(config.videoElementList));
-            if (elementList.length) body.append("element_list", JSON.stringify(elementList));
         }
     } else if (apimartMotionControl) {
         body.append("mode", normalizeAPIMartKlingMotionControlMode(config.vquality));
@@ -286,46 +281,6 @@ function normalizeKIEKlingMultiPrompt(value: AiConfig["videoMultiPrompt"] | unde
 function normalizeKlingMultiPromptDuration(value: string | undefined) {
     const duration = Math.floor(Number(value) || 1);
     return Math.max(1, Math.min(15, duration));
-}
-
-async function normalizeKlingElementList(value: AiConfig["videoElementList"] | undefined) {
-    const items = Array.isArray(value) ? value.slice(0, 3) : [];
-    const result = [];
-    for (const item of items) {
-        const refs = Array.isArray(item?.references) ? item.references.slice(0, 4) : [];
-        if (!refs.length) continue;
-        const urls = (await Promise.all(refs.map(elementReferenceToInputUrl))).filter(Boolean).slice(0, 4);
-        if (!urls.length) continue;
-        result.push({ name: item.name || "", description: item.description || "", element_input_urls: urls });
-    }
-    return result;
-}
-
-async function normalizeKIEKlingElementList(value: AiConfig["videoElementList"] | undefined) {
-    const items = Array.isArray(value) ? value.slice(0, 3) : [];
-    const result = [];
-    for (const item of items) {
-        const refs = Array.isArray(item?.references) ? item.references.slice(0, 4) : [];
-        if (!refs.length) continue;
-        const references = (await Promise.all(refs.map(async (reference) => ({ kind: reference.kind, url: await elementReferenceToInputUrl(reference) })))).filter((reference) => reference.url).slice(0, 4);
-        if (!references.length) continue;
-        result.push({ name: item.name || "", description: item.description || "", references });
-    }
-    return result;
-}
-
-async function elementReferenceToInputUrl(reference: VideoElementReference) {
-    if (reference.kind === "image") {
-        const resolvedUrl = await resolveImageUrl(reference.storageKey, "");
-        for (const url of [reference.url, resolvedUrl]) {
-            const publicUrl = publicHttpUrl(url);
-            if (publicUrl) return publicUrl;
-        }
-        if (reference.dataUrl) return reference.dataUrl;
-        return imageToDataUrl({ dataUrl: reference.dataUrl || reference.url || resolvedUrl, storageKey: reference.storageKey });
-    }
-    const resolvedUrl = await resolveMediaUrl(reference.storageKey, reference.url || "");
-    return publicHttpUrl(resolvedUrl) || publicHttpUrl(reference.url) || resolvedUrl || reference.url || "";
 }
 
 function normalizeKlingV26AspectRatio(value: string) {
