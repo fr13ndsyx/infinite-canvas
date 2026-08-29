@@ -11,11 +11,6 @@
 </p>
 
 <p align="center">
-  <strong>Windows 本地安装包现已同步更新</strong><br>
-  <sub>无需从源码构建，下载即可本地运行</sub>
-</p>
-
-<p align="center">
   <a href="https://github.com/tigerowo/infinite-canvas/releases/latest">
     <img
       src="https://img.shields.io/github/v/release/tigerowo/infinite-canvas?style=for-the-badge&logo=windows11&logoColor=white&label=Windows%20EXE&color=2563eb"
