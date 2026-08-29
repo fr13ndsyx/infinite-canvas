@@ -6,18 +6,44 @@
 
 <p align="center">
   <a href="https://github.com/tigerowo/infinite-canvas"><img src="https://img.shields.io/github/stars/tigerowo/infinite-canvas?style=flat-square&logo=github" alt="GitHub stars"></a>
-  <a href="VERSION"><img src="https://img.shields.io/badge/version-v0.3.0-2563eb?style=flat-square" alt="Version"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-f97316?style=flat-square" alt="License"></a>
+  <a href="VERSION"><img src="https://img.shields.io/badge/version-v0.5.5-2563eb?style=flat-square" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-f97316?style=flat-square" alt="License"></a>
   <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-ready-2496ed?style=flat-square&logo=docker&logoColor=white" alt="Docker ready"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16.2-000000?style=flat-square&logo=nextdotjs" alt="Next.js"></a>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.25-00add8?style=flat-square&logo=go&logoColor=white" alt="Go"></a>
 </p>
 
+<p align="center">
+  <strong>Windows 本地安装包现已同步更新</strong><br>
+  <sub>无需从源码构建，下载即可本地运行</sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/tigerowo/infinite-canvas/releases/latest">
+    <img
+      src="https://img.shields.io/github/v/release/tigerowo/infinite-canvas?style=for-the-badge&logo=windows11&logoColor=white&label=Windows%20EXE&color=2563eb"
+      alt="下载 Windows EXE"
+    >
+  </a>
+</p>
+
 无限画布是一款面向图片，视频，音频，全能创作的开源工作台。它把画布编排、AI 图片、视频、音频生成、参考图编辑、对话助手、提示词库和素材沉淀放在同一个界面里，适合用来探索视觉方案并连续迭代图片结果
 
-全量支持 APIMart 所有图片，视频模型，直接添加 APIMart Key 以及 URL 即可直接使用
-
-APIMart 点此链接 [https://apimart.ai/register?aff=fWMrEv](https://apimart.ai/register?aff=fWMrEv) 注册后充值有积分奖励（支持主流 LLM，音频模型，视频模型）
+<p align="center">
+  <a href="https://metaso.cn/minimax-h3/?s=tt" target="_blank" rel="noopener"><img src="https://raw.githubusercontent.com/tigerowo/cdn-tdeh/v0.6/img/infinite-canvas/metaso.webp" alt="3D 导演台时间轴" /></a>
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/tigerowo/cdn-tdeh/v0.5/img/infinite-canvas/3ddirectortl.webp" alt="3D 导演台时间轴" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/tigerowo/cdn-tdeh/v0.4/img/infinite-canvas/3ddirector.webp" alt="3D 导演台" />
+</p>
+<p align="center">
+  <img src="https://gcore.jsdelivr.net/gh/tigerowo/cdn-tdeh@v0.4/img/infinite-canvas/agent.webp" alt="Agent" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/tigerowo/cdn-tdeh/v0.4/img/infinite-canvas/panorama.webp" alt="全景图生成" />
+</p>
 
 本项目基于 [basketikun(纯前端)](https://github.com/basketikun/infinite-canvas) 为底，合并 [HuFakai](https://github.com/HuFakai/infinite-canvas) 生图增强版基础上，针对视频和视频生成逻辑配置更加完善，完善后端云同步机制，不再依赖纯前端
 
@@ -41,7 +67,6 @@ APIMart 点此链接 [https://apimart.ai/register?aff=fWMrEv](https://apimart.ai
 
 完整功能说明见 [docs/features.md](docs/overview/features.md)
 
-如果你在为担心没有合适的生图API来发愁，可以查看该免费生图项目：[chatgpt2api](https://github.com/basketikun/chatgpt2api)
 
 ## 技术栈
 
@@ -53,7 +78,7 @@ APIMart 点此链接 [https://apimart.ai/register?aff=fWMrEv](https://apimart.ai
 ## 快速开始
 
 ```bash
-git clone https://github.com/tigerowo/infinite-canvas.git
+git clone https://github.com/fr13ndsyx/infinite-canvas.git
 cd infinite-canvas
 cp .env.example .env
 # 修改默认账号密码等信息
@@ -62,12 +87,11 @@ docker compose up -d --build
 
 本地非 Docker 开发运行：
 ```bash
-# 后端：在 Go/ 目录下运行（godotenv 从该目录读取 Go/.env）
-cp .env.example Go/.env
-cd Go
+cp .env.example .env
+cd go
 go run .
 
-# 另开一个终端窗口，前端目录为 next/
+# 另开一个终端窗口
 cd next
 bun install
 bun run dev
@@ -135,24 +159,23 @@ https://infinite-canvas-cpco.onrender.com?apiKey={key}&baseUrl={address}
 - [系统配置数据结构](docs/backend/system-settings.md)
 - [接口响应约定](docs/backend/api-response.md)
 
-## 赞助支持
+## 联系方式
 
-<div align="center">
+项目定制二次开发需求，广告赞助合作其他可联系
 
-如果这个项目对你有帮助，欢迎赞助支持，你的每一份鼓励都是持续更新的动力！
+邮箱：yhb293933@gmail.com
 
-</div>
 
 ## 开源协议
 
-本项目使用 GNU Affero General Public License v3.0，见 [LICENSE](LICENSE)。
+本项目使用 MIT License，见 [LICENSE](LICENSE)。
 
 ## Star History
 
 <a href="https://www.star-history.com/?repos=tigerowo%2Finfinite-canvas&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=tigerowo/infinite-canvas&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=tigerowo/infinite-canvas&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=tigerowo/infinite-canvas&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=tigerowo/infinite-canvas&type=date&theme=dark&legend=top-left&sealed_token=SMYnxdZ99ogoiNPY5Qaeg1X9nB17KGpOCvv0Pzjz5mLCx5o7pNOpQNnYpk2CIUkdJMuAcxve8H_ZAYllKY4b7YTvZh0tiHoC8hGfknKnk2IUMYhQoIxgcQ" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=tigerowo/infinite-canvas&type=date&legend=top-left&sealed_token=SMYnxdZ99ogoiNPY5Qaeg1X9nB17KGpOCvv0Pzjz5mLCx5o7pNOpQNnYpk2CIUkdJMuAcxve8H_ZAYllKY4b7YTvZh0tiHoC8hGfknKnk2IUMYhQoIxgcQ" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=tigerowo/infinite-canvas&type=date&legend=top-left&sealed_token=SMYnxdZ99ogoiNPY5Qaeg1X9nB17KGpOCvv0Pzjz5mLCx5o7pNOpQNnYpk2CIUkdJMuAcxve8H_ZAYllKY4b7YTvZh0tiHoC8hGfknKnk2IUMYhQoIxgcQ" />
  </picture>
 </a>
