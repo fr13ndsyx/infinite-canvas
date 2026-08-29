@@ -1,7 +1,6 @@
 "use client";
 
 import { type CSSProperties, type ReactNode } from "react";
-import { Film, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { Input, Slider, Switch } from "antd";
 
 import { ImageSettingsTheme } from "@/components/image-settings-panel";
@@ -9,6 +8,9 @@ import { boolConfig, normalizeSeedanceRatio, seedanceRatioOptions } from "@/lib/
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AdminModelCapability } from "@/services/api/admin";
 import { resolveAudioRequiresMode, resolveSupportsAudioGeneration, resolveSupportsWatermark, resolveVideoModes, resolveVideoRatios, resolveVideoSecondsRange, type AiConfig } from "@/stores/use-config-store";
+
+// 画布弹窗「生成时长」滑块宽度；「生成音频」开关按同宽度区域居中对齐到滑块正下方
+const CANVAS_SLIDER_WIDTH = 200;
 
 const resolutionOptions = [
     { value: "480", label: "480P" },
@@ -93,19 +95,26 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                 <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                     {showTitle && showOtherSections ? <div className="text-lg font-semibold">视频设置</div> : null}
                     {showOtherSections && !visualOnly && modes.length > 0 ? (
-                        <CanvasSection title="视频生成方式">
-                            <div className="flex gap-1.5">
+                        <CanvasSection title="视频生成方式" theme={theme}>
+                            <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg }}>
                                 {modes.map((item) => (
-                                    <SegmentedPill key={item.value} selected={currentMode === item.value} theme={theme} icon={modeIcon(item.value)} onClick={() => onConfigChange("videoMode", item.value)}>
+                                    <button
+                                        key={item.value}
+                                        type="button"
+                                        className="flex-1 rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
+                                        style={{ background: currentMode === item.value ? theme.node.segmentActive : "transparent", color: theme.node.text, boxShadow: currentMode === item.value ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onClick={() => onConfigChange("videoMode", item.value)}
+                                    >
                                         {item.label}
-                                    </SegmentedPill>
+                                    </button>
                                 ))}
                             </div>
                         </CanvasSection>
                     ) : null}
                     {showRatioResolution ? (
-                    <CanvasSection title="选择分辨率">
-                        <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
+                    <CanvasSection title="选择分辨率" theme={theme}>
+                        <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg }}>
                             {resolutionOptionsForRender.map((item) => {
                                 const active = resolution === item.value;
                                 return (
@@ -113,7 +122,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                         key={item.value}
                                         type="button"
                                         className="flex-1 rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
-                                        style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                        style={{ background: active ? theme.node.segmentActive : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                         onMouseDown={(event) => event.stopPropagation()}
                                         onClick={() => onConfigChange("vquality", item.value)}
                                     >
@@ -126,7 +135,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                     </CanvasSection>
                     ) : null}
                     {showRatioResolution ? (
-                    <CanvasSection title="选择比例">
+                    <CanvasSection title="选择比例" theme={theme}>
                         <div className="grid grid-cols-4 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                             {ratioButtons.map((item) => {
                                 const isSmart = item.value === "auto" || item.value === "adaptive";
@@ -153,37 +162,28 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                     ) : null}
                     {showOtherSections && !visualOnly ? (
                         <>
-                            <CanvasSection title="生成时长">
-                                <SecondsSlider value={secondsValue} min={secondsRange.min} max={secondsRange.max} theme={theme} onChange={(value) => onConfigChange("videoSeconds", String(value))} />
-                            </CanvasSection>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-[10.8px] font-medium" style={{ color: theme.node.titleText }}>生成时长</span>
+                                <SecondsSlider value={secondsValue} min={secondsRange.min} max={secondsRange.max} theme={theme} onChange={(value) => onConfigChange("videoSeconds", String(value))} sliderWidth={CANVAS_SLIDER_WIDTH} />
+                            </div>
                             {audioGenerationEnabled ? (
-                                <CanvasSection title="生成音频">
-                                    <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
-                                        <button
-                                            type="button"
-                                            className="flex flex-1 items-center justify-center gap-1 rounded-md py-1 text-[9.6px] transition hover:opacity-80"
-                                            style={{ background: !generateAudio ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: !generateAudio ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
-                                            onMouseDown={(event) => event.stopPropagation()}
-                                            onClick={() => onConfigChange("videoGenerateAudio", "false")}
-                                        >
-                                            <VolumeX className="size-3.5" />
-                                            <span>关闭</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="flex flex-1 items-center justify-center gap-1 rounded-md py-1 text-[9.6px] transition hover:opacity-80"
-                                            style={{ background: generateAudio ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: generateAudio ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
-                                            onMouseDown={(event) => event.stopPropagation()}
-                                            onClick={() => onConfigChange("videoGenerateAudio", "true")}
-                                        >
-                                            <Volume2 className="size-3.5" />
-                                            <span>开启</span>
-                                        </button>
+                                <div className="space-y-1">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-[10.8px] font-medium" style={{ color: theme.node.titleText }}>生成音频</span>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex items-center justify-center" style={{ width: CANVAS_SLIDER_WIDTH }}>
+                                                <span onMouseDown={(event) => event.stopPropagation()}>
+                                                    <Switch size="small" checked={generateAudio} onChange={(checked) => onConfigChange("videoGenerateAudio", String(checked))} />
+                                                </span>
+                                            </div>
+                                            <span className="min-w-[2.5rem]" aria-hidden />
+                                        </div>
                                     </div>
-                                </CanvasSection>
+                                    {audioHint ? <div className="text-[11px] leading-4 opacity-55">{audioHint}</div> : null}
+                                </div>
                             ) : null}
                             {watermarkEnabled ? (
-                                <CanvasSection title="输出">
+                                <CanvasSection title="输出" theme={theme}>
                                     <div className="rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                                         <SwitchRow label="添加水印" checked={watermark} theme={theme} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} />
                                     </div>
@@ -327,10 +327,10 @@ function ResolutionInput({ value, theme, onChange }: { value: string; theme: Can
     );
 }
 
-function SecondsSlider({ value, min, max, theme, onChange }: { value: number; min: number; max: number; theme: CanvasTheme; onChange: (value: number) => void }) {
+function SecondsSlider({ value, min, max, theme, onChange, sliderWidth }: { value: number; min: number; max: number; theme: CanvasTheme; onChange: (value: number) => void; sliderWidth?: number }) {
     return (
         <div className="flex items-center gap-3 px-1 py-1" style={{ color: theme.node.text }}>
-            <Slider className="!flex-1 !m-0" min={min} max={max} step={1} value={value} onChange={onChange} tooltip={{ open: false }} />
+            <Slider className={sliderWidth ? "!m-0" : "!flex-1 !m-0"} style={sliderWidth ? { width: sliderWidth } : undefined} min={min} max={max} step={1} value={value} onChange={onChange} tooltip={{ open: false }} />
             <span className="min-w-[2.5rem] text-sm font-medium" style={{ color: theme.node.text }}>{value}s</span>
         </div>
     );
@@ -388,27 +388,12 @@ function AudioGenerationSetting({ checked, hint, theme, onChange }: { checked: b
     );
 }
 
-export function CanvasSection({ title, children }: { title: string; children: ReactNode }) {
+export function CanvasSection({ title, theme, children }: { title: string; theme: CanvasTheme; children: ReactNode }) {
     return (
         <div className="space-y-1.5">
-            <div className="text-[10.8px] font-medium opacity-55">{title}</div>
+            <div className="text-[10.8px] font-medium" style={{ color: theme.node.titleText }}>{title}</div>
             {children}
         </div>
-    );
-}
-
-function SegmentedPill({ selected, theme, icon, onClick, children }: { selected: boolean; theme: CanvasTheme; icon?: ReactNode; onClick: () => void; children: ReactNode }) {
-    return (
-        <button
-            type="button"
-            className="flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-[13px] transition hover:opacity-80"
-            style={{ background: selected ? theme.toolbar.activeBg : "transparent", color: theme.node.text }}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={onClick}
-        >
-            {icon ? <span className="shrink-0">{icon}</span> : null}
-            <span className="truncate">{children}</span>
-        </button>
     );
 }
 
@@ -439,9 +424,4 @@ function TextChip({ selected, theme, onClick, children }: { selected: boolean; t
             {children}
         </button>
     );
-}
-
-function modeIcon(value: string) {
-    if (/frame|first|last/i.test(value)) return <Film className="size-3.5" />;
-    return <Sparkles className="size-3.5" />;
 }

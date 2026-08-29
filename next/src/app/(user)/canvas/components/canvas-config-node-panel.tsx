@@ -196,7 +196,7 @@ function modelChannelId(config: AiConfig, mode: CanvasGenerationMode) {
 
 function modePatch(config: AiConfig, mode: CanvasGenerationMode): Partial<CanvasNodeMetadata> {
     if (mode === "image") return { generationMode: mode, model: config.imageModel, channelId: config.imageChannelId };
-    if (mode === "video") return { generationMode: mode, model: config.videoModel, channelId: config.videoChannelId };
+    if (mode === "video") return { generationMode: mode, model: config.videoModel, channelId: config.videoChannelId, klingActiveTab: "reference" };
     if (mode === "text") return { generationMode: mode, model: config.textModel, channelId: config.textChannelId };
     return { generationMode: mode, model: config.audioModel, channelId: config.audioChannelId || config.activeChannelId };
 }

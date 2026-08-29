@@ -5,6 +5,26 @@ description: 当前版本已实现但仍需人工验证的变更项
 
 # 待测试
 
+## 画布视频节点首尾帧输入交互
+
+### 可测试变更
+
+- 视频节点新建后默认使用“全能参考”能力。
+- 视频设置弹窗改为“全能参考 / 首帧或首尾帧”分段选择，不再在弹窗内展示首尾帧资源选择器。
+- 选择首尾帧能力后，输入框左侧按模型能力显示独立的首帧、尾帧上传槽位；每个槽位支持本地上传、选择已连接图片节点及移除。
+- 首尾帧槽位复用普通上传堆叠卡片样式，悬停时恢复放大与阴影查看动效；图片底部显示文件名，悬停时另显示“首帧/尾帧”提示气泡。
+- 切换首尾帧模式时，已连接图片按连线顺序自动分配到首帧和尾帧，可通过两帧之间的左右切换按钮交换顺序。
+- 首尾帧引用会写入节点元数据并参与视频生成请求，普通参考图不会重复携带已选中的首尾帧。
+
+### 验证步骤
+
+1. 新建视频节点，确认能力按钮显示“全能参考”。
+2. 选择支持首尾帧的模型，在设置弹窗切换到“首尾帧”，确认输入框出现首帧/尾帧两个上传框，弹窗内不再出现资源下拉选择。
+3. 分别上传或选择已连接图片，确认槽位预览、替换和移除正常，生成请求携带对应首帧与尾帧。
+4. 切换到仅支持首帧或不支持首尾帧的模型，确认只显示受支持的槽位或自动隐藏首尾帧输入区。
+
+---
+
 ## 删除视频模型能力：负面提示词、智能时长、元素列表
 
 ### 可测试变更
@@ -1567,4 +1587,223 @@ description: 当前版本已实现但仍需人工验证的变更项
 7. 清空某模型描述并保存，确认下拉菜单该模型不再显示副标题
 8. 修改其他公开配置（如默认模型、可用模型列表），保存后确认前端立即生效
 
+## 统一一级页面背景点阵
 
+画布库（`/canvas`）此前是唯一没有背景点阵的一级页面，与首页、提示词库、我的素材等页面观感不一致。本次补齐点阵，并把已有点阵页面的深色模式透明度统一为同一数值。
+
+### 可测试变更
+
+- 画布库页面新增背景点阵，浅色 `#e5e7eb`、点径 1px、间距 16px，与其余一级页面一致
+- 首页深色点阵透明度 `.18` → `.16`
+- 我的素材深色点阵透明度 `.14` → `.16`
+- 提示词库、登录页、素材库三处原本即为 `.16`，未改动
+
+### 涉及文件
+
+- `next/src/app/(user)/canvas/page.tsx`：`<main>` 新增 `bg-[radial-gradient(#e5e7eb_1px,transparent_1px)]`、`[background-size:16px_16px]` 与 `dark:bg-[radial-gradient(rgba(245,245,244,.16)_1px,transparent_1px)]`
+- `next/src/app/(user)/page.tsx`：`dark:bg-[radial-gradient(...)]` 透明度 `.18` 改为 `.16`
+- `next/src/app/(user)/assets/page.tsx`：`dark:bg-[radial-gradient(...)]` 透明度 `.14` 改为 `.16`
+
+### 验证步骤
+
+1. 依次点击顶部导航「我的画布」「提示词库」「我的素材」与首页，确认四个一级页面均有背景点阵，且点的粗细、间距、颜色观感一致
+2. 进入画布库，确认点阵出现在卡片列表后方，不与卡片内容产生视觉干扰
+3. 滚动画布库页面，确认点阵随内容滚动（与首页行为一致）
+4. 切换到深色模式，重复第 1 步，确认四个页面点阵的明暗程度一致
+5. 检查登录页与素材库，确认点阵未受影响（原本已是 `.16`）
+
+### 未处理项
+
+- 生图工作台、视频创作台、工作流的背景与点阵保持原样，本次不涉及
+- 工作台结果预览区点阵仍为 inline style 写死的 `rgba(120,113,108,.35)`（stone 暖灰、1.4px、无深色适配），与一级页面点阵风格不同，待后续决定是否收敛
+
+## 修复深色模式下 Tooltip 气泡配色
+
+悬停顶栏「当前算力点余额」等元素时弹出的 antd Tooltip 气泡，在深色模式下呈现为浅灰底 + 黑字，与深色主题冲突。
+
+### 根因
+
+antd Tooltip 气泡配色由两个 token 决定（`antd/es/tooltip/style/index.js`）：`colorBgSpotlight`（背景）与 `colorTextLightSolid`（文字）。
+
+项目 `getAntThemeConfig` 把顶层 `colorTextLightSolid` 覆盖为 `primaryText`（深色下为 `#171717` 黑）；同时 antd 深色算法会把 `colorBgSpotlight` 派生为**浅灰**——
+
+| 主题 | `colorBgSpotlight` 的算法来源 | 实际背景 | 文字 | 结果 |
+|---|---|---|---|---|
+| 浅色 `default/colors.js` | `getAlphaColor(colorTextBase, 0.85)` | 85% 黑 | `#ffffff` | 黑底白字（正常） |
+| 深色 `dark/colors.js` | `getSolidColor(colorBgBase, 26)` | 基于白底推深 26% = 浅灰 | `#171717` | 灰底黑字（异常） |
+
+两者叠加导致深色模式下气泡反色成浅底黑字。
+
+### 可测试变更
+
+`components` 中按条件追加 Tooltip 配置，**仅在深色下生效**，浅色保持 antd 默认（半透明 85% 黑 + 白字）不动：
+
+```tsx
+...(dark ? { Tooltip: { colorBgSpotlight: "#262626", colorTextLightSolid: "#f5f5f4" } } : {}),
+```
+
+- 气泡背景 `#262626` 与项目 `neutral.dark.menuBg` 同值
+- 文字 `#f5f5f4` 与 `canvasThemes.dark.node.text` 同值
+- 文字对比度 13.87:1
+
+### 涉及文件
+
+- `next/src/lib/app-theme.ts`：`getAntThemeConfig` 的 `components` 末尾追加一行条件配置
+
+### 验证步骤
+
+1. 切到深色模式，悬停顶栏算力点余额，确认气泡为**深底浅字**（不再出现浅灰底黑字）
+2. 切到浅色模式重复，确认气泡仍是黑底白字，与修复前一致
+3. 切换到画布页，悬停节点工具栏、模型选择等带 Tooltip 的元素，确认深色下气泡同样为深底浅字
+4. 检查管理后台的 Tooltip（如表格内的提示图标），确认深色下配色统一
+5. 确认其他依赖 `colorTextLightSolid` 的组件未受影响——重点看深色模式下的 primary 按钮（背景 `#fafafa` 白、文字 `#171717` 黑）仍保持原样
+
+## 顶栏账户区整合（算力点 + 主题切换 + 名字下拉）
+
+登录用户的算力点余额、浅色/深色主题切换、账户入口合并为一个**名字触发器**；未登录访客保留独立主题切换与登录入口。
+
+### 可测试变更
+
+- `next/src/components/layout/user-status-actions.tsx` 重写：
+  - 登录用户：移除行内常驻的 `AnimatedThemeToggler` 与两块算力点显示，改为一个只显示 `userName` 的名字按钮（无头像、无首字母）；点击弹出 `dropdownRender` 自定义面板
+  - 面板结构：头部（名字 + 「管理员」角色标签，admin 才显示）→ 分割线 → 算力点余额行（含数值）→ 主题行（内嵌 `AnimatedThemeToggler`）→ 分割线 → 原菜单项（管理后台 / 快捷键 / 退出登录）
+  - 面板内点击主题切换**不关闭**下拉（自定义内容非 menu item），全屏视图过渡保留
+  - 面板定位由 `bottomRight` 改为**在名字正下方水平居中展开**：`placement="bottom"`（antd 自带 `points: ['tc','bc']` 即面板顶部中点对齐名字底部中点 = 下方居中），`align` 仅保留 `offset: [0,14]` 与 `overflow` 保护，**不加箭头**，与名字保持约 14px 间距；面板加宽至 `min-w-[260px]`、圆角 `rounded-xl`、阴影 `shadow-xl`、内边距 `py-1.5`，强化弹窗浮起感。⚠️ 曾误写为 `points: ["bc","tc"]` 导致面板被翻到名字**上方盖住名字**，已修正为不覆盖 points、交由 placement 决定下方定位
+  - 余额行文案由「算力点余额」改为「余额」
+  - 访客：仍渲染独立 `AnimatedThemeToggler` + 「登录」链接 + 快捷键按钮（若有 `onOpenShortcuts`），未登录可正常切主题
+  - 画布工具栏的画面深浅切换（`canvas-toolbar.tsx`）不在本次范围，保持独立
+- 移除未使用的 `Avatar` / `Tooltip` import
+
+### 涉及文件
+
+- `next/src/components/layout/user-status-actions.tsx`：整文件重写
+
+### 验证步骤
+
+1. 登录 admin，首页右上角只显示名字 `admin`，无头像圆圈、无首字母
+2. 点击名字，面板显示：名字+「管理员」、算力点余额（含数值）、主题切换、管理后台、退出登录
+3. 点击面板内主题切换，全屏视图过渡执行，下拉保持打开；再次点击可切回
+4. 点击「退出登录」，下拉关闭并执行退出
+5. 退出到未登录，确认顶栏仍有独立主题切换按钮与「登录」链接，点击可正常切主题
+6. 进入画布页，点击名字下拉内可切换全局主题；画布工具栏的画面深浅切换仍独立可用
+7. 深色模式下确认面板文字清晰（浅色用 `bg-white`、深色用 `bg-neutral-900`），且与已修的 Tooltip 气泡配色一致
+8. 管理后台（`/admin`）顶栏同样显示名字下拉（`showConfig={false}`，无配置按钮）
+9. 点击名字，确认面板在名字**正下方居中**展开（面板顶部在名字下方约 14px，**绝不覆盖名字本身**），**无箭头**，面板加宽至 260px 且阴影明显浮起；面板内余额行显示「余额」而非「算力点余额」
+
+## 空图片节点占位图标去包围
+
+空图片节点（及复用同一函数的 Config 配置节点、Panorama 全景图节点）的占位图标原先被套在一个 `size-14 rounded-2xl` + `theme.toolbar.activeBg` 的圆角背景方块里，观感上像"图标被包围"；而空视频节点、空音频节点的占位图标是裸 SVG 直接绘制，没有这层底块。两者渲染风格不一致。注意：导演节点走独立面板 `canvas-director-node-panel.tsx`（由 `renderNodeContent` 注入，优先于 `EmptyImageContent`），其占位图标与文字不在此列，单独处理。
+
+### 可测试变更
+
+- `canvas-node.tsx` 的 `EmptyImageContent`：删除包裹 ImageIcon 的 `size-14 rounded-2xl` + `activeBg` 背景方块，图标改为裸 `<ImageIcon className="size-7 opacity-35" />`，与视频/音频空节点一致；占位文字由 `text-[10px] tracking-[0.18em] opacity-50` 统一为 `text-sm` 并**去掉多余的 `opacity-50`**（视频/音频空节点占位文字本就无 opacity），与视频/音频空节点亮度一致
+- 受影响范围：空图片节点、空全景图节点、空配置节点（共用 `EmptyImageContent`）；空视频、空音频节点未改动；导演节点见下方「3D 导演台节点占位文字字号」独立章节
+
+### 验证步骤
+
+1. 在画布新建一个空图片节点，确认占位 ImageIcon **不再有圆角背景方块包裹**，呈裸图标 + "空图片节点"文字
+2. 新建空视频节点、空音频节点对比，确认三者占位图标风格一致（均无背景块）
+3. 新建空配置节点、空导演节点，确认同样为裸图标、无包围方块
+4. 切换浅色/深色主题，确认空图片节点占位图标在两种主题下均清晰可见、无背景方块残留
+
+## 画布库文字颜色深浅主题统一
+
+画布库（`/canvas`）及其项目卡片、删除确认弹窗中的次级文字（"画布库"标签、加载态、空状态提示、"更新于"日期、删除确认文案）原本只写 `text-stone-500` 而没有 `dark:` 变体。浅色模式正常，但深色模式下这些文字仍渲染为中灰 `#78716c`（约 3.5:1 对比度，低于 WCAG AA 4.5:1），与同一页面已正确适配的"节点数·连线数"（`dark:text-stone-400`，约 6:1）亮度不一致，观感上像文字颜色不统一。
+
+画布节点本体（`canvas-node.tsx`）与各类节点面板始终使用 `canvasThemes` token，已正确适配，不在本次范围内。
+
+### 可测试变更
+
+- `canvas/page.tsx`：画布库标签、加载态、空状态提示三处 `text-stone-500` 补 `dark:text-stone-400`
+- `canvas/components/canvas-project-card.tsx`："更新于"日期 `text-stone-500` 补 `dark:text-stone-400`
+- `canvas/components/canvas-delete-projects-dialog.tsx`：删除确认文案 `text-stone-500` 补 `dark:text-stone-400`
+- 侧栏/素材选择器内的搜索图标 `text-stone-400` 为装饰性图标，深浅两模式均可辨识，本次未改动
+- 不在范围内：画布节点内文字（已由 `canvasThemes` 驱动，无需修改）
+
+### 验证步骤
+
+1. 进入画布库，切换到深色模式，确认"画布库"小标签、"更新于"日期、空状态提示文字均呈浅灰（`stone-400`）而非中灰，与项目卡片"节点数·连线数"亮度一致
+2. 选中若干画布点击"删除选中"，在弹出的确认弹窗中确认深色模式下说明文字同样为浅灰、清晰可读
+3. 切回浅色模式，确认上述文字仍为 `stone-500` 中灰，与改动前一致（本次仅补齐深色适配，不改变浅色观感）
+4. 进入画布实际工作区，确认节点内文字、节点面板文字深浅主题配色如常（未被本次改动影响）
+
+## 3D 导演台节点占位文字字号
+
+3D 导演台节点（`canvas-director-node-panel.tsx`）的占位文字"在3D空间中搭建场景并进行多视角截图"原本是 `text-[17px] font-medium leading-7`，而空视频节点、空图片节点的占位文字均为 `text-sm`（14px）。两者字号不一致，导演节点文字明显偏大。注：该节点由 `NodeContent` 的 `renderNodeContent` 分支注入（line 433 优先于 `nodeContentRenderers` 中的 `EmptyImageContent` 映射），不共享空图片节点的渲染逻辑，需单独修正。
+
+### 可测试变更
+
+- `canvas/components/canvas-director-node-panel.tsx`：占位文字 `<p>` 的 `text-[17px]` 改为 `text-sm`，与空视频/空图片节点占位文字字号一致；保留 `font-medium leading-7`（较长中文句子 + 下方"打开导演台"按钮，加粗与宽松行距为独立排版需要，仅字号对齐）
+
+### 验证步骤
+
+1. 画布新建一个空 3D 导演台节点，对比空视频节点、空图片节点，确认三者的占位文字字号（14px）完全一致
+2. 切换浅色/深色主题，确认导演台节点占位文字在两种主题下字号与其余空节点一致、颜色随主题正常适配
+3. 点击"打开导演台"按钮，确认弹窗交互不受影响
+
+## 空节点占位图标亮度/色值对齐 3D 导演台
+
+3D 导演台节点（`canvas-director-node-panel.tsx`）的 SVG 图标 Layers3 使用 `style={{ color: theme.node.muted }}` 且**无** opacity（全亮）。而空图片/全景图（共用 `EmptyImageContent`）、空视频、空音频节点的占位图标原本颜色继承父级 `theme.node.placeholder` 且带 `opacity-35`，整体偏暗、色值也与导演台不同，观感不一致。
+
+### 可测试变更
+
+- `canvas-node.tsx` `EmptyImageContent`（空图片/空全景图）：`<ImageIcon className="size-7 opacity-35" />` 改为 `<ImageIcon className="size-7" style={{ color: theme.node.muted }} />`
+- `canvas-node.tsx` `VideoNodeContent`（空视频）：`<Video className="size-7 opacity-35" />` 改为 `<Video className="size-7" style={{ color: theme.node.muted }} />`
+- `canvas-node.tsx` `AudioNodeContent`（空音频）：`<Music2 className="size-7 opacity-35" />` 改为 `<Music2 className="size-7" style={{ color: theme.node.muted }} />`
+- 父级 `div` 仍是 `color: theme.node.placeholder`（供下方占位文字使用，导演台文字同样用 `theme.node.placeholder`，文字未改动）
+- 图标尺寸保持 `size-7`，导演台图标为 `size-11`，本次仅对齐亮度与色值，未改尺寸
+- Config / Director 节点走独立面板（`CanvasConfigNodePanel` / `CanvasDirectorNodePanel`），导演台图标本就是 `theme.node.muted` 无透明，已一致；Config 面板无同类"空节点提示图标"
+
+### 验证步骤
+
+1. 画布新建空图片、空全景图、空视频、空音频节点，并排放，确认四个占位图标的颜色与亮度完全一致，且与空 3D 导演台节点的 Layers3 图标同色值（均为 `theme.node.muted`、无透明）
+2. 切换浅色/深色主题，确认四类图标与导演台图标在两种主题下亮度一致、随主题正常适配
+3. 确认图标下方的占位文字（"空图片节点"等）颜色不受影响，仍为 `theme.node.placeholder`
+
+## 画布视频节点模式：默认全能参考 + 动态标签 + 弹窗去冗余
+
+画布视频节点上的设置触发按钮（`canvas-video-settings-popover.tsx` 的 `CanvasVideoSettingsPopover` 主按钮）原本写死显示"全能参考"，弹窗用「首尾帧 / 全能参考」两段式切换，在默认处于全能参考时仍把"全能参考"列为一个可选项，冗余。本次改为：按钮动态显示当前模式，弹窗去掉冗余的"全能参考"选项、只保留切换到另一模式的入口。
+
+### 可测试变更
+
+- `canvas-video-settings-popover.tsx` 触发按钮文案改为动态：当前为首尾帧（且模型支持首尾帧）时显示"首尾帧"，否则显示"全能参考"（`{showFrameOrReference && activeTab === "frames" ? "首尾帧" : "全能参考"}`），与图片节点默认显示"智能比例"一致
+- 弹窗模式切换由两段式改为单一切换入口：当前为全能参考（默认）时只显示"切换为首尾帧"；当前为首尾帧时显示模式名"首尾帧" + "切换为全能参考"按钮
+- 首尾帧图片选择器（首帧/尾帧）仅在 `activeTab === "frames"` 时渲染，逻辑不变
+- 默认模式仍为 `reference`（全能参考）：`activeTab` 取 `hasFrames && metadata?.klingActiveTab === "frames" ? "frames" : "reference"`，新建节点默认即"全能参考"
+
+### 验证步骤
+
+1. 画布新建视频节点，确认节点设置按钮显示"全能参考"（默认）
+2. 打开弹窗，确认处于全能参考时弹窗内只有"切换为首尾帧"入口，不再有"全能参考"选项
+3. 点击"切换为首尾帧"，确认弹窗显示首尾帧图片选择器且出现"切换为全能参考"入口；关闭再打开（模型支持首尾帧时）确认停留在首尾帧、节点按钮显示"首尾帧"
+4. 点"切换为全能参考"回到默认，节点按钮显示"全能参考"
+5. 模型不支持首尾帧时（`showFrameOrReference=false`），按钮固定显示"全能参考"，弹窗无模式切换入口
+
+## 画布视频节点"生成音频"控件精简
+
+画布视频节点弹窗（`variant="canvas"`）的「生成音频」section 原本用 `min-h-[52px]` 的大号「关闭 / 开启」两段按钮（`VolumeX`/`Volume2` 图标 + 文字），与同弹窗「输出 / 添加水印」用的紧凑 antd 小开关（`SwitchRow`）风格不一致、显大且突兀。
+
+### 可测试变更
+
+- `components/video-settings-panel.tsx` canvas 变体「生成音频」：去掉外层圆角边框卡片（`rounded-xl border p-2.5`）与独立的「生成 AI 音频」标签；不再用 `SwitchRow`（其 label 为 `text-sm` 偏大），改为自定义行——标题「生成音频」用与其它 section 标题完全一致的 `text-[10.8px] font-medium opacity-55`，滑动开关（`Switch size="small"`）居右，无独立框；`audioHint`（仅音频受限模式时显示）保留为标题下方纯文字说明
+- 同文件「生成时长」：不再用 `CanvasSection`（其上标题在下内容、天然不同行），改为与「生成音频」完全同构的行内布局——标题「生成时长」用同样的 `text-[10.8px] font-medium opacity-55` 小灰字在左，右侧为滑块 + 「Xs」数值；`SecondsSlider` 增加可选 `sliderWidth` 参数，画布变体传 `CANVAS_SLIDER_WIDTH`（200px，满足 4-30s 拖动精度；默认变体/视频创作台整页不传，仍用 `CanvasSection` + 满宽，未改动）
+- 「生成音频」开关位置：由行最右改为居中于一个与滑块等宽（`CANVAS_SLIDER_WIDTH`）的区域，正下方对齐滑块；右侧加等宽（`min-w-[2.5rem]`）隐形占位 + 相同 `gap-3`，保证两行右缘结构对称；`audioHint` 保留为该行下方纯文字
+- 「视频生成方式」切换样式统一：由圆角胶囊按钮（`SegmentedPill` + Film/Sparkles 图标）改为与「选择分辨率」完全一致的分段控件——等分按钮 + `text-[10.8px]`，文字-only；同步删除无用的 `SegmentedPill`/`modeIcon` 函数与 `Film`/`Sparkles` 导入
+- 分段控件色值精确化（`lib/canvas-theme.ts`）：`canvasThemes` 两套主题各新增 `node.segmentBg`（未选中底槽：浅 `#f2f0ed` / 深 `#282623`）与 `node.segmentActive`（选中块：浅 `#f9f8f6` / 深 `#1f1d1a`）两个实色 token，替代原先的 rgba 半透明叠加（`subtleFill`）与 `panel`
+- 「视频能力」切换（`canvas-video-settings-popover.tsx`，全能参考/首尾帧）同步统一：去掉 `border` + `borderColor`（无边框、仅选中块阴影），容器由 `rounded-xl gap-1` 改 `rounded-lg gap-0.5` + `min-h-[52px]`，选中块由 `toolbar.activeBg`/`activeText` 改 `segmentActive` + `0 2px 8px rgba(0,0,0,0.12)` 阴影 + `theme.node.text`；disabled 态保留
+- 删除选中首尾帧后的提示文字「请在输入框中分别上传或选择首帧、尾帧图片」
+- 节点弹窗全部小标题改纯色（`lib/canvas-theme.ts` 新增 `node.titleText`：浅 `#000000` / 深 `#ffffff`）：`CanvasSection` 新增 `theme` 参数并去掉 `opacity-55`，视频/图片/音频弹窗共 11 处调用同步传参；「生成时长」「生成音频」内联标题、「视频能力」标题、`CanvasSettingGroup`（角色朝向参考/多镜头分镜/分镜模式/分镜提示词）全部改用 `titleText`，不再为 `muted` 灰字
+- 同步清理因不再使用而多余的 `Volume2`/`VolumeX` 导入（lucide-react）
+- 默认变体（视频创作台页面）的音频控件本就用 `AudioGenerationSetting`（`SwitchRow`），未改动
+
+### 验证步骤
+
+1. 画布新建视频节点（模型支持音频生成），打开设置弹窗，确认「生成音频」的标题字号（约 10.8px 小灰字）与「生成时长」「输出」等 section 标题完全一致，不再偏大
+2. 确认「生成音频」是「标题 + 滑动开关」单行、无任何外框，且开关水平位置居中于上方滑块的正下方（两行对称）
+3. 确认「生成时长」标题与进度条在同一行（标题在左、滑块 +「Xs」数值在右），且标题字号与「生成音频」等 section 标题一致；滑块约 200px，4-30s 全范围拖动手感正常
+4. 切换开关，确认 `videoGenerateAudio` 仍正确写入 true/false，生成时请求体仍按模型能力带 `video_generate_audio`（行为不变）
+5. 模型不支持音频生成时，「生成音频」section 不渲染（门控未变）；音频受限时标题下方出现纯文字提示
+6. 「视频能力」（全能参考/首尾帧）、「视频生成方式」、「选择分辨率」三处分段控件样式完全一致：同样的 `segmentBg` 底槽（浅 `#f2f0ed` / 深 `#282623`）、选中块 `segmentActive`（浅 `#f9f8f6` / 深 `#1f1d1a`）、无边框仅阴影、同字号；切换视频能力/模式/分辨率功能均正常
+7. 切到首尾帧后不再出现"请在输入框中分别上传或选择首帧、尾帧图片"提示；上传首/尾帧图片功能正常
+8. 深色/浅色主题下开关与标题文字清晰可读
+9. 弹窗内所有小标题（视频能力/视频生成方式/生成时长/生成音频/选择分辨率/选择比例/输出/生成数量/角色朝向参考/多镜头分镜/分镜模式/分镜提示词/声音/格式/语速/声音指令）：深色模式纯白、浅色模式纯黑，不再偏灰；图片节点、音频节点弹窗标题同步生效

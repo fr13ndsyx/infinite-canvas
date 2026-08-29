@@ -5,7 +5,7 @@ import { ArrowUp, LoaderCircle } from "lucide-react";
 import { Button } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
-import { defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { defaultConfig, findModelCapability, resolveSupportsFirstFrame, resolveSupportsLastFrame, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -14,7 +14,7 @@ import { CanvasCameraControl } from "./canvas-camera-control";
 import { CanvasPromptLibrary } from "./canvas-prompt-library";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import { CanvasPromptChipInput } from "./canvas-prompt-chip-input";
-import { CanvasNodeImageUpload, type CanvasNodeStackItem } from "./canvas-node-image-upload";
+import { CanvasNodeImageUpload, type CanvasFrameSlot, type CanvasNodeStackItem } from "./canvas-node-image-upload";
 import { CanvasVideoSettingsPopover, type CanvasVideoFrameOption, type CanvasVideoResourceOption } from "./canvas-video-settings-popover";
 import { CanvasVideoSizePopover } from "./canvas-video-size-popover";
 import { CanvasNodeType, type CanvasGenerationMode, type CanvasNodeData } from "../types";
@@ -36,19 +36,30 @@ type CanvasNodePromptPanelProps = {
     videoResourceOptions?: CanvasVideoResourceOption[];
     stackItems?: CanvasNodeStackItem[];
     onUploadImage?: (file: File) => void;
+    onUploadFrame?: (slot: CanvasFrameSlot, file: File) => void;
+    onSelectFrame?: (slot: CanvasFrameSlot, nodeId: string) => void;
+    onRemoveFrame?: (slot: CanvasFrameSlot) => void;
+    onSwapFrames?: () => void;
     onRemoveItem?: (item: CanvasNodeStackItem) => void;
     onImageSettingsOpenChange?: (open: boolean) => void;
 };
 
-export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, mentionReferences = [], videoFrameOptions = [], videoResourceOptions = [], stackItems = [], onUploadImage, onRemoveItem, onImageSettingsOpenChange }: CanvasNodePromptPanelProps) {
+export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, mentionReferences = [], videoFrameOptions = [], videoResourceOptions = [], stackItems = [], onUploadImage, onUploadFrame, onSelectFrame, onRemoveFrame, onSwapFrames, onRemoveItem, onImageSettingsOpenChange }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
     const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const mode = defaultMode(node.type);
     const config = buildNodeConfig(globalConfig, node, mode);
+    const videoCapability = mode === "video" ? findModelCapability(config, config.model || config.videoModel) : undefined;
+    const supportsFirstFrame = resolveSupportsFirstFrame(videoCapability) === true;
+    const supportsLastFrame = resolveSupportsLastFrame(videoCapability) === true;
+    const frameMode = mode === "video" && node.metadata?.klingActiveTab === "frames" && (supportsFirstFrame || supportsLastFrame);
+    const firstFrame = stackItems.find((item) => item.nodeId === node.metadata?.firstFrameNodeId && item.kind === "image");
+    const lastFrame = stackItems.find((item) => item.nodeId === node.metadata?.lastFrameNodeId && item.kind === "image");
     const isPanorama = isPanoramaNodeType(node.type);
     const hasUpload = mode !== "audio" && Boolean(onUploadImage);
+    const uploadInset = frameMode ? (supportsFirstFrame && supportsLastFrame ? 164 : 84) : hasUpload ? 80 : 0;
     const hasTextContent = node.type === CanvasNodeType.Text && Boolean(node.metadata?.content?.trim());
     const hasImageContent = isCanvasImageNodeType(node.type) && Boolean(node.metadata?.content);
     const sourcePrompt = isPanorama ? node.metadata?.panoramaSourcePrompt || "" : node.metadata?.prompt || "";
@@ -58,6 +69,13 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     useEffect(() => {
         setPrompt(sourcePrompt);
     }, [node.id, sourcePrompt]);
+
+    useEffect(() => {
+        if (!frameMode || !onSelectFrame || !videoFrameOptions.length) return;
+        const connectedImageIds = videoFrameOptions.map((option) => option.nodeId).filter(Boolean);
+        if (!node.metadata?.firstFrameNodeId && connectedImageIds[0]) onSelectFrame("first", connectedImageIds[0]);
+        if (supportsLastFrame && !node.metadata?.lastFrameNodeId && connectedImageIds[1]) onSelectFrame("last", connectedImageIds[1]);
+    }, [frameMode, node.id, node.metadata?.firstFrameNodeId, node.metadata?.lastFrameNodeId, onSelectFrame, supportsLastFrame, videoFrameOptions]);
 
     const updatePrompt = (value: string) => {
         setPrompt(value);
@@ -82,16 +100,16 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             onPointerDown={(event) => event.stopPropagation()}
             onWheel={(event) => event.stopPropagation()}
         >
-            {hasUpload ? <CanvasNodeImageUpload items={stackItems} onUpload={onUploadImage!} onRemove={onRemoveItem} /> : null}
+            {hasUpload ? frameMode ? <CanvasNodeImageUpload items={[]} variant="video-frames" firstFrame={firstFrame} lastFrame={lastFrame} showFirstFrame={supportsFirstFrame} showLastFrame={supportsLastFrame} onUploadFrame={onUploadFrame} onRemoveFrame={onRemoveFrame} onSwapFrames={onSwapFrames} /> : <CanvasNodeImageUpload items={stackItems} onUpload={onUploadImage!} onRemove={onRemoveItem} /> : null}
             <CanvasPromptChipInput
                 value={prompt}
                 references={mentionReferences}
                 onChange={updatePrompt}
                 onSubmit={submit}
                 className="thin-scrollbar h-40 w-full resize-none rounded-xl px-3 py-2 text-sm leading-5 outline-none"
-                style={{ background: "transparent", color: theme.node.text, paddingLeft: hasUpload ? 80 : undefined }}
+                style={{ background: "transparent", color: theme.node.text, paddingLeft: uploadInset || undefined }}
                 placeholder={isPanorama ? "描述想生成的全景，或上传/连接图片作为参考" : promptPlaceholder(mode, hasImageContent, hasTextContent)}
-                placeholderIndent={hasUpload ? 68 : 0}
+                placeholderIndent={uploadInset ? uploadInset - 12 : 0}
             />
 
             <div className="canvas-composer-bar mt-2 flex min-w-0 items-center gap-1 text-[10.8px]" style={{ fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}>

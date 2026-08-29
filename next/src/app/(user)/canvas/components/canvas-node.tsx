@@ -639,10 +639,8 @@ function PanoramaNodeContent(props: NodeContentRendererProps) {
 function EmptyImageContent({ node, theme, isBatchRoot, batchCount, batchExpanded, batchOpening, batchRecovering, onToggleBatch }: NodeContentRendererProps) {
     const content = (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.placeholder }}>
-            <div className="flex size-14 items-center justify-center rounded-2xl" style={{ background: theme.toolbar.activeBg }}>
-                <ImageIcon className="size-6 opacity-30" />
-            </div>
-            <span className="text-[10px] tracking-[0.18em] opacity-50">{node.type === CanvasNodeType.Panorama ? "空全景图节点" : "空图片节点"}</span>
+            <ImageIcon className="size-7" style={{ color: theme.node.muted }} />
+            <span className="text-sm">{node.type === CanvasNodeType.Panorama ? "空全景图节点" : "空图片节点"}</span>
         </div>
     );
     if (isBatchRoot)
@@ -658,7 +656,7 @@ function VideoNodeContent({ node, theme }: NodeContentRendererProps) {
     if (!node.metadata?.content)
         return (
             <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.placeholder }}>
-                <Video className="size-7 opacity-35" />
+                <Video className="size-7" style={{ color: theme.node.muted }} />
                 <span className="text-sm">空视频节点</span>
             </div>
         );
@@ -669,7 +667,7 @@ function AudioNodeContent({ node, theme }: NodeContentRendererProps) {
     if (!node.metadata?.content)
         return (
             <div className="flex h-full w-full flex-col items-center justify-center gap-2" style={{ color: theme.node.placeholder }}>
-                <Music2 className="size-7 opacity-35" />
+                <Music2 className="size-7" style={{ color: theme.node.muted }} />
                 <span className="text-sm">空音频节点</span>
             </div>
         );

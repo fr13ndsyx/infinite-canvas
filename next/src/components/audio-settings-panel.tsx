@@ -27,7 +27,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-lg font-semibold">音频设置</div> : null}
-                <CanvasSection title="声音">
+                <CanvasSection title="声音" theme={theme}>
                     <div className="grid grid-cols-4 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                         {audioVoiceOptions.map((item) => {
                             const active = voice === item.value;
@@ -46,7 +46,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         })}
                     </div>
                 </CanvasSection>
-                <CanvasSection title="格式">
+                <CanvasSection title="格式" theme={theme}>
                     <div className="grid grid-cols-3 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                         {audioFormatOptions.map((item) => {
                             const active = format === item.value;
@@ -65,7 +65,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         })}
                     </div>
                 </CanvasSection>
-                <CanvasSection title="语速">
+                <CanvasSection title="语速" theme={theme}>
                     <div className="flex min-h-[44px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                         {speedOptions.map((value) => {
                             const active = speed === value;
@@ -96,7 +96,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                         onMouseDown={(event) => event.stopPropagation()}
                     />
                 </CanvasSection>
-                <CanvasSection title="声音指令">
+                <CanvasSection title="声音指令" theme={theme}>
                     <textarea
                         value={config.audioInstructions || ""}
                         placeholder="例如：自然、温暖、适合旁白。"

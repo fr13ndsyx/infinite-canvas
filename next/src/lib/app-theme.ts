@@ -73,6 +73,8 @@ export function getAntThemeConfig(dark: boolean): ThemeConfig {
                 rowSelectedBg: color.tableSelectedBg,
                 rowSelectedHoverBg: color.tableSelectedHoverBg,
             },
+            // darkAlgorithm 会把 Tooltip 背景派生为浅灰，与深色主题冲突，固定为深底浅字
+            ...(dark ? { Tooltip: { colorBgSpotlight: "#262626", colorTextLightSolid: "#f5f5f4" } } : {}),
         },
     };
 }

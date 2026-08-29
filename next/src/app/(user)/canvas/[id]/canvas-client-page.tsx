@@ -1566,7 +1566,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
     }, [appendImportedImageNode, message]);
 
     const uploadNodeInputImage = useCallback(
-        async (targetNodeId: string, file: File) => {
+        async (targetNodeId: string, file: File, frameSlot?: "first" | "last") => {
             const target = nodesRef.current.find((node) => node.id === targetNodeId);
             if (!target || !file.type.startsWith("image/")) return;
             const hideLoading = message.loading("正在上传图片...", 0);
@@ -1574,7 +1574,8 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                 const image = await uploadImage(file);
                 const nextSize = fitNodeSize(image.width, image.height);
                 const id = `image-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-                setNodes((prev) => [...prev, { id, type: CanvasNodeType.Image, title: file.name, position: { x: target.position.x - nextSize.width - 80, y: target.position.y }, width: nextSize.width, height: nextSize.height, metadata: { ...imageMetadata(image), inputUploadFor: targetNodeId } }]);
+                const imageNode: CanvasNodeData = { id, type: CanvasNodeType.Image, title: file.name, position: { x: target.position.x - nextSize.width - 80, y: target.position.y }, width: nextSize.width, height: nextSize.height, metadata: { ...imageMetadata(image), inputUploadFor: targetNodeId } };
+                setNodes((prev) => [...prev.map((node) => node.id === targetNodeId && frameSlot ? { ...node, metadata: { ...node.metadata, [frameSlot === "first" ? "firstFrameNodeId" : "lastFrameNodeId"]: id, klingActiveTab: "frames" } } : node), imageNode]);
                 setConnections((prev) => (prev.some((conn) => conn.fromNodeId === id && conn.toNodeId === targetNodeId) ? prev : [...prev, { id: nanoid(), fromNodeId: id, toNodeId: targetNodeId }]));
             } catch (error) {
                 console.error("Upload node input image failed:", error);
@@ -1900,6 +1901,27 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
         },
         [deleteNodes, handleConfigNodeChange, handleNodePromptChange],
     );
+
+    const handleFrameSelection = useCallback((targetNodeId: string, slot: "first" | "last", nodeId: string) => {
+        handleConfigNodeChange(targetNodeId, slot === "first" ? { firstFrameNodeId: nodeId || undefined, klingActiveTab: "frames" } : { lastFrameNodeId: nodeId || undefined, klingActiveTab: "frames" });
+    }, [handleConfigNodeChange]);
+
+    const handleFrameRemove = useCallback((targetNodeId: string, slot: "first" | "last") => {
+        const target = nodesRef.current.find((node) => node.id === targetNodeId);
+        if (!target) return;
+        const frameNodeId = slot === "first" ? target.metadata?.firstFrameNodeId : target.metadata?.lastFrameNodeId;
+        if (frameNodeId) {
+            const item = stackItemsByNodeId.get(targetNodeId)?.find((candidate) => candidate.nodeId === frameNodeId);
+            if (item) handleRemoveStackItem(targetNodeId, item);
+        }
+        handleConfigNodeChange(targetNodeId, slot === "first" ? { firstFrameNodeId: undefined } : { lastFrameNodeId: undefined });
+    }, [handleConfigNodeChange, handleRemoveStackItem, stackItemsByNodeId]);
+
+    const handleFrameSwap = useCallback((targetNodeId: string) => {
+        const target = nodesRef.current.find((node) => node.id === targetNodeId);
+        if (!target) return;
+        handleConfigNodeChange(targetNodeId, { firstFrameNodeId: target.metadata?.lastFrameNodeId, lastFrameNodeId: target.metadata?.firstFrameNodeId, klingActiveTab: "frames" });
+    }, [handleConfigNodeChange]);
 
     const handleDirectorProjectChange = useCallback(
         (project: unknown) => {
@@ -3796,6 +3818,10 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                                         videoResourceOptions={videoResourceOptionsByNodeId.get(panelNode.id) || []}
                                         stackItems={stackItemsByNodeId.get(panelNode.id) || []}
                                         onUploadImage={(file) => void uploadNodeInputImage(panelNode.id, file)}
+                                        onUploadFrame={(slot, file) => void uploadNodeInputImage(panelNode.id, file, slot)}
+                                        onSelectFrame={(slot, nodeId) => handleFrameSelection(panelNode.id, slot, nodeId)}
+                                        onRemoveFrame={(slot) => handleFrameRemove(panelNode.id, slot)}
+                                        onSwapFrames={() => handleFrameSwap(panelNode.id)}
                                         onRemoveItem={(item) => handleRemoveStackItem(panelNode.id, item)}
                                         onPromptChange={handleNodePromptChange}
                                         onConfigChange={handleConfigNodeChange}

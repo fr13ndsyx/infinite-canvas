@@ -93,7 +93,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                 {showSize || panorama ? (
                     <>
                         {tierOptions.length >= 1 ? (
-                            <CanvasSection title="选择分辨率">
+                            <CanvasSection title="选择分辨率" theme={theme}>
                                 <div className="flex min-h-[44px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                                     {tierOptions.map((item) => {
                                         const active = (panorama ? panoramaTier : effectiveTier) === item.value;
@@ -114,7 +114,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                             </CanvasSection>
                         ) : null}
                         {showSize ? (
-                            <CanvasSection title="选择比例">
+                            <CanvasSection title="选择比例" theme={theme}>
                                 <div className="grid grid-cols-4 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
                                     {visibleAspects.map((item) => {
                                         const isSmart = item.value === "auto";
@@ -141,7 +141,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                     </>
                 ) : null}
                 {showCount ? (
-                    <CanvasSection title="生成数量">
+                    <CanvasSection title="生成数量" theme={theme}>
                         <div className="flex items-center justify-between gap-3 px-1">
                             <span className="text-[10.8px] tabular-nums" style={{ color: theme.node.text }}>{count} 张</span>
                         </div>

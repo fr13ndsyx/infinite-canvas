@@ -51,7 +51,7 @@ export const NODE_SPECS = {
     },
     [CanvasNodeType.Video]: {
         ...NODE_DEFAULT_SIZE[CanvasNodeType.Video],
-        metadata: { content: "", status: "idle" },
+        metadata: { content: "", status: "idle", klingActiveTab: "reference" },
     },
     [CanvasNodeType.Audio]: {
         ...NODE_DEFAULT_SIZE[CanvasNodeType.Audio],

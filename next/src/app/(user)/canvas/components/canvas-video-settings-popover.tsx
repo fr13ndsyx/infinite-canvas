@@ -1,15 +1,15 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { FileText, Image as ImageIcon, Music2, Plus, Settings2, SlidersHorizontal, Trash2, Video as VideoIcon, Volume2, VolumeX, X } from "lucide-react";
 import { Button, Switch } from "antd";
 
-import { VideoSettingsPanel, videoResolutionLabel, videoSecondsLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
+import { VideoSettingsPanel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { boolConfig } from "@/lib/seedance-video";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { findModelCapability, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveVideoModes, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
+import { findModelCapability, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveVideoPanelType, resolveVideoProvider, type AiConfig } from "@/stores/use-config-store";
 import type { CanvasNodeMetadata } from "../types";
 import { PopoverToggleIndicator } from "@/components/popover-toggle-indicator";
 import { PopoverArrow } from "@/components/popover-arrow";
@@ -31,21 +31,16 @@ type CanvasVideoSettingsPopoverProps = {
     visualOnly?: boolean;
 };
 
-export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOptions = [], resourceOptions = [], metadata, firstFrameNodeId, lastFrameNodeId, onFrameChange, onMetadataChange, placement = "topLeft", visualOnly = false }: CanvasVideoSettingsPopoverProps) {
+export function CanvasVideoSettingsPopover({ config, onConfigChange, resourceOptions = [], metadata, onMetadataChange, placement = "topLeft", visualOnly = false }: CanvasVideoSettingsPopoverProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const model = config.model || config.videoModel || "";
     const cap = findModelCapability(config, model);
-    const modes = resolveVideoModes(cap);
-    const currentMode = modes.length > 0 ? (modes.some((item) => item.value === config.videoMode) ? config.videoMode : modes[0].value) : "";
-    const modeLabel = modes.find((item) => item.value === currentMode)?.label || "";
-    const audioOn = boolConfig(config.videoGenerateAudio, false);
     const supportsFirstFrame = resolveSupportsFirstFrame(cap) === true;
     const supportsLastFrame = resolveSupportsLastFrame(cap) === true;
     const hasFrames = !visualOnly && (supportsFirstFrame || supportsLastFrame);
     const showFrameOrReference = hasFrames;
     const activeTab: "frames" | "reference" = hasFrames && metadata?.klingActiveTab === "frames" ? "frames" : "reference";
     const setActiveTab = (tab: "frames" | "reference") => { onMetadataChange?.({ klingActiveTab: tab }); };
-    const ratioLabel = (value: string) => (value === "auto" || value === "adaptive" ? "智能比例" : videoSizeRatioLabel(value));
     const buttonRef = useRef<HTMLSpanElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
@@ -79,7 +74,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOption
         };
     }, [open]);
 
-    const panel = open && buttonRect ? <VideoSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} frameOptions={frameOptions} resourceOptions={resourceOptions} metadata={metadata} firstFrameNodeId={firstFrameNodeId} lastFrameNodeId={lastFrameNodeId} onFrameChange={onFrameChange} onMetadataChange={onMetadataChange} visualOnly={visualOnly} activeTab={activeTab} setActiveTab={setActiveTab} hasFrames={hasFrames} showFrameOrReference={showFrameOrReference} supportsFirstFrame={supportsFirstFrame} supportsLastFrame={supportsLastFrame} /> : null;
+    const panel = open && buttonRect ? <VideoSettingsPortal buttonRect={buttonRect} panelRef={panelRef} placement={placement} theme={theme} config={config} onConfigChange={onConfigChange} resourceOptions={resourceOptions} metadata={metadata} onMetadataChange={onMetadataChange} visualOnly={visualOnly} activeTab={activeTab} setActiveTab={setActiveTab} hasFrames={hasFrames} showFrameOrReference={showFrameOrReference} supportsFirstFrame={supportsFirstFrame} supportsLastFrame={supportsLastFrame} /> : null;
 
     return (
         <>
@@ -95,7 +90,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOption
                     onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                 >
                     <span className="inline-flex items-center whitespace-nowrap">
-                        视频模式
+                        {showFrameOrReference && activeTab === "frames" ? (supportsFirstFrame && supportsLastFrame ? "首尾帧" : "首帧") : "全能参考"}
                         <PopoverToggleIndicator open={open} />
                     </span>
                 </Button>
@@ -105,7 +100,7 @@ export function CanvasVideoSettingsPopover({ config, onConfigChange, frameOption
     );
 }
 
-function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, onConfigChange, frameOptions, resourceOptions, metadata, firstFrameNodeId, lastFrameNodeId, onFrameChange, onMetadataChange, visualOnly, activeTab, setActiveTab, hasFrames, showFrameOrReference, supportsFirstFrame, supportsLastFrame }: { buttonRect: DOMRect; panelRef: RefObject<HTMLDivElement | null>; placement: CanvasVideoSettingsPopoverProps["placement"]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; config: AiConfig; onConfigChange: CanvasVideoSettingsPopoverProps["onConfigChange"]; frameOptions: CanvasVideoFrameOption[]; resourceOptions: CanvasVideoResourceOption[]; metadata?: CanvasNodeMetadata; firstFrameNodeId?: string; lastFrameNodeId?: string; onFrameChange?: CanvasVideoSettingsPopoverProps["onFrameChange"]; onMetadataChange?: CanvasVideoSettingsPopoverProps["onMetadataChange"]; visualOnly: boolean; activeTab: "frames" | "reference"; setActiveTab: (tab: "frames" | "reference") => void; hasFrames: boolean; showFrameOrReference: boolean; supportsFirstFrame: boolean; supportsLastFrame: boolean }) {
+function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, onConfigChange, resourceOptions, metadata, onMetadataChange, visualOnly, activeTab, setActiveTab, hasFrames, showFrameOrReference, supportsFirstFrame, supportsLastFrame }: { buttonRect: DOMRect; panelRef: RefObject<HTMLDivElement | null>; placement: CanvasVideoSettingsPopoverProps["placement"]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; config: AiConfig; onConfigChange: CanvasVideoSettingsPopoverProps["onConfigChange"]; resourceOptions: CanvasVideoResourceOption[]; metadata?: CanvasNodeMetadata; onMetadataChange?: CanvasVideoSettingsPopoverProps["onMetadataChange"]; visualOnly: boolean; activeTab: "frames" | "reference"; setActiveTab: (tab: "frames" | "reference") => void; hasFrames: boolean; showFrameOrReference: boolean; supportsFirstFrame: boolean; supportsLastFrame: boolean }) {
     const width = 356;
     const gap = 8;
     const margin = 12;
@@ -118,14 +113,7 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
     const provider = resolveVideoProvider(cap);
     const supportsMultiShot = resolveSupportsMultiShot(cap) === true;
     const supportsMotionControl = resolveSupportsMotionControl(cap) === true;
-    // 首尾帧存储格式：kling-v3 请求体使用 klingImageNodeIds 元数据；其他使用 firstFrameNodeId/lastFrameNodeId
-    const useKlingFrameStorage = panelType === "kling-v3";
     const useKlingMultiShotBehavior = panelType === "kling-v3" && provider === "kie";
-    const optionIds = useMemo(() => new Set(frameOptions.map((item) => item.nodeId)), [frameOptions]);
-    const firstFrameValue = firstFrameNodeId && optionIds.has(firstFrameNodeId) ? firstFrameNodeId : "";
-    const lastFrameValue = lastFrameNodeId && optionIds.has(lastFrameNodeId) ? lastFrameNodeId : "";
-    const imageNodeIds = normalizeNodeIds(metadata?.klingImageNodeIds, 2);
-    const imageOptions = resourceOptions.filter((item) => item.kind === "image");
 
     return createPortal(
         <>
@@ -133,33 +121,13 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
             <div className="space-y-4">
                 {showFrameOrReference ? (
                     <>
-                        <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
-                            <button type="button" className="flex flex-1 items-center justify-center rounded-md py-1 text-[10.8px] transition hover:opacity-80" style={{ background: activeTab === "frames" ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: activeTab === "frames" ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }} onMouseDown={(event) => event.stopPropagation()} onClick={() => setActiveTab("frames")}>首尾帧</button>
-                            <button type="button" className="flex flex-1 items-center justify-center rounded-md py-1 text-[10.8px] transition hover:opacity-80" style={{ background: activeTab === "reference" ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: activeTab === "reference" ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }} onMouseDown={(event) => event.stopPropagation()} onClick={() => setActiveTab("reference")}>全能参考</button>
-                        </div>
-                        {activeTab === "frames" && hasFrames ? (
-                            <div className="flex items-stretch gap-2">
-                                {supportsFirstFrame ? (
-                                    <div className="flex-1" title="首帧">
-                                        {useKlingFrameStorage ? (
-                                            <ResourceSinglePicker value={imageNodeIds[0] || ""} options={imageOptions} placeholder="首帧" emptyText="暂无已连接图片" theme={theme} onChange={(value) => onMetadataChange?.({ klingImageNodeIds: [value, imageNodeIds[1]].filter(Boolean) })} />
-                                        ) : (
-                                            <FrameReferencePicker value={firstFrameValue} options={frameOptions} theme={theme} onChange={(value) => onFrameChange?.({ firstFrameNodeId: value || undefined })} />
-                                        )}
-                                    </div>
-                                ) : null}
-                                {supportsFirstFrame && supportsLastFrame ? <div className="flex items-center text-sm opacity-40">+</div> : null}
-                                {supportsLastFrame ? (
-                                    <div className="flex-1" title="尾帧">
-                                        {useKlingFrameStorage ? (
-                                            <ResourceSinglePicker value={imageNodeIds[1] || ""} options={imageOptions} placeholder="尾帧" emptyText="暂无已连接图片" theme={theme} onChange={(value) => onMetadataChange?.({ klingImageNodeIds: [imageNodeIds[0], value].filter(Boolean) })} />
-                                        ) : (
-                                            <FrameReferencePicker value={lastFrameValue} options={frameOptions} theme={theme} onChange={(value) => onFrameChange?.({ lastFrameNodeId: value || undefined })} />
-                                        )}
-                                    </div>
-                                ) : null}
+                        <div className="grid gap-2">
+                            <span className="text-[10.8px] font-medium" style={{ color: theme.node.titleText }}>视频能力</span>
+                            <div className="grid min-h-[52px] grid-cols-2 items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg }}>
+                                <button type="button" aria-pressed={activeTab === "reference"} className="rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80" style={{ background: activeTab === "reference" ? theme.node.segmentActive : "transparent", color: theme.node.text, boxShadow: activeTab === "reference" ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }} onClick={() => setActiveTab("reference")}>全能参考</button>
+                                <button type="button" aria-pressed={activeTab === "frames"} disabled={!hasFrames} className="rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-35" style={{ background: activeTab === "frames" ? theme.node.segmentActive : "transparent", color: theme.node.text, boxShadow: activeTab === "frames" ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }} onClick={() => setActiveTab("frames")}>{supportsFirstFrame && supportsLastFrame ? "首尾帧" : "首帧"}</button>
                             </div>
-                        ) : null}
+                        </div>
                     </>
                 ) : null}
                 {!visualOnly && supportsMotionControl ? <CharacterOrientationSetting value={config.videoCharacterOrientation} theme={theme} onChange={(value) => onConfigChange("videoCharacterOrientation", value)} /> : null}
@@ -176,7 +144,7 @@ function VideoSettingsPortal({ buttonRect, panelRef, placement, theme, config, o
 function CharacterOrientationSetting({ value, theme, onChange }: { value?: string; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onChange: (value: string) => void }) {
     const current = value === "image" ? "image" : "video";
     return (
-        <CanvasSettingGroup title="角色朝向参考" color={theme.node.muted}>
+        <CanvasSettingGroup title="角色朝向参考" color={theme.node.titleText}>
             <div className="grid grid-cols-2 gap-2.5">
                 <OptionPill selected={current === "image"} theme={theme} onClick={() => onChange("image")}>图片</OptionPill>
                 <OptionPill selected={current === "video"} theme={theme} onClick={() => onChange("video")}>视频</OptionPill>
@@ -196,13 +164,13 @@ function AdvancedVideoSettings({ metadata, resourceOptions, theme, supportsMulti
         <>
             {supportsMultiShot ? (
                 <>
-                    <CanvasSettingGroup title="多镜头分镜" color={theme.node.muted}>
+                    <CanvasSettingGroup title="多镜头分镜" color={theme.node.titleText}>
                         <div className="grid gap-1 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                             <SwitchRow label="多镜头分镜" hint="是否启用多镜头分镜模式" checked={multiShot} theme={theme} onChange={(checked) => onMetadataChange?.(useKlingMultiShotBehavior ? { multiShot: String(checked) } : { multiShot: String(checked), shotType: checked ? shotType : "intelligence" })} />
                         </div>
                     </CanvasSettingGroup>
                     {multiShot && !useKlingMultiShotBehavior ? (
-                        <CanvasSettingGroup title="分镜模式" color={theme.node.muted}>
+                        <CanvasSettingGroup title="分镜模式" color={theme.node.titleText}>
                             <div className="grid grid-cols-2 gap-2.5">
                                 <OptionPill selected={shotType === "customize"} theme={theme} onClick={() => onMetadataChange?.({ shotType: "customize" })}>自定义</OptionPill>
                                 <OptionPill selected={shotType === "intelligence"} theme={theme} onClick={() => onMetadataChange?.({ shotType: "intelligence" })}>智能分镜</OptionPill>
@@ -219,7 +187,7 @@ function AdvancedVideoSettings({ metadata, resourceOptions, theme, supportsMulti
 function KlingMultiPromptSection({ items, options, theme, onChange }: { items: { textNodeId?: string; duration?: string }[]; options: CanvasVideoResourceOption[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onChange: (items: { textNodeId?: string; duration?: string }[]) => void }) {
     const update = (index: number, patch: Partial<{ textNodeId?: string; duration?: string }>) => onChange(items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
     return (
-        <CanvasSettingGroup title="分镜提示词" color={theme.node.muted}>
+        <CanvasSettingGroup title="分镜提示词" color={theme.node.titleText}>
             <div className="grid gap-2 rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
                 {items.map((item, index) => (
                     <div key={index} className="grid gap-1.5">
@@ -239,13 +207,6 @@ function KlingMultiPromptSection({ items, options, theme, onChange }: { items: {
     );
 }
 
-function FrameReferencePicker({ label, value, options, theme, onChange }: { label?: string; value: string; options: CanvasVideoFrameOption[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onChange: (value: string) => void }) {
-    const [open, setOpen] = useState(false);
-    const selected = options.find((item) => item.nodeId === value);
-    const items = [{ nodeId: "", label: "不指定" }, ...options];
-    return <div className="relative grid gap-1.5 text-xs" style={{ color: theme.node.muted }}>{label ? <div>{label}</div> : null}<button type="button" className="flex h-12 w-full min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-xl border px-2 text-left transition hover:opacity-90" style={{ background: theme.node.subtleFill, borderColor: open ? theme.toolbar.activeText : theme.node.stroke, color: theme.node.text }} onClick={() => setOpen((current) => !current)}><FramePreview option={selected} /><span className="min-w-0 flex-1 overflow-hidden"><span className="block truncate font-medium">{selected?.label || "不指定"}</span><span className="block truncate opacity-55">{selected ? "已连接图片节点" : options.length ? "点击选择已连接图片" : "暂无已连接图片"}</span></span>{selected ? <ClearButton onClick={() => onChange("")} /> : null}</button>{open ? <PickerMenu items={items} value={value} theme={theme} renderPreview={(item) => <FramePreview option={item.nodeId ? item : undefined} />} renderTitle={(item) => item.label} renderSubtitle={(item) => (item.nodeId ? "已连接图片节点" : "不使用首尾帧图片")} onSelect={(nodeId) => { onChange(nodeId); setOpen(false); }} /> : null}</div>;
-}
-
 function ResourceSinglePicker({ label, value, options, placeholder, emptyText, theme, onChange }: { label?: string; value: string; options: CanvasVideoResourceOption[]; placeholder: string; emptyText: string; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onChange: (value: string) => void }) {
     const [open, setOpen] = useState(false);
     const selected = options.find((item) => item.nodeId === value);
@@ -255,11 +216,6 @@ function ResourceSinglePicker({ label, value, options, placeholder, emptyText, t
 
 function PickerMenu<T extends { nodeId: string }>({ items, value, theme, renderPreview, renderTitle, renderSubtitle, onSelect }: { items: T[]; value: string; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; renderPreview: (item: T) => ReactNode; renderTitle: (item: T) => ReactNode; renderSubtitle: (item: T) => ReactNode; onSelect: (nodeId: string) => void }) {
     return <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[1300] max-h-56 overflow-y-auto rounded-xl border p-1 shadow-2xl backdrop-blur-md" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}>{items.map((item) => { const active = item.nodeId === value; return <button key={item.nodeId || "empty"} type="button" className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition" style={{ background: active ? theme.toolbar.activeBg : "transparent", color: active ? theme.toolbar.activeText : theme.node.text }} onClick={() => onSelect(item.nodeId)}>{renderPreview(item)}<span className="min-w-0 flex-1"><span className="block truncate font-medium">{renderTitle(item)}</span><span className="block truncate opacity-65">{renderSubtitle(item)}</span></span></button>; })}</div>;
-}
-
-function FramePreview({ option }: { option?: CanvasVideoFrameOption }) {
-    if (option?.previewUrl) return <img src={option.previewUrl} alt="" className="size-9 shrink-0 rounded-md object-cover" />;
-    return <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-white/10"><ImageIcon className="size-4 opacity-55" /></span>;
 }
 
 function ResourcePreview({ option, theme, small = false }: { option?: CanvasVideoResourceOption; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; small?: boolean }) {
@@ -296,10 +252,6 @@ function SwitchRow({ label, hint, checked, theme, onChange }: { label: string; h
 
 function normalizeKlingMultiPrompt(value: CanvasNodeMetadata["klingMultiPrompt"] | undefined) {
     return Array.isArray(value) && value.length ? value.map((item) => ({ textNodeId: item.textNodeId || "", duration: item.duration || "1" })) : [{ textNodeId: "", duration: "1" }];
-}
-
-function normalizeNodeIds(value: string[] | undefined, max: number) {
-    return Array.from(new Set(Array.isArray(value) ? value.filter(Boolean) : [])).slice(0, max);
 }
 
 function boolValue(value: string | undefined) {

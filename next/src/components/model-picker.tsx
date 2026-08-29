@@ -194,13 +194,13 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
                             <button
                                 key={option.key}
                                 type="button"
-                                className="group/item flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left outline-none transition"
+                                className={cn("group/item flex w-full gap-2.5 rounded-md px-1.5 py-1.5 text-left outline-none transition", active ? "items-start" : "items-center")}
                                 style={{ color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
                                 onMouseEnter={(event) => { event.currentTarget.style.background = theme.node.subtleFill; }}
                                 onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                                 onClick={(event) => { event.stopPropagation(); onSelect(option.model, option.channelId); }}
                             >
-                                <ModelLabel model={option.model} subtitle={option.description} />
+                                <ModelLabel model={option.model} subtitle={option.description} active={active} />
                                 {active ? <Check className="size-3 shrink-0 opacity-70" /> : null}
                             </button>
                         );
@@ -216,16 +216,21 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
     );
 }
 
-function ModelLabel({ model, subtitle = "" }: { model: string; subtitle?: string }) {
+function ModelLabel({ model, subtitle = "", active = false }: { model: string; subtitle?: string; active?: boolean }) {
     return (
         <span className="flex min-w-0 flex-1 items-center gap-2">
             <ModelIcon model={model} size="size-[30px]" />
-            <span className="flex h-[34px] min-w-0 flex-1 flex-col overflow-hidden">
-                <span className="flex flex-col translate-y-[8px] transition-transform duration-200 ease-out group-hover/item:translate-y-0">
-                    <span className="truncate text-[16px] font-medium leading-[18px]">{model}</span>
-                    <span className="truncate text-[12px] leading-[14px] opacity-0 transition-opacity duration-200 ease-out group-hover/item:opacity-55">{subtitle}</span>
+            {active ? (
+                <span className="min-w-0 flex-1 py-0.5">
+                    <span className="block whitespace-normal break-words text-[16px] font-medium leading-[20px]">{model}</span>
+                    {subtitle.trim() ? <span className="mt-0.5 block whitespace-normal break-words text-[12px] leading-[14px] opacity-55">{subtitle}</span> : null}
                 </span>
-            </span>
+            ) : (
+                <span className="relative block h-[36px] min-w-0 flex-1 overflow-hidden">
+                    <span className="absolute inset-x-0 top-2 truncate text-[16px] font-medium leading-[20px] transition-[top] duration-200 ease-out group-hover/item:top-0 group-focus-visible/item:top-0">{model}</span>
+                    <span className="absolute inset-x-0 top-[22px] truncate text-[12px] leading-[14px] opacity-0 transition-[top,opacity] duration-200 ease-out group-hover/item:top-5 group-hover/item:opacity-55 group-focus-visible/item:top-5 group-focus-visible/item:opacity-55">{subtitle}</span>
+                </span>
+            )}
         </span>
     );
 }
