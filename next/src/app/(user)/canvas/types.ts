@@ -37,6 +37,7 @@ export type CanvasNodeMetadata = {
     groupId?: string;
     composerContent?: string;
     prompt?: string;
+    inputPrompt?: string;
     excludeUpstreamText?: boolean;
     status?: CanvasNodeStatus;
     errorDetails?: string;

@@ -44,7 +44,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", acco
 
     return (
         <div className="inline-flex shrink-0 items-center gap-1">
-            {configButtonVisible && !user ? (
+            {configButtonVisible ? (
                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={() => openConfigDialog(false)} aria-label="配置" title="配置">
                     <Settings2 className="size-4" />
                 </button>
@@ -63,7 +63,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", acco
                         onOpenChange={onAccountOpenChange}
                         trigger={["click"]}
                         zIndex={1200}
-                        placement="bottom"
+                        placement="bottomRight"
                         align={{ offset: [0, 14], overflow: { adjustX: 1, adjustY: 1 } }}
                         getPopupContainer={getPopupContainer}
                         dropdownRender={() => (

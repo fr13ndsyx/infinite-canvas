@@ -53,7 +53,7 @@ export function buildNodeGenerationContext(nodeId: string, nodes: CanvasNodeData
     const effectiveReferenceImages = referenceImages.filter((image) => !frameNodeIds.has(image.id));
 
     return {
-        prompt: upstreamText ? `${prompt}\n\n${upstreamText}` : prompt,
+        prompt: upstreamText ? (prompt.trim() ? `${prompt}\n\n${upstreamText}` : upstreamText) : prompt,
         referenceImages: [...advanced.klingImageReferences, ...effectiveReferenceImages],
         firstFrame: frameReferences.firstFrame,
         lastFrame: frameReferences.lastFrame,

@@ -168,22 +168,22 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
     const provider = resolveVideoProvider(cap);
     const size = normalizeVideoSize(config.size);
     if (isAgnesVideoModel(model)) {
-        const references = input.references;
-        const inputReferences = await Promise.all(references.slice(0, 7).map(imageToAgnesReference));
-        const dimensions = size ? parseVideoDimensions(size) : null;
-        const frameRate = agnesFrameRate(config.videoSeconds);
+        // Agnes 视频协议：seconds(字符串4-12) + size 档位(720P/960P/2K) + aspect_ratio 比例；首尾帧走 mode=keyframe，参考图走 mode=reference + images
+        const firstFrameUrl = input.firstFrame ? await imageToAgnesReference(input.firstFrame) : "";
+        const lastFrameUrl = input.lastFrame ? await imageToAgnesReference(input.lastFrame) : "";
+        const inputReferences = await Promise.all(input.references.slice(0, 5).map(imageToAgnesReference));
+        const ratio = normalizeSeedanceRatio(size || "");
         const body: Record<string, unknown> = {
             model,
             prompt,
-            num_frames: agnesNumFrames(config.videoSeconds, frameRate),
-            frame_rate: frameRate,
+            mode: firstFrameUrl || lastFrameUrl ? "keyframe" : inputReferences.length ? "reference" : "text",
+            seconds: String(Math.max(4, Math.min(12, Number(normalizeVideoSeconds(config.videoSeconds))))),
+            size: agnesSizeTier(config.vquality, model),
+            aspect_ratio: ratio === "adaptive" ? "16:9" : ratio,
         };
-        if (dimensions) {
-            body.width = dimensions.width;
-            body.height = dimensions.height;
-        }
-        if (inputReferences.length === 1) body.image = inputReferences[0];
-        if (inputReferences.length > 1) body.extra_body = { image: inputReferences, mode: "keyframes" };
+        if (firstFrameUrl) body.first_frame = firstFrameUrl;
+        if (lastFrameUrl) body.last_frame = lastFrameUrl;
+        if (inputReferences.length) body.images = inputReferences;
         return body;
     }
 
@@ -329,7 +329,50 @@ async function imageToAgnesReference(image: ReferenceImage) {
         const publicUrl = publicHttpUrl(url);
         if (publicUrl) return publicUrl;
     }
-    return imageToDataUrl(image);
+    // Agnes 仅接受公网 http(s) URL 或 Data URI Base64；base64 有体积/分辨率上限，
+    // ComfyUI 4K 级大图会被拒（media must be a public http(s) URL or valid base64 data），需降采样重编码
+    const dataUrl = await imageToDataUrl(image);
+    const dataUri = dataUrl.startsWith("data:") ? dataUrl : `data:image/png;base64,${dataUrl}`;
+    if (dataUri.length <= agnesReferenceMaxBase64Chars) return dataUri;
+    return await compressAgnesReference(dataUri);
+}
+
+// 目标 base64 长度 ~4M 字符（约 3MB 原始数据），远低于常见媒体接口上限
+const agnesReferenceMaxBase64Chars = 4_000_000;
+
+async function compressAgnesReference(dataUrl: string) {
+    for (const maxSide of [2048, 1536, 1024]) {
+        try {
+            const compressed = await downscaleDataUrl(dataUrl, maxSide);
+            if (compressed.length <= agnesReferenceMaxBase64Chars) return compressed;
+        } catch {
+            break;
+        }
+    }
+    return dataUrl;
+}
+
+function downscaleDataUrl(dataUrl: string, maxSide: number) {
+    return new Promise<string>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+            const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+                reject(new Error("canvas context unavailable"));
+                return;
+            }
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.9));
+        };
+        image.onerror = () => reject(new Error("reference image decode failed"));
+        image.src = dataUrl;
+    });
 }
 
 function publicHttpUrl(value?: string) {
@@ -337,22 +380,32 @@ function publicHttpUrl(value?: string) {
     try {
         const url = new URL(value, typeof window === "undefined" ? undefined : window.location.origin);
         if (!["http:", "https:"].includes(url.protocol)) return "";
-        if (["localhost", "127.0.0.1", "::1"].includes(url.hostname)) return "";
+        if (isPrivateHttpHost(url.hostname)) return "";
         return url.href;
     } catch {
         return "";
     }
 }
 
-function agnesFrameRate(secondsValue: string) {
-    const seconds = Number(normalizeVideoSeconds(secondsValue));
-    return seconds > 18 ? Math.max(1, Math.floor(440 / seconds)) : 24;
+// 外部 AI 服务抓取不到内网地址（localhost / 私网 IP / .local 等），一律不算公开 URL
+function isPrivateHttpHost(hostname: string) {
+    const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (["localhost", "::1", "0.0.0.0"].includes(host)) return true;
+    if (host.endsWith(".local") || host.endsWith(".lan") || host.endsWith(".internal")) return true;
+    const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+    if (!match) return false;
+    const a = Number(match[1]);
+    const b = Number(match[2]);
+    return a === 10 || a === 127 || a === 0 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31) || (a === 169 && b === 254);
 }
 
-function agnesNumFrames(secondsValue: string, frameRate: number) {
-    const target = Math.round(Number(normalizeVideoSeconds(secondsValue)) * frameRate) + 1;
-    const capped = Math.min(441, Math.max(9, target));
-    return capped - ((capped - 1) % 8);
+function agnesSizeTier(vquality: string | undefined, model: string) {
+    // flash 版硬限制：size 只能 720P，传其它档位直接 400
+    if (model.toLowerCase().includes("flash")) return "720P";
+    const resolution = normalizeVideoResolution(vquality).replace(/p$/i, "");
+    if (resolution === "2k" || resolution === "4k" || resolution === "1080") return "2K";
+    if (resolution === "960") return "960P";
+    return "720P";
 }
 
 function isAgnesVideoModel(model: string) {
@@ -394,11 +447,6 @@ function normalizeVideoSize(value: string) {
     const size = value || "1280x720";
     if (/^\d+x\d+$/.test(size)) return size;
     return ["9:16", "2:3", "3:4"].includes(size) ? "720x1280" : "1280x720";
-}
-
-function parseVideoDimensions(size: string) {
-    const match = size.match(/^(\d+)x(\d+)$/);
-    return match ? { width: Number(match[1]), height: Number(match[2]) } : null;
 }
 
 function normalizeVideoResolution(value: string) {

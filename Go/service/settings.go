@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"unicode/utf8"
 	"time"
 
 	"infinite-canvas/model"
@@ -476,8 +477,8 @@ func normalizeModelInfos(items []model.ModelInfo, availableModels []string) []mo
 		seen[modelName] = true
 		item.Model = modelName
 		item.Description = strings.TrimSpace(item.Description)
-		if len(item.Description) > 30 {
-			item.Description = item.Description[:30]
+		if utf8.RuneCountInString(item.Description) > 30 {
+			item.Description = string([]rune(item.Description)[:30])
 		}
 		result = append(result, item)
 	}

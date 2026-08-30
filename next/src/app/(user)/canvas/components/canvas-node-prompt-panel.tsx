@@ -63,7 +63,9 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const uploadInset = frameMode ? (supportsFirstFrame && supportsLastFrame ? 164 : 84) : hasUpload ? 80 : 0;
     const hasTextContent = node.type === CanvasNodeType.Text && Boolean(node.metadata?.content?.trim());
     const hasImageContent = isCanvasImageNodeType(node.type) && Boolean(node.metadata?.content);
-    const sourcePrompt = isPanorama ? node.metadata?.panoramaSourcePrompt || "" : node.metadata?.prompt || "";
+    // 全景图回显源提示词；文本节点回显节点提示词；图片/视频/音频节点只回显 inputPrompt（用户输入原词），
+    // 不回显 metadata.prompt（含上游文本拼接的生成记录，回显会导致再次生成时上游内容重复）
+    const sourcePrompt = isPanorama ? node.metadata?.panoramaSourcePrompt || "" : node.type === CanvasNodeType.Text ? node.metadata?.prompt || "" : node.metadata?.inputPrompt || "";
     const [prompt, setPrompt] = useState(sourcePrompt);
     const credits = requestCreditCost({ channelMode: config.channelMode, modelCosts, model: config.model, count: 1 });
 
@@ -119,13 +121,16 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
         onPromptChange(node.id, value);
     };
 
-    const canSubmit = Boolean(prompt.trim()) || (isPanorama && (hasImageContent || mentionReferences.length > 0));
+    // 连接了带内容的文本节点时（生成时会自动拼为上游提示词），允许不输入文字直接生成
+    const hasUpstreamText = mode !== "text" && !node.metadata?.excludeUpstreamText && mentionReferences.some((reference) => reference.kind === "text" && reference.nodeId !== node.id && Boolean(reference.text?.trim()));
+    const canSubmit = Boolean(prompt.trim()) || hasUpstreamText || (isPanorama && (hasImageContent || mentionReferences.length > 0));
 
     const submit = () => {
         const text = prompt.trim();
         if (!canSubmit || isRunning) return;
         onGenerate(node.id, mode, text);
-        if (!isPanorama) setPrompt("");
+        // 保留输入内容便于查看与失败后修改（图片/视频/音频节点不再回显 metadata.prompt）
+        if (isPanorama) setPrompt("");
     };
 
     return (

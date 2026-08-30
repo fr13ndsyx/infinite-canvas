@@ -15,7 +15,7 @@ type Config struct {
 	Port                string `env:"PORT" envDefault:"8080"`
 	AdminUsername       string `env:"ADMIN_USERNAME" envDefault:"admin"`
 	AdminPassword       string `env:"ADMIN_PASSWORD" envDefault:"infinite-canvas"`
-	JWTSecret           string `env:"JWT_SECRET" envDefault:"infinite-canvas"`
+	JWTSecret           string `env:"JWT_SECRET"`
 	JWTExpireHours      int    `env:"JWT_EXPIRE_HOURS" envDefault:"168"`
 	StorageDriver       string `env:"STORAGE_DRIVER" envDefault:"sqlite"`
 	DatabaseDSN         string `env:"DATABASE_DSN" envDefault:"data/infinite-canvas.db"`
@@ -31,7 +31,8 @@ func Load() error {
 		return err
 	}
 	normalizeDockerSQLiteDSN("/app/data")
-	if strings.TrimSpace(Cfg.JWTSecret) == "" || Cfg.JWTSecret == "infinite-canvas" {
+	// JWT_SECRET 未设置时每次启动随机生成（令牌不跨重启）；.env 显式配置的值一律尊重，保证重启后登录态不失效
+	if strings.TrimSpace(Cfg.JWTSecret) == "" {
 		secret, err := randomSecret()
 		if err != nil {
 			return err
