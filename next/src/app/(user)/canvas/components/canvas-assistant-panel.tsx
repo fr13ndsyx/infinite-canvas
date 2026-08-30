@@ -19,7 +19,6 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { ImageGenerationPending } from "@/components/image-generation-pending";
-import { ModelPicker } from "@/components/model-picker";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { cn } from "@/lib/utils";
 import { imageToDataUrl } from "@/services/image-storage";
@@ -368,19 +367,7 @@ export function CanvasAssistantPanel({
                         {view === "history" ? (
                             "历史记录"
                         ) : (
-                            <>
-                                <span className="shrink-0">创作 Agent</span>
-                                <span className="min-w-0 flex-1 overflow-hidden">
-                                    <ModelPicker
-                                        config={effectiveConfig}
-                                        capability="text"
-                                        value={agentConfig.textModel || effectiveConfig.textModel || effectiveConfig.model}
-                                        channelId={agentConfig.textChannelId || effectiveConfig.textChannelId}
-                                        placeholder="选择模型"
-                                        onChange={(model, channelId) => onAgentConfigChange({ textModel: model, textChannelId: channelId || "" })}
-                                    />
-                                </span>
-                            </>
+                            <span className="shrink-0">创作 Agent</span>
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
@@ -472,6 +459,8 @@ export function CanvasAssistantPanel({
                             }}
                             onOpenUpload={onOpenUpload}
                             onOpenAssets={onOpenAssets}
+                            showOptions={false}
+                            modelNameMaxWidth={32}
                             onRemoveReference={(id) => {
                                 setRemovedReferenceIds((previous) => new Set(previous).add(id));
                                 if (selectedNodeIds.has(id)) onSelectNodeIds(new Set(Array.from(selectedNodeIds).filter((nodeId) => nodeId !== id)));

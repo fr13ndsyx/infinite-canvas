@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { ChevronRight, Image as ImageIcon, Music2, RefreshCw, Star, Video } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
-import { formatBytes, formatDuration } from "@/lib/image-utils";
+import { formatBytes } from "@/lib/image-utils";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasResourceMentionTextarea } from "./canvas-resource-mention-textarea";
 import { CanvasNodeType, type CanvasNodeData, type Position } from "../types";
@@ -432,7 +432,7 @@ function NodeContent(props: NodeContentRendererProps) {
     if (props.node.type === CanvasNodeType.Group) return null;
     if ((props.node.type === CanvasNodeType.Config || props.node.type === CanvasNodeType.Director) && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.isBatchRoot) return props.node.type === CanvasNodeType.Panorama ? <PanoramaNodeContent {...props} /> : <ImageNodeContent {...props} />;
-    if (props.node.metadata?.status === "loading") return <LoadingContent node={props.node} theme={props.theme} now={props.now} />;
+    if (props.node.metadata?.status === "loading") return <LoadingContent node={props.node} theme={props.theme} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
 
     const Renderer = nodeContentRenderers[props.node.type];
@@ -449,17 +449,7 @@ const nodeContentRenderers = {
     [CanvasNodeType.Director]: EmptyImageContent,
 } satisfies Partial<Record<CanvasNodeType, (props: NodeContentRendererProps) => ReactNode>>;
 
-function LoadingContent({ node, theme, now }: Pick<NodeContentRendererProps, "node" | "theme" | "now">) {
-    const startTimeRef = useRef(Date.now());
-    const [localNow, setLocalNow] = useState(Date.now());
-    useEffect(() => {
-        if (now !== undefined) return;
-        const timer = window.setInterval(() => setLocalNow(Date.now()), 1000);
-        return () => window.clearInterval(timer);
-    }, [now]);
-    const currentNow = now ?? localNow;
-    const startedAt = typeof node.metadata?.startedAt === "number" ? node.metadata.startedAt : startTimeRef.current;
-    const elapsedMs = Math.max(0, currentNow - startedAt);
+function LoadingContent({ node, theme }: Pick<NodeContentRendererProps, "node" | "theme">) {
     const progress = Math.max(0, Math.min(100, Math.round(node.metadata?.progress || 0)));
 
     if (node.type === CanvasNodeType.Video) {
@@ -470,9 +460,6 @@ function LoadingContent({ node, theme, now }: Pick<NodeContentRendererProps, "no
                     <div className="text-sm font-semibold" style={{ color: selectionBlue }}>
                         正在创作 {progress}%
                     </div>
-                    <span className="rounded-full px-2 py-1 text-xs" style={{ background: theme.toolbar.panel, color: theme.node.text }}>
-                        {formatDuration(elapsedMs)}
-                    </span>
                 </div>
                 <div className="space-y-1">
                     <div className="flex items-center justify-between text-[11px]" style={{ color: theme.node.muted }}>
@@ -491,9 +478,6 @@ function LoadingContent({ node, theme, now }: Pick<NodeContentRendererProps, "no
         <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.activeStroke }}>
             <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />
             <span className="text-[10px] tracking-[0.2em]">{progress > 0 ? `生成中 ${progress}%` : "生成中"}</span>
-            <span className="rounded-full border px-2 py-1 text-xs tracking-normal" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
-                {formatDuration(elapsedMs)}
-            </span>
             {progress > 0 ? (
                 <div className="h-1.5 w-28 overflow-hidden rounded-full" style={{ background: theme.node.stroke }}>
                     <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: theme.node.activeStroke }} />
@@ -588,7 +572,7 @@ function ImageNodeContent(props: NodeContentRendererProps) {
     if (!props.node.metadata?.content && props.isBatchRoot) {
         const content =
             props.node.metadata?.status === "loading" ? (
-                <LoadingContent node={props.node} theme={props.theme} now={props.now} />
+                <LoadingContent node={props.node} theme={props.theme} />
             ) : props.node.metadata?.status === "error" ? (
                 <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />
             ) : (

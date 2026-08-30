@@ -28,9 +28,13 @@ func GetUserVideoTask(userID string, id string) (model.VideoTask, bool, error) {
 	if err != nil {
 		return model.VideoTask{}, false, err
 	}
+	// 用 Find 而非 First：任务未落库（建任务请求尚未返回）时前端会高频轮询，First 的 record not found 会在 GORM 日志里按 ERROR 级别刷 SQL
 	var task model.VideoTask
-	err = db.First(&task, "user_id = ? AND (id = ? OR upstream_task_id = ? OR upstream_video_id = ?)", userID, id, id, id).Error
-	if err != nil {
+	result := db.Where("user_id = ? AND (id = ? OR upstream_task_id = ? OR upstream_video_id = ?)", userID, id, id, id).Limit(1).Find(&task)
+	if result.Error != nil {
+		return model.VideoTask{}, false, result.Error
+	}
+	if result.RowsAffected == 0 {
 		return model.VideoTask{}, false, nil
 	}
 	return task, true, nil

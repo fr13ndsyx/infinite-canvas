@@ -31,6 +31,7 @@ export type CanvasAssistantComposerProps = {
     onRemoveReference: (id: string) => void;
     onPasteImage: (file: File) => void;
     showOptions?: boolean;
+    modelNameMaxWidth?: number;
 };
 
 // 选项常量：仅用于底部条 chip 的展示与选择，不引入新数据流；比例值与 image-settings-panel 的 aspectOptions 保持一致（w:h 格式，实际像素由质量档位折算）
@@ -78,6 +79,7 @@ export function CanvasAssistantComposer({
     onRemoveReference,
     onPasteImage,
     showOptions = true,
+    modelNameMaxWidth,
 }: CanvasAssistantComposerProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
@@ -167,7 +169,8 @@ export function CanvasAssistantComposer({
                     style={{ color: theme.node.text }}
                     placeholder="描述创作目标，或让我继续操作画布"
                 />
-                <div className="mt-1.5 flex min-h-8 flex-wrap items-center gap-1.5">
+                <div className="mt-1.5 flex min-h-8 items-center gap-1.5">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 overflow-hidden">
                     <Dropdown
                         trigger={["click"]}
                         menu={{
@@ -195,6 +198,7 @@ export function CanvasAssistantComposer({
                             value={agentConfig.textModel || config.textModel || config.model}
                             channelId={agentConfig.textChannelId || config.textChannelId}
                             placeholder="选择模型"
+                            nameMaxWidth={modelNameMaxWidth}
                             onChange={(model, channelId) => onAgentConfigChange({ textModel: model, textChannelId: channelId || "" })}
                         />
                     )}
@@ -236,13 +240,13 @@ export function CanvasAssistantComposer({
                         ]}
                         theme={theme}
                     />
-                    <div className="flex-1" />
+                    </div>
                     <button
                         type="button"
                         disabled={!isRunning && !prompt.trim()}
                         onClick={() => (isRunning ? onStop?.() : void onSubmit())}
                         aria-label={isRunning ? "停止" : "发送"}
-                        className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
                         style={{ background: theme.node.text, color: theme.toolbar.panel }}
                     >
                         <span className="inline-flex items-center gap-1 tabular-nums" title="本次对话消耗的算力点">
@@ -290,8 +294,14 @@ function ComposerMediaChip({ icon, label, groups, theme }: { icon: ReactNode; la
             <button
                 ref={ref}
                 type="button"
-                className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs transition hover:opacity-70"
-                style={{ color: theme.toolbar.item }}
+                className="flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-[10.8px] transition"
+                style={{ background: "transparent", color: theme.node.text, transition: "background-color 120ms" }}
+                onMouseEnter={(event) => {
+                    event.currentTarget.style.background = theme.toolbar.activeBg;
+                }}
+                onMouseLeave={(event) => {
+                    event.currentTarget.style.background = "transparent";
+                }}
                 onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
@@ -345,7 +355,7 @@ function ComposerMediaPopover({ popoverRef, rect, groups, theme }: { popoverRef:
                                     key={option.value}
                                     type="button"
                                     className="flex min-h-8 min-w-0 items-center justify-center rounded-md px-1.5 py-1.5 text-xs transition hover:opacity-80"
-                                    style={{ background: active ? theme.toolbar.panel : "transparent", color: active ? theme.toolbar.activeText : theme.node.muted }}
+                                    style={{ background: active ? theme.node.panel : "transparent", color: active ? theme.node.titleText : theme.node.muted, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                     onClick={() => group.onSelect(option.value)}
                                 >
                                     {option.label}

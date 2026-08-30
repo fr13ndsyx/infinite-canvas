@@ -159,11 +159,30 @@ function resolveEffectiveConfig(config: AiConfig, modelChannel: AdminPublicSetti
     const channelMode = canUseRemoteChannel ? (modelChannel?.allowCustomChannel ? config.channelMode : "remote") : "local";
     if (channelMode === "local" || !modelChannel) {
         const localChannels = normalizeLocalChannels(config);
+        // 本地渠道也按能力分类模型并解析各类型默认模型，否则 textModel/textModels 缺失会让文本生成回退到任意模型（如 Agnes 图片模型调 chat 接口 401）
+        const localModels = normalizeModelList(localChannels.flatMap((channel) => channel.models));
+        const localTextModels = filterModelsByCapability(localModels, "text");
+        const localImageModels = filterModelsByCapability(localModels, "image");
+        const localVideoModels = filterModelsByCapability(localModels, "video");
+        const localAudioModels = filterModelsByCapability(localModels, "audio");
+        const localFallbackText = validDefault(config.textModel, localTextModels) || preferredModel(localTextModels, isTextModelName);
+        const localFallbackImage = validDefault(config.imageModel, localImageModels) || preferredModel(localImageModels, isImageModelName);
+        const localFallbackVideo = validDefault(config.videoModel, localVideoModels) || preferredModel(localVideoModels, isVideoModelName);
+        const localFallbackAudio = validDefault(config.audioModel, localAudioModels) || preferredModel(localAudioModels, isAudioModelName);
         return {
             ...config,
             channelMode,
             localChannels,
-            models: normalizeModelList(localChannels.flatMap((channel) => channel.models)),
+            models: localModels,
+            textModels: localTextModels,
+            imageModels: localImageModels,
+            videoModels: localVideoModels,
+            audioModels: localAudioModels,
+            model: localTextModels.includes(config.model) ? config.model : localFallbackText,
+            textModel: localFallbackText,
+            imageModel: localFallbackImage,
+            videoModel: localFallbackVideo,
+            audioModel: localFallbackAudio,
             publicChannels: modelChannel?.channels || [],
             modelCapabilities: [],
             modelInfos: [],

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 
-import { formatDuration } from "@/lib/image-utils";
 import { cn } from "@/lib/utils";
 
 const pendingMessages = ["正在创建图片", "马上就好了", "再等等", "正在整理细节"];
@@ -34,8 +33,7 @@ export function ImageGenerationPending({ className, label, compact = false }: { 
                 <span>{label || pendingMessages[index]}</span>
             </div>
             <div className="absolute bottom-4 left-4 right-4">
-                <div className="mb-2 flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
-                    <span>{formatDuration(tick * 1000)}</span>
+                <div className="mb-2 flex items-center justify-end text-xs text-stone-500 dark:text-stone-400">
                     <span>{Math.floor(progress)}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-stone-300/70 dark:bg-white/12">

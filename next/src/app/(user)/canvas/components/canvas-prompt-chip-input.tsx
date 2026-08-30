@@ -34,6 +34,7 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
     const editorRef = useRef<HTMLDivElement>(null);
     const composingRef = useRef(false);
     const lastEmittedRef = useRef(value);
+    const [composing, setComposing] = useState(false);
     const [mention, setMention] = useState<MentionState | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -121,7 +122,8 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
         emitChange(serializePromptEditor(editor));
     };
 
-    const showPlaceholder = !value.trim();
+    // 拼音组词期间 value 尚未更新，用 composing 状态让 placeholder 立即消失
+    const showPlaceholder = !value.trim() && !composing;
 
     return (
         <div className="relative w-full">
@@ -167,9 +169,11 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
                 }}
                 onCompositionStart={() => {
                     composingRef.current = true;
+                    setComposing(true);
                 }}
                 onCompositionEnd={() => {
                     composingRef.current = false;
+                    setComposing(false);
                     syncFromEditor();
                 }}
                 onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {

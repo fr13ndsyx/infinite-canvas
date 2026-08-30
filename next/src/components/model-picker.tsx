@@ -194,7 +194,7 @@ function ModelPickerPortal({ buttonRect, panelRef, theme, options, currentModel,
                             <button
                                 key={option.key}
                                 type="button"
-                                className={cn("group/item flex w-full gap-2.5 rounded-md px-1.5 py-1.5 text-left outline-none transition", active ? "items-start" : "items-center")}
+                                className={cn("group/item flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left outline-none transition")}
                                 style={{ color: theme.node.text, fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
                                 onMouseEnter={(event) => { event.currentTarget.style.background = theme.node.subtleFill; }}
                                 onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
@@ -220,17 +220,11 @@ function ModelLabel({ model, subtitle = "", active = false }: { model: string; s
     return (
         <span className="flex min-w-0 flex-1 items-center gap-2">
             <ModelIcon model={model} size="size-[30px]" />
-            {active ? (
-                <span className="min-w-0 flex-1 py-0.5">
-                    <span className="block whitespace-normal break-words text-[16px] font-medium leading-[20px]">{model}</span>
-                    {subtitle.trim() ? <span className="mt-0.5 block whitespace-normal break-words text-[12px] leading-[14px] opacity-55">{subtitle}</span> : null}
-                </span>
-            ) : (
-                <span className="relative block h-[36px] min-w-0 flex-1 overflow-hidden">
-                    <span className="absolute inset-x-0 top-2 truncate text-[16px] font-medium leading-[20px] transition-[top] duration-200 ease-out group-hover/item:top-0 group-focus-visible/item:top-0">{model}</span>
-                    <span className="absolute inset-x-0 top-[22px] truncate text-[12px] leading-[14px] opacity-0 transition-[top,opacity] duration-200 ease-out group-hover/item:top-5 group-hover/item:opacity-55 group-focus-visible/item:top-5 group-focus-visible/item:opacity-55">{subtitle}</span>
-                </span>
-            )}
+            {/* 固定 36px 高：选中项停在 hover 展开位（标题 top-0 + 副标题 top-5），副标题一律单行截断，避免长描述把选项撑高 */}
+            <span className="relative block h-[36px] min-w-0 flex-1 overflow-hidden">
+                <span className={`absolute inset-x-0 truncate text-[16px] font-medium leading-[20px] transition-[top] duration-200 ease-out ${active ? "top-0" : "top-2 group-hover/item:top-0 group-focus-visible/item:top-0"}`}>{model}</span>
+                {subtitle.trim() ? <span className={`absolute inset-x-0 truncate text-[12px] leading-[14px] transition-[top,opacity] duration-200 ease-out ${active ? "top-5 opacity-55" : "top-[22px] opacity-0 group-hover/item:top-5 group-hover/item:opacity-55 group-focus-visible/item:top-5 group-focus-visible/item:opacity-55"}`}>{subtitle}</span> : null}
+            </span>
         </span>
     );
 }
