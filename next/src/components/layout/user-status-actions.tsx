@@ -1,13 +1,11 @@
 "use client";
 
-import type { CSSProperties, RefObject } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import { Dropdown } from "antd";
-import { Keyboard, LogOut, Settings2, Shield } from "lucide-react";
-import type { ItemType } from "antd/es/menu/interface";
+import { ChevronDown, Settings2 } from "lucide-react";
 import Link from "next/link";
 
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
-import { CreditSymbol } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useConfigStore } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -16,14 +14,13 @@ import { useUserStore } from "@/stores/use-user-store";
 type UserStatusActionsProps = {
     showConfig?: boolean;
     variant?: "default" | "canvas";
-    onOpenShortcuts?: () => void;
     accountOpen?: boolean;
     onAccountOpenChange?: (open: boolean) => void;
     accountRef?: RefObject<HTMLDivElement | null>;
     getPopupContainer?: (node: HTMLElement) => HTMLElement;
 };
 
-export function UserStatusActions({ showConfig = true, variant = "default", onOpenShortcuts, accountOpen, onAccountOpenChange, accountRef, getPopupContainer }: UserStatusActionsProps) {
+export function UserStatusActions({ showConfig = true, variant = "default", accountOpen, onAccountOpenChange, accountRef, getPopupContainer }: UserStatusActionsProps) {
     const theme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
     const user = useUserStore((state) => state.user);
@@ -41,19 +38,13 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const publicSettingsLoaded = publicSettings !== null;
     const allowGuestConfig = !user ? publicSettingsLoaded && publicSettings?.modelChannel?.allowGuestConfig !== false : true;
     const configButtonVisible = showConfig && allowGuestConfig;
-    const menuItems: ItemType[] = [
-        ...(user?.role === "admin" ? [{ key: "admin", icon: <Shield className="size-4" />, label: <Link href="/admin">管理后台</Link> }] : []),
-        ...(onOpenShortcuts ? [{ key: "shortcuts", icon: <Keyboard className="size-4" />, label: "快捷键", onClick: onOpenShortcuts }] : []),
-        { type: "divider" },
-        { key: "logout", icon: <LogOut className="size-4" />, label: "退出登录", onClick: logout },
-    ];
     const triggerClassName = isCanvas
         ? "flex h-8 shrink-0 items-center rounded-md px-2 text-sm font-medium transition hover:bg-white/10"
         : "flex h-8 shrink-0 items-center rounded-md px-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white";
 
     return (
         <div className="inline-flex shrink-0 items-center gap-1">
-            {configButtonVisible ? (
+            {configButtonVisible && !user ? (
                 <button type="button" className={naturalIconClass} style={iconStyle} onClick={() => openConfigDialog(false)} aria-label="配置" title="配置">
                     <Settings2 className="size-4" />
                 </button>
@@ -61,11 +52,6 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             {!user ? (
                 <>
                     <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} />
-                    {onOpenShortcuts ? (
-                        <button type="button" className={naturalIconClass} style={iconStyle} onClick={onOpenShortcuts} aria-label="快捷键" title="快捷键">
-                            <Keyboard className="size-4" />
-                        </button>
-                    ) : null}
                     <Link href="/login" className="px-1.5 text-sm font-medium text-stone-600 underline-offset-4 transition hover:text-stone-950 hover:underline dark:text-stone-300 dark:hover:text-stone-100" style={iconStyle}>
                         登录
                     </Link>
@@ -76,47 +62,65 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
                         open={accountOpen}
                         onOpenChange={onAccountOpenChange}
                         trigger={["click"]}
+                        zIndex={1200}
                         placement="bottom"
                         align={{ offset: [0, 14], overflow: { adjustX: 1, adjustY: 1 } }}
                         getPopupContainer={getPopupContainer}
-                        menu={{ items: menuItems }}
-                        dropdownRender={(menu) => (
-                            <div className="min-w-[260px] overflow-hidden rounded-xl border border-stone-200 bg-white py-1.5 text-sm shadow-xl dark:border-stone-800 dark:bg-neutral-900">
-                                <div className="flex items-center justify-between gap-3 px-3 py-2">
-                                    <span className="font-medium text-stone-800 dark:text-stone-100">{userName}</span>
-                                    {user?.role === "admin" ? (
-                                        <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500 dark:bg-stone-800 dark:text-stone-400">管理员</span>
-                                    ) : null}
-                                </div>
-                                <div className="my-1 h-px bg-stone-100 dark:bg-stone-800" />
-                                <div className="flex items-center justify-between gap-3 px-3 py-1.5 text-stone-600 dark:text-stone-300">
-                                    <span>余额</span>
-                                    <span className="flex items-center gap-1 font-medium tabular-nums text-stone-800 dark:text-stone-100">
-                                        <CreditSymbol className="size-3.5" />
-                                        {credits.toLocaleString()}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 px-3 py-1.5 text-stone-600 dark:text-stone-300">
-                                    <span>主题</span>
-                                    <AnimatedThemeToggler
-                                        theme={theme}
-                                        onThemeChange={setTheme}
-                                        className="inline-flex size-7 items-center justify-center rounded-md text-stone-600 transition hover:bg-stone-100 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white [&_svg]:size-4"
-                                        aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
-                                        title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
-                                    />
-                                </div>
-                                <div className="my-1 h-px bg-stone-100 dark:bg-stone-800" />
-                                {menu}
+                        dropdownRender={() => (
+                            <div data-account-menu className="min-w-[292px] overflow-hidden rounded-2xl border border-stone-200/80 bg-white/95 p-2 text-sm shadow-2xl backdrop-blur-xl dark:border-stone-700/60 dark:bg-neutral-950/95">
+                                <AccountThemeRow colorTheme={theme} label="主题" onThemeChange={setTheme} />
+                                <AccountDivider />
+                                <AccountRow>个人中心</AccountRow>
+                                <AccountDivider />
+                                <AccountRow className="justify-between">
+                                    <span>算力余额</span>
+                                    <span className="font-medium tabular-nums">{credits.toLocaleString()}</span>
+                                </AccountRow>
+                                {user?.role === "admin" ? (
+                                    <>
+                                        <AccountDivider />
+                                        <Link href="/admin" onClick={() => onAccountOpenChange?.(false)} className={accountActionClass}>管理后台</Link>
+                                    </>
+                                ) : null}
+                                <AccountDivider />
+                                <AccountAction onClick={() => { onAccountOpenChange?.(false); logout(); }}>退出登录</AccountAction>
                             </div>
                         )}
                     >
-                        <button type="button" className={triggerClassName} style={iconStyle} aria-label="账户菜单">
+                        <button type="button" className={`${triggerClassName} gap-1.5`} style={iconStyle} aria-label="账户菜单">
                             <span>{userName}</span>
+                            <ChevronDown className="size-3.5 opacity-60" />
                         </button>
                     </Dropdown>
                 </div>
             )}
+        </div>
+    );
+}
+
+const accountRowClass = "flex min-h-10 items-center gap-3 rounded-lg px-3 text-stone-600 transition hover:bg-stone-100/80 hover:shadow-sm dark:text-stone-300 dark:hover:bg-white/[0.08]";
+const accountActionClass = `${accountRowClass} w-full text-left`;
+
+function AccountRow({ children, className = "" }: { children: ReactNode; className?: string }) {
+    return <div className={`${accountRowClass} ${className}`}>{children}</div>;
+}
+
+function AccountAction({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+    return <button type="button" className={accountActionClass} onClick={onClick}>{children}</button>;
+}
+
+function AccountDivider() {
+    return <div className="my-1 h-px bg-stone-200/70 dark:bg-stone-800/70" />;
+}
+
+function AccountThemeRow({ colorTheme, label, onThemeChange }: { colorTheme: "light" | "dark"; label: string; onThemeChange: (theme: "light" | "dark") => void }) {
+    return (
+        <div className={`${accountRowClass} justify-between`}>
+            <span>{label}</span>
+            <div className="flex items-center gap-0.5">
+                <button type="button" aria-pressed={colorTheme === "light"} onClick={() => onThemeChange("light")} className={`rounded-md px-2 py-1 text-xs transition hover:bg-stone-100 hover:shadow-sm dark:hover:bg-white/[0.08] ${colorTheme === "light" ? "font-medium text-stone-900 dark:text-stone-100" : "opacity-55"}`}>浅色</button>
+                <button type="button" aria-pressed={colorTheme === "dark"} onClick={() => onThemeChange("dark")} className={`rounded-md px-2 py-1 text-xs transition hover:bg-stone-100 hover:shadow-sm dark:hover:bg-white/[0.08] ${colorTheme === "dark" ? "font-medium text-stone-900 dark:text-stone-100" : "opacity-55"}`}>深色</button>
+            </div>
         </div>
     );
 }

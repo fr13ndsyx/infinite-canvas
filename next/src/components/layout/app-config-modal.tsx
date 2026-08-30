@@ -360,13 +360,9 @@ export function AppConfigModal() {
                                     </>
                                 ) : tab.value === "remote" ? (
                                     <>
-                                        <div className="mb-5 rounded-lg border border-stone-200 p-3 text-sm text-stone-500 dark:border-stone-800">
-                                            <div className="font-medium text-stone-900 dark:text-stone-100">平台渠道</div>
-                                            <div className="mt-1">平台统一提供模型能力，用户只需要选择默认模型和各场景可选项。当前可用 {modelChannel?.availableModels.length || 0} 个模型。</div>
-                                        </div>
                                         <div className="mb-5 grid gap-4 md:grid-cols-2">
                                             {modelGroups.map((group) => (
-                                                <Form.Item key={group.modelKey} label={group.defaultLabel} className="mb-4">
+                                                <Form.Item key={group.modelKey} label={group.defaultLabel} className="mb-0 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
                                                     <ModelPicker config={modelConfig} value={modelConfig[group.modelKey]} channelId={modelConfig[group.channelKey]} onChange={(model, channelId) => { updateConfig(group.modelKey, model); if (channelId) updateConfig(group.channelKey, channelId); }} capability={group.capability} fullWidth />
                                                 </Form.Item>
                                             ))}

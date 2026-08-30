@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, Bot, FileText, ImageIcon, Music2, Plus, Square, Video, X, Zap } from "lucide-react";
+import { ArrowUp, Bot, FileText, ImageIcon, Music2, Plus, Square, Video, X } from "lucide-react";
 import { Dropdown } from "antd";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
+import { normalizeSeedanceRatio } from "@/lib/seedance-video";
 import { imageQualityTierLabel, imageSizeLabel, panoramaTierOfQuality } from "@/components/image-settings-panel";
-import { videoResolutionLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
+import { normalizeVideoResolutionValue, videoResolutionLabel, videoSizeRatioLabel } from "@/components/video-settings-panel";
 import { ModelPicker } from "@/components/model-picker";
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
-import { useConfigStore, type AiConfig } from "@/stores/use-config-store";
+import { findModelCapability, resolveEffectiveImageTier, resolveEffectiveVideoQuality, useConfigStore, type AiConfig } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasAgentConfig, type CanvasAssistantReference } from "../types";
 import { isCanvasImageNodeType } from "../utils/canvas-panorama";
 
@@ -83,6 +84,61 @@ export function CanvasAssistantComposer({
     const agentModel = agentConfig.textModel || config.textModel || config.model;
     const credits = requestCreditCost({ channelMode: config.channelMode, modelCosts, model: agentModel, count: 1 });
 
+    // Agent 生图/生视频用全局默认模型，chips 选项按该模型的能力过滤（能力未配置时回落全量常量，与节点弹窗兜底一致）
+    const imageCap = useMemo(() => findModelCapability(config, config.imageModel || config.model || ""), [config]);
+    const videoCap = useMemo(() => findModelCapability(config, config.videoModel || config.model || ""), [config]);
+
+    const imageRatioOptionsForRender = useMemo(() => {
+        const aspects = imageCap?.imageAspects;
+        if (!aspects || aspects.length === 0) return imageRatioOptions;
+        const filtered = imageRatioOptions.filter((item) => item.value === "auto" || aspects.includes(item.value));
+        const extras = aspects.filter((value) => value && !filtered.some((item) => item.value === value)).map((value) => ({ value, label: value }));
+        return [...filtered, ...extras];
+    }, [imageCap]);
+
+    const imageQualityOptionsForRender = useMemo(() => {
+        const tiers = imageCap?.imageTiers;
+        if (!tiers || tiers.length === 0) return imageQualityOptions;
+        const filtered = imageQualityOptions.filter((item) => tiers.includes(item.value as "standard" | "2k" | "4k"));
+        const extras = tiers.filter((value) => !filtered.some((item) => item.value === value)).map((value) => ({ value, label: value }));
+        return [...filtered, ...extras];
+    }, [imageCap]);
+
+    const videoRatioOptionsForRender = useMemo(() => {
+        // Agent 弹窗内"自适应"统一展示为"智能"（仅展示文案，value 仍为 adaptive，不影响数据流）
+        const withLabels = videoRatioOptions.map((item) => (normalizeSeedanceRatio(item.value) === "adaptive" ? { ...item, label: "智能" } : item));
+        const ratios = videoCap?.videoRatios;
+        if (!ratios || ratios.length === 0) return withLabels;
+        // chips 的 value 是像素尺寸（如 1280x720），能力是比例串（如 16:9），归一后比对
+        const filtered = withLabels.filter((item) => ratios.includes(normalizeSeedanceRatio(item.value)));
+        const covered = new Set(filtered.map((item) => normalizeSeedanceRatio(item.value)));
+        const extras = ratios.filter((value) => value && !covered.has(value)).map((value) => ({ value, label: value === "adaptive" ? "智能" : value }));
+        return [...filtered, ...extras];
+    }, [videoCap]);
+
+    const videoQualityOptionsForRender = useMemo(() => {
+        const resolutions = videoCap?.videoResolutions;
+        if (!resolutions || resolutions.length === 0) return videoQualityOptions;
+        // 能力值兼容 480p/480 两种格式，归一后比对
+        const normalized = resolutions.map((value) => normalizeVideoResolutionValue(value));
+        const filtered = videoQualityOptions.filter((item) => normalized.includes(item.value));
+        const extras = normalized.filter((value) => value && !filtered.some((item) => item.value === value)).map((value) => ({ value, label: /k$/i.test(value) ? value : `${value}p` }));
+        return [...filtered, ...extras];
+    }, [videoCap]);
+
+    // 已选值不在当前模型能力内时自动回落（图片档位/视频分辨率复用节点弹窗同款 clamp，比例回集合首项）
+    useEffect(() => {
+        const patch: Partial<CanvasAgentConfig> = {};
+        const imageSize = agentConfig.imageSize || "auto";
+        if (!imageRatioOptionsForRender.some((item) => item.value === imageSize)) patch.imageSize = imageRatioOptionsForRender[0]?.value || "auto";
+        const effectiveTier = resolveEffectiveImageTier(agentConfig.imageQuality || "standard", imageCap);
+        if (effectiveTier !== agentConfig.imageQuality) patch.imageQuality = effectiveTier;
+        if (!videoRatioOptionsForRender.some((item) => item.value === agentConfig.videoSize)) patch.videoSize = videoRatioOptionsForRender[0]?.value || agentConfig.videoSize;
+        const effectiveVideoQuality = resolveEffectiveVideoQuality(agentConfig.videoQuality || "720", videoCap);
+        if (effectiveVideoQuality !== agentConfig.videoQuality) patch.videoQuality = effectiveVideoQuality;
+        if (Object.keys(patch).length > 0) onAgentConfigChange(patch);
+    }, [agentConfig.imageQuality, agentConfig.imageSize, agentConfig.videoQuality, agentConfig.videoSize, imageCap, videoCap, imageRatioOptionsForRender, videoRatioOptionsForRender, onAgentConfigChange]);
+
     return (
         <div className="px-2 pb-2" onWheelCapture={(event) => event.stopPropagation()}>
             {references.length ? (
@@ -142,55 +198,45 @@ export function CanvasAssistantComposer({
                             onChange={(model, channelId) => onAgentConfigChange({ textModel: model, textChannelId: channelId || "" })}
                         />
                     )}
-                    {showOptions ? (
-                        <>
-                            <ComposerMediaChip
-                                label={"图片 " + (agentConfig.imageSize === "auto" || !agentConfig.imageSize ? "智能" : imageSizeLabel(agentConfig.imageSize)) + " · " + imageQualityTierLabel(agentConfig.imageQuality)}
-                                title="图片参数"
-                                groups={[
-                                    {
-                                        title: "比例",
-                                        options: imageRatioOptions,
-                                        value: agentConfig.imageSize || "auto",
-                                        onSelect: (value) => onAgentConfigChange({ imageSize: value }),
-                                    },
-                                    {
-                                        title: "质量",
-                                        options: imageQualityOptions,
-                                        value: panoramaTierOfQuality(agentConfig.imageQuality),
-                                        onSelect: (value) => onAgentConfigChange({ imageQuality: value }),
-                                    },
-                                ]}
-                                theme={theme}
-                            />
-                            <ComposerMediaChip
-                                label={"视频 " + videoSizeRatioLabel(agentConfig.videoSize) + " · " + videoResolutionLabel(agentConfig.videoQuality)}
-                                title="视频参数"
-                                groups={[
-                                    {
-                                        title: "比例",
-                                        options: videoRatioOptions,
-                                        value: agentConfig.videoSize,
-                                        onSelect: (value) => onAgentConfigChange({ videoSize: value }),
-                                    },
-                                    {
-                                        title: "清晰度",
-                                        options: videoQualityOptions,
-                                        value: agentConfig.videoQuality,
-                                        onSelect: (value) => onAgentConfigChange({ videoQuality: value }),
-                                    },
-                                ]}
-                                theme={theme}
-                            />
-                        </>
-                    ) : null}
+                    <ComposerMediaChip
+                        icon={<ImageIcon className="size-3.5" />}
+                        label={(agentConfig.imageSize === "auto" || !agentConfig.imageSize ? "智能" : imageSizeLabel(agentConfig.imageSize)) + " · " + imageQualityTierLabel(agentConfig.imageQuality)}
+                        groups={[
+                            {
+                                title: "比例",
+                                options: imageRatioOptionsForRender,
+                                value: agentConfig.imageSize || "auto",
+                                onSelect: (value) => onAgentConfigChange({ imageSize: value }),
+                            },
+                            {
+                                title: "分辨率",
+                                options: imageQualityOptionsForRender,
+                                value: panoramaTierOfQuality(agentConfig.imageQuality),
+                                onSelect: (value) => onAgentConfigChange({ imageQuality: value }),
+                            },
+                        ]}
+                        theme={theme}
+                    />
+                    <ComposerMediaChip
+                        icon={<Video className="size-3.5" />}
+                        label={(normalizeSeedanceRatio(agentConfig.videoSize) === "adaptive" ? "智能" : videoSizeRatioLabel(agentConfig.videoSize)) + " · " + videoResolutionLabel(agentConfig.videoQuality)}
+                        groups={[
+                            {
+                                title: "比例",
+                                options: videoRatioOptionsForRender,
+                                value: agentConfig.videoSize,
+                                onSelect: (value) => onAgentConfigChange({ videoSize: value }),
+                            },
+                            {
+                                title: "分辨率",
+                                options: videoQualityOptionsForRender,
+                                value: agentConfig.videoQuality,
+                                onSelect: (value) => onAgentConfigChange({ videoQuality: value }),
+                            },
+                        ]}
+                        theme={theme}
+                    />
                     <div className="flex-1" />
-                    {config.channelMode === "remote" ? (
-                        <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums" style={{ color: theme.node.muted }} title="本次对话消耗的算力点">
-                            <CreditSymbol />
-                            {credits.toLocaleString()}
-                        </span>
-                    ) : null}
                     <button
                         type="button"
                         disabled={!isRunning && !prompt.trim()}
@@ -199,8 +245,11 @@ export function CanvasAssistantComposer({
                         className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
                         style={{ background: theme.node.text, color: theme.toolbar.panel }}
                     >
-                        {isRunning ? <Square className="size-3.5 fill-current" /> : <Zap className="size-3.5" />}
-                        <ArrowUp className="size-3.5" />
+                        <span className="inline-flex items-center gap-1 tabular-nums" title="本次对话消耗的算力点">
+                            <CreditSymbol />
+                            {credits.toLocaleString()}
+                        </span>
+                        {isRunning ? <Square className="size-3.5 fill-current" /> : <ArrowUp className="size-3.5" />}
                     </button>
                 </div>
             </div>
@@ -208,8 +257,8 @@ export function CanvasAssistantComposer({
     );
 }
 
-// 可灵风格 chip：点击弹出分组设置弹窗（如"图片参数"含比例+质量两组）
-function ComposerMediaChip({ label, title, groups, theme }: { label: string; title: string; groups: { title: string; options: { value: string; label: string }[]; value: string; onSelect: (value: string) => void }[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
+// 可灵风格 chip：点击弹出分组设置弹窗（如图片 chip 含比例+质量两组）
+function ComposerMediaChip({ icon, label, groups, theme }: { icon: ReactNode; label: string; groups: { title: string; options: { value: string; label: string }[]; value: string; onSelect: (value: string) => void }[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
     const ref = useRef<HTMLButtonElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
@@ -242,23 +291,23 @@ function ComposerMediaChip({ label, title, groups, theme }: { label: string; tit
                 ref={ref}
                 type="button"
                 className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs transition hover:opacity-70"
-                style={{ color: theme.node.muted }}
+                style={{ color: theme.toolbar.item }}
                 onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                     event.stopPropagation();
                     setOpen((current) => !current);
                 }}
             >
-                <span>{label}</span>
+                <span className="inline-flex items-center gap-1.5" aria-label={label}>{icon}{label}</span>
             </button>
-            {open && rect ? createPortal(<ComposerMediaPopover popoverRef={popoverRef} rect={rect} title={title} groups={groups} theme={theme} />, document.body) : null}
+            {open && rect ? createPortal(<ComposerMediaPopover popoverRef={popoverRef} rect={rect} groups={groups} theme={theme} />, document.body) : null}
         </>
     );
 }
 
 // 可灵风格弹窗：浮在 chip 上方，按组展示选项（组标题 + 自动换行选项 + 选中高亮），选完不自动关闭，可连续调整多组参数
-function ComposerMediaPopover({ popoverRef, rect, title, groups, theme }: { popoverRef: React.RefObject<HTMLDivElement | null>; rect: DOMRect; title: string; groups: { title: string; options: { value: string; label: string }[]; value: string; onSelect: (value: string) => void }[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
-    const width = 216;
+function ComposerMediaPopover({ popoverRef, rect, groups, theme }: { popoverRef: React.RefObject<HTMLDivElement | null>; rect: DOMRect; groups: { title: string; options: { value: string; label: string }[]; value: string; onSelect: (value: string) => void }[]; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
+    const width = 240;
     const gap = 8;
     const margin = 12;
     const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rect.left + rect.width / 2 - width / 2));
@@ -285,18 +334,17 @@ function ComposerMediaPopover({ popoverRef, rect, title, groups, theme }: { popo
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
         >
-            <div className="px-1 pb-1 text-xs font-medium" style={{ color: theme.node.muted }}>{title}</div>
             {groups.map((group) => (
                 <div key={group.title} className="mb-1.5 last:mb-0">
                     <div className="px-1 py-1 text-[10px]" style={{ color: theme.node.muted }}>{group.title}</div>
-                    <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg p-0.5" style={{ background: theme.node.fill }}>
+                    <div className="grid min-w-0 gap-1 rounded-lg p-1" style={{ background: theme.node.fill, gridTemplateColumns: `repeat(${Math.min(Math.max(group.options.length, 1), 3)}, minmax(0, 1fr))` }}>
                         {group.options.map((option) => {
                             const active = option.value === group.value;
                             return (
                                 <button
                                     key={option.value}
                                     type="button"
-                                    className="flex min-w-0 basis-[calc(25%-2px)] items-center justify-center rounded-md px-1.5 py-1.5 text-xs transition hover:opacity-80"
+                                    className="flex min-h-8 min-w-0 items-center justify-center rounded-md px-1.5 py-1.5 text-xs transition hover:opacity-80"
                                     style={{ background: active ? theme.toolbar.panel : "transparent", color: active ? theme.toolbar.activeText : theme.node.muted }}
                                     onClick={() => group.onSelect(option.value)}
                                 >

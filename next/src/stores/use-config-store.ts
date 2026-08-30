@@ -345,7 +345,7 @@ function resolveEffectiveImageSize(size: string, cap: AdminModelCapability | und
 }
 
 // 切换模型时若当前档位不在新模型能力内，回退到第一个支持的档位（standard 优先）。
-function resolveEffectiveImageTier(tier: string, cap: AdminModelCapability | undefined): string {
+export function resolveEffectiveImageTier(tier: string, cap: AdminModelCapability | undefined): string {
     if (!cap || !cap.imageTiers || cap.imageTiers.length === 0) return tier;
     if (cap.imageTiers.includes(tier as "standard" | "2k" | "4k")) return tier;
     return cap.imageTiers.includes("standard") ? "standard" : cap.imageTiers[0];
@@ -354,7 +354,7 @@ function resolveEffectiveImageTier(tier: string, cap: AdminModelCapability | und
 // 切换模型时若当前 vquality 不在新模型能力内，回退到第一个支持的档位。
 // !cap（未传能力）保持原值；cap 有值但 videoResolutions 空 = 无档位可选，保持原值（自定义输入兜底）。
 // 兼容 "720"/"720p" 和 "2k"/"2kp" 两种格式：videoResolutions 里 480p/720p/1080p 带 p，2k/4k 不带 p。
-function resolveEffectiveVideoQuality(quality: string, cap: AdminModelCapability | undefined): string {
+export function resolveEffectiveVideoQuality(quality: string, cap: AdminModelCapability | undefined): string {
     if (!cap) return quality;
     if (!cap.videoResolutions || cap.videoResolutions.length === 0) return quality;
     const candidates = [quality, `${quality}p`];

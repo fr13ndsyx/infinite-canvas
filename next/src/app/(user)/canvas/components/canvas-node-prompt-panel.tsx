@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUp, LoaderCircle } from "lucide-react";
 import { Button } from "antd";
 
@@ -37,14 +37,14 @@ type CanvasNodePromptPanelProps = {
     stackItems?: CanvasNodeStackItem[];
     onUploadImage?: (file: File) => void;
     onUploadFrame?: (slot: CanvasFrameSlot, file: File) => void;
-    onSelectFrame?: (slot: CanvasFrameSlot, nodeId: string) => void;
     onRemoveFrame?: (slot: CanvasFrameSlot) => void;
     onSwapFrames?: () => void;
+    onUseSameFrame?: () => void;
     onRemoveItem?: (item: CanvasNodeStackItem) => void;
     onImageSettingsOpenChange?: (open: boolean) => void;
 };
 
-export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, mentionReferences = [], videoFrameOptions = [], videoResourceOptions = [], stackItems = [], onUploadImage, onUploadFrame, onSelectFrame, onRemoveFrame, onSwapFrames, onRemoveItem, onImageSettingsOpenChange }: CanvasNodePromptPanelProps) {
+export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, mentionReferences = [], videoFrameOptions = [], videoResourceOptions = [], stackItems = [], onUploadImage, onUploadFrame, onRemoveFrame, onSwapFrames, onUseSameFrame, onRemoveItem, onImageSettingsOpenChange }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
     const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
@@ -55,6 +55,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const supportsFirstFrame = resolveSupportsFirstFrame(videoCapability) === true;
     const supportsLastFrame = resolveSupportsLastFrame(videoCapability) === true;
     const frameMode = mode === "video" && node.metadata?.klingActiveTab === "frames" && (supportsFirstFrame || supportsLastFrame);
+    const connectedFrameCount = new Set(videoFrameOptions.map((option) => option.nodeId)).size;
     const firstFrame = stackItems.find((item) => item.nodeId === node.metadata?.firstFrameNodeId && item.kind === "image");
     const lastFrame = stackItems.find((item) => item.nodeId === node.metadata?.lastFrameNodeId && item.kind === "image");
     const isPanorama = isPanoramaNodeType(node.type);
@@ -70,12 +71,48 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
         setPrompt(sourcePrompt);
     }, [node.id, sourcePrompt]);
 
+    const frameSyncRef = useRef<{ nodeId: string; active: boolean; initialized: boolean; connectedImageIds: string[] }>({ nodeId: "", active: false, initialized: false, connectedImageIds: [] });
+
     useEffect(() => {
-        if (!frameMode || !onSelectFrame || !videoFrameOptions.length) return;
-        const connectedImageIds = videoFrameOptions.map((option) => option.nodeId).filter(Boolean);
-        if (!node.metadata?.firstFrameNodeId && connectedImageIds[0]) onSelectFrame("first", connectedImageIds[0]);
-        if (supportsLastFrame && !node.metadata?.lastFrameNodeId && connectedImageIds[1]) onSelectFrame("last", connectedImageIds[1]);
-    }, [frameMode, node.id, node.metadata?.firstFrameNodeId, node.metadata?.lastFrameNodeId, onSelectFrame, supportsLastFrame, videoFrameOptions]);
+        const connectedImageIds = [...new Set(videoFrameOptions.map((option) => option.nodeId).filter(Boolean))];
+        const previous = frameSyncRef.current;
+        const sameNode = previous.nodeId === node.id;
+        const initializeFrameMode = frameMode && (!sameNode || !previous.initialized);
+        const addedImageIds = initializeFrameMode ? connectedImageIds : connectedImageIds.filter((id) => !previous.connectedImageIds.includes(id));
+        frameSyncRef.current = { nodeId: node.id, active: frameMode, initialized: sameNode ? previous.initialized || frameMode : frameMode, connectedImageIds };
+        if (!frameMode || !connectedImageIds.length) return;
+
+        let firstFrameNodeId = node.metadata?.firstFrameNodeId;
+        let lastFrameNodeId = node.metadata?.lastFrameNodeId;
+        const patch: Partial<CanvasNodeData["metadata"]> = {};
+        if (firstFrameNodeId && !connectedImageIds.includes(firstFrameNodeId)) {
+            firstFrameNodeId = undefined;
+            patch.firstFrameNodeId = undefined;
+        }
+        if (lastFrameNodeId && !connectedImageIds.includes(lastFrameNodeId)) {
+            lastFrameNodeId = undefined;
+            patch.lastFrameNodeId = undefined;
+        }
+
+        if (initializeFrameMode || (frameMode && addedImageIds.length)) {
+            if (!firstFrameNodeId) {
+                const nextFirst = (addedImageIds.length ? addedImageIds : connectedImageIds).find((id) => id !== lastFrameNodeId) || connectedImageIds[0];
+                if (nextFirst) {
+                    firstFrameNodeId = nextFirst;
+                    patch.firstFrameNodeId = nextFirst;
+                }
+            }
+            if (supportsLastFrame && (!lastFrameNodeId || lastFrameNodeId === firstFrameNodeId)) {
+                const nextLast = addedImageIds.find((id) => id !== firstFrameNodeId) || connectedImageIds.find((id) => id !== firstFrameNodeId);
+                if (nextLast) {
+                    lastFrameNodeId = nextLast;
+                    patch.lastFrameNodeId = nextLast;
+                }
+            }
+        }
+
+        if (Object.keys(patch).length) onConfigChange(node.id, { ...patch, klingActiveTab: "frames" });
+    }, [frameMode, node.id, node.metadata?.firstFrameNodeId, node.metadata?.lastFrameNodeId, onConfigChange, supportsLastFrame, videoFrameOptions]);
 
     const updatePrompt = (value: string) => {
         setPrompt(value);
@@ -100,7 +137,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             onPointerDown={(event) => event.stopPropagation()}
             onWheel={(event) => event.stopPropagation()}
         >
-            {hasUpload ? frameMode ? <CanvasNodeImageUpload items={[]} variant="video-frames" firstFrame={firstFrame} lastFrame={lastFrame} showFirstFrame={supportsFirstFrame} showLastFrame={supportsLastFrame} onUploadFrame={onUploadFrame} onRemoveFrame={onRemoveFrame} onSwapFrames={onSwapFrames} /> : <CanvasNodeImageUpload items={stackItems} onUpload={onUploadImage!} onRemove={onRemoveItem} /> : null}
+            {hasUpload ? frameMode ? <CanvasNodeImageUpload items={[]} variant="video-frames" firstFrame={firstFrame} lastFrame={lastFrame} showFirstFrame={supportsFirstFrame} showLastFrame={supportsLastFrame} onUploadFrame={onUploadFrame} onRemoveFrame={onRemoveFrame} onSwapFrames={onSwapFrames} onUseSameFrame={onUseSameFrame} connectedFrameCount={connectedFrameCount} /> : <CanvasNodeImageUpload items={stackItems} onUpload={onUploadImage!} onRemove={onRemoveItem} /> : null}
             <CanvasPromptChipInput
                 value={prompt}
                 references={mentionReferences}
@@ -117,7 +154,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     <CanvasPromptLibrary onSelect={updatePrompt} />
                     {mode === "image" ? (
                         <>
-                            <ModelPicker className="!min-w-0 !text-[10.8px]" config={config} value={config.model} channelId={config.imageChannelId} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability="image" onMissingConfig={() => openConfigDialog(true)} showToggleIndicator nameMaxWidth={50} />
+                            <ModelPicker className="!min-w-0 !text-[10.8px]" config={config} value={config.model} channelId={config.imageChannelId} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability="image" onMissingConfig={() => openConfigDialog(true)} showToggleIndicator />
                             <CanvasImageSettingsPopover
                                 config={config}
                                 placement="topLeft"
@@ -137,11 +174,11 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                         </>
                     ) : mode === "audio" ? (
                         <>
-                            <ModelPicker className="!text-[10.8px]" config={config} value={config.model} channelId={config.audioChannelId || config.activeChannelId} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability="audio" onMissingConfig={() => openConfigDialog(true)} showToggleIndicator nameMaxWidth={50} />
+                            <ModelPicker className="!text-[10.8px]" config={config} value={config.model} channelId={config.audioChannelId || config.activeChannelId} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability="audio" onMissingConfig={() => openConfigDialog(true)} showToggleIndicator />
                             <CanvasAudioSettingsPopover config={config} buttonClassName="!h-8 !justify-start !rounded-md !px-1.5 !text-[10.8px]" onConfigChange={(key, value) => onConfigChange(node.id, audioConfigPatch(key, value))} />
                         </>
                     ) : (
-                        <ModelPicker className="!text-[10.8px]" config={config} value={config.model} channelId={config.textChannelId} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability="text" onMissingConfig={() => openConfigDialog(true)} showToggleIndicator nameMaxWidth={50} />
+                        <ModelPicker className="!text-[10.8px]" config={config} value={config.model} channelId={config.textChannelId} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability="text" onMissingConfig={() => openConfigDialog(true)} showToggleIndicator />
                     )}
                     {mode === "video" || (mode === "image" && !isPanorama) ? (
                         <CanvasCameraControl value={node.metadata?.cameraControl} onChange={(cameraControl) => onConfigChange(node.id, { cameraControl })} buttonClassName="!h-8 !min-w-0 !justify-start !rounded-md !px-1.5 !text-[10.8px]" />
