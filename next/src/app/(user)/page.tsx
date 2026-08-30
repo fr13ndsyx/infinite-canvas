@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ImageIcon, Layers3, Plus } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { App, Button, Image, Tag } from "antd";
 import { nanoid } from "nanoid";
@@ -9,11 +9,12 @@ import { useRouter } from "next/navigation";
 import { fetchPrompts, type Prompt } from "@/services/api/prompts";
 import { cn } from "@/lib/utils";
 import { uploadAssetMediaFile } from "@/services/file-storage";
-import { uploadImage } from "@/services/image-storage";
+import { resolveImageUrl, uploadImage } from "@/services/image-storage";
+import { resolveMediaUrl } from "@/services/file-storage";
 import { useEffectiveConfig } from "@/stores/use-config-store";
 import { AssetPickerModal } from "./canvas/components/asset-picker-modal";
 import { CanvasAssistantComposer } from "./canvas/components/canvas-assistant-composer";
-import { useCanvasStore } from "./canvas/stores/use-canvas-store";
+import { useCanvasStore, type CanvasProject } from "./canvas/stores/use-canvas-store";
 import { HomeBannerCarousel, type HomeBanner } from "./home-banner-carousel";
 import {
     CanvasNodeType,
@@ -49,6 +50,7 @@ export default function IndexPage() {
     const router = useRouter();
     const effectiveConfig = useEffectiveConfig();
     const createProject = useCanvasStore((state) => state.createProject);
+    const projects = useCanvasStore((state) => state.projects);
     const hydrated = useCanvasStore((state) => state.hydrated);
     const [promptShowcase, setPromptShowcase] = useState<Prompt[]>([]);
     const [previewIndex, setPreviewIndex] = useState(0);
@@ -116,6 +118,17 @@ export default function IndexPage() {
         router.push(`/canvas/${projectId}`);
     };
 
+    const createAndEnter = () => {
+        if (!hydrated) {
+            message.info("画布数据正在加载，请稍后再试");
+            return;
+        }
+        const titles = new Set(projects.map(({ title }) => title));
+        let title = "无限画布";
+        for (let i = 1; titles.has(title); i++) title = `无限画布 ${i}`;
+        router.push(`/canvas/${createProject(title)}`);
+    };
+
     return (
         <main className="relative h-full overflow-x-hidden overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-stone-950 dark:bg-[radial-gradient(rgba(245,245,244,.16)_1px,transparent_1px)] dark:text-stone-100">
             <section className="relative mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-6">
@@ -137,6 +150,7 @@ export default function IndexPage() {
                             onPasteImage={(file) => void uploadFile(file)}
                             showOptions={false}
                         />
+                        {hydrated ? <HomeCanvasQuickAccess projects={projects} onCreate={createAndEnter} onOpen={(id) => router.push(`/canvas/${id}`)} /> : null}
                     </div>
                     <input ref={uploadInputRef} hidden type="file" accept="image/*,video/*,audio/*" onChange={onUploadInputChange} />
                 </section>
@@ -209,4 +223,69 @@ export default function IndexPage() {
             />
         </main>
     );
+}
+
+function HomeCanvasQuickAccess({ projects, onCreate, onOpen }: { projects: CanvasProject[]; onCreate: () => void; onOpen: (id: string) => void }) {
+    const recentProjects = [...projects]
+        .sort((a, b) => Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || ""))
+        .slice(0, 5);
+    return (
+        <section className="mt-5" aria-label="画布快捷入口">
+            <div className="mb-2.5 flex items-center justify-between px-1">
+                <div>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-400 dark:text-stone-500">Canvas workspace</p>
+                    <h2 className="mt-1 text-sm font-medium text-stone-800 dark:text-stone-200">继续你的创作</h2>
+                </div>
+                {projects.length ? <a href="/canvas" className="text-xs text-stone-500 transition hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">查看全部</a> : null}
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <button type="button" onClick={onCreate} className="group flex min-h-[132px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 bg-white/40 px-3 text-center transition hover:border-stone-500 hover:bg-white/75 dark:border-stone-700 dark:bg-white/[0.03] dark:hover:border-stone-400 dark:hover:bg-white/[0.07]">
+                    <span className="grid size-8 place-items-center rounded-full bg-stone-900 text-white transition group-hover:scale-105 dark:bg-stone-100 dark:text-stone-900"><Plus className="size-4" /></span>
+                    <span className="text-xs font-medium text-stone-700 dark:text-stone-200">创建画布</span>
+                    <span className="text-[10px] text-stone-400 dark:text-stone-500">从空白空间开始</span>
+                </button>
+                {recentProjects.map((project) => <HomeCanvasPreviewCard key={project.id} project={project} onOpen={() => onOpen(project.id)} />)}
+            </div>
+        </section>
+    );
+}
+
+function HomeCanvasPreviewCard({ project, onOpen }: { project: CanvasProject; onOpen: () => void }) {
+    const previewNode = [...project.nodes].reverse().find((node) => (node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Image || node.type === CanvasNodeType.Panorama) && (node.metadata?.content || node.metadata?.storageKey));
+    const previewContent = previewNode?.metadata?.content || "";
+    const previewStorageKey = previewNode?.metadata?.storageKey;
+    const [previewUrl, setPreviewUrl] = useState(previewContent);
+    const isVideo = previewNode?.type === CanvasNodeType.Video;
+
+    useEffect(() => {
+        let mounted = true;
+        setPreviewUrl(previewContent);
+        if (!previewContent && !previewStorageKey) {
+            return () => { mounted = false; };
+        }
+        const resolvePreview = isVideo ? resolveMediaUrl(previewStorageKey, previewContent) : resolveImageUrl(previewStorageKey, previewContent);
+        void resolvePreview.then((url) => {
+            if (mounted && url) setPreviewUrl(url);
+        }).catch(() => undefined);
+        return () => { mounted = false; };
+    }, [isVideo, previewContent, previewStorageKey]);
+
+    return (
+        <button type="button" onClick={onOpen} className="group min-w-0 overflow-hidden rounded-xl border border-stone-200 bg-white/70 text-left transition hover:-translate-y-0.5 hover:border-stone-400 hover:shadow-lg dark:border-stone-800 dark:bg-white/[0.04] dark:hover:border-stone-600">
+            <div className="relative h-[88px] overflow-hidden bg-stone-100 dark:bg-stone-900">
+                {previewUrl ? isVideo ? <video src={previewUrl} muted preload="metadata" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" /> : <img src={previewUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" /> : <div className="grid h-full place-items-center text-stone-300 dark:text-stone-600">{isVideo ? <Layers3 className="size-7" /> : <ImageIcon className="size-7" />}</div>}
+                <span className="absolute bottom-2 right-2 rounded-md bg-black/45 px-1.5 py-0.5 text-[10px] text-white backdrop-blur">{project.nodes.length} 个节点 · {project.connections.length} 条连线</span>
+            </div>
+            <div className="min-w-0 px-3 py-2.5">
+                <p className="truncate text-xs font-medium text-stone-800 dark:text-stone-200" title={project.title}>{project.title || "未命名画布"}</p>
+                <p className="mt-1 text-[10px] text-stone-400 dark:text-stone-500">更新于 {formatProjectDate(project.updatedAt)}</p>
+            </div>
+        </button>
+    );
+}
+
+function formatProjectDate(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "刚刚";
+    return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }

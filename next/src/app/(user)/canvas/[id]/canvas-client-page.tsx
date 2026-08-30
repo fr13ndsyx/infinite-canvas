@@ -1366,6 +1366,8 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
 
         const wasClick = !dragRef.current.hasMoved && dragRef.current.initialSelectedNodes.length === 1;
         const clickedNodeId = dragRef.current.clickedGroupId || dragRef.current.initialSelectedNodes[0]?.id;
+        // 拖拽（非点击）结束时不再恢复节点顶部工具栏，工具栏仅在点击选中时与底部聊天框一起出现
+        if (!wasClick) setToolbarNodeId(null);
         const currentViewport = viewportRef.current;
         const dx = clientX == null ? 0 : (clientX - dragRef.current.startX) / currentViewport.k;
         const dy = clientY == null ? 0 : (clientY - dragRef.current.startY) / currentViewport.k;
@@ -1442,8 +1444,10 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
 
             if (connectingParamsRef.current && !pendingConnectionCreateRef.current) {
                 const dropTarget = getConnectionDropTarget(event.clientX, event.clientY, connectingParamsRef.current);
-                connectionTargetNodeIdRef.current = dropTarget.nodeId;
-                setConnectionTargetNodeId(dropTarget.nodeId);
+                if (connectionTargetNodeIdRef.current !== dropTarget.nodeId) {
+                    connectionTargetNodeIdRef.current = dropTarget.nodeId;
+                    setConnectionTargetNodeId(dropTarget.nodeId);
+                }
                 setMouseWorld(screenToCanvas(event.clientX, event.clientY));
             }
         },
@@ -1510,24 +1514,36 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
         [connectNodes, finishNodeDrag, getConnectionDropTarget, screenToCanvas, setConnecting],
     );
 
+    const globalMouseMoveRef = useRef(handleGlobalMouseMove);
+    const globalMouseUpRef = useRef(handleGlobalMouseUp);
+    const globalPointerMoveRef = useRef(handleGlobalPointerMove);
+    const finishNodeDragRef = useRef(finishNodeDrag);
+    globalMouseMoveRef.current = handleGlobalMouseMove;
+    globalMouseUpRef.current = handleGlobalMouseUp;
+    globalPointerMoveRef.current = handleGlobalPointerMove;
+    finishNodeDragRef.current = finishNodeDrag;
+
     useEffect(() => {
-        const handlePointerUp = (event: PointerEvent) => finishNodeDrag(event.clientX, event.clientY);
-        const cancelNodeDrag = () => finishNodeDrag();
-        window.addEventListener("mousemove", handleGlobalMouseMove);
-        window.addEventListener("mouseup", handleGlobalMouseUp);
+        const handleMouseMove = (event: MouseEvent) => globalMouseMoveRef.current(event);
+        const handleMouseUp = (event: MouseEvent) => globalMouseUpRef.current(event);
+        const handlePointerUp = (event: PointerEvent) => finishNodeDragRef.current(event.clientX, event.clientY);
+        const cancelNodeDrag = () => finishNodeDragRef.current();
+        const handlePointerMove = (event: PointerEvent) => globalPointerMoveRef.current(event);
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseup", handleMouseUp);
         window.addEventListener("pointerup", handlePointerUp);
         window.addEventListener("pointercancel", cancelNodeDrag);
         window.addEventListener("blur", cancelNodeDrag);
-        window.addEventListener("pointermove", handleGlobalPointerMove);
+        window.addEventListener("pointermove", handlePointerMove);
         return () => {
-            window.removeEventListener("mousemove", handleGlobalMouseMove);
-            window.removeEventListener("mouseup", handleGlobalMouseUp);
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
             window.removeEventListener("pointerup", handlePointerUp);
             window.removeEventListener("pointercancel", cancelNodeDrag);
             window.removeEventListener("blur", cancelNodeDrag);
-            window.removeEventListener("pointermove", handleGlobalPointerMove);
+            window.removeEventListener("pointermove", handlePointerMove);
         };
-    }, [finishNodeDrag, handleGlobalMouseMove, handleGlobalMouseUp, handleGlobalPointerMove]);
+    }, []);
 
     const appendImportedImageNode = useCallback((image: UploadedImage, title: string, position: Position, type: CanvasNodeType.Image | CanvasNodeType.Panorama) => {
         const isPanorama = type === CanvasNodeType.Panorama;
@@ -1902,20 +1918,30 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
         [deleteNodes, handleConfigNodeChange, handleNodePromptChange],
     );
 
-    const handleFrameSelection = useCallback((targetNodeId: string, slot: "first" | "last", nodeId: string) => {
-        handleConfigNodeChange(targetNodeId, slot === "first" ? { firstFrameNodeId: nodeId || undefined, klingActiveTab: "frames" } : { lastFrameNodeId: nodeId || undefined, klingActiveTab: "frames" });
-    }, [handleConfigNodeChange]);
-
     const handleFrameRemove = useCallback((targetNodeId: string, slot: "first" | "last") => {
         const target = nodesRef.current.find((node) => node.id === targetNodeId);
         if (!target) return;
         const frameNodeId = slot === "first" ? target.metadata?.firstFrameNodeId : target.metadata?.lastFrameNodeId;
-        if (frameNodeId) {
+        const otherFrameNodeId = slot === "first" ? target.metadata?.lastFrameNodeId : target.metadata?.firstFrameNodeId;
+        if (frameNodeId && frameNodeId !== otherFrameNodeId) {
             const item = stackItemsByNodeId.get(targetNodeId)?.find((candidate) => candidate.nodeId === frameNodeId);
             if (item) handleRemoveStackItem(targetNodeId, item);
         }
         handleConfigNodeChange(targetNodeId, slot === "first" ? { firstFrameNodeId: undefined } : { lastFrameNodeId: undefined });
     }, [handleConfigNodeChange, handleRemoveStackItem, stackItemsByNodeId]);
+
+    const handleFrameUseSame = useCallback((targetNodeId: string) => {
+        const target = nodesRef.current.find((node) => node.id === targetNodeId);
+        if (!target) return;
+        const firstFrameNodeId = target.metadata?.firstFrameNodeId;
+        const lastFrameNodeId = target.metadata?.lastFrameNodeId;
+        if (firstFrameNodeId && firstFrameNodeId === lastFrameNodeId) {
+            handleConfigNodeChange(targetNodeId, { lastFrameNodeId: undefined, klingActiveTab: "frames" });
+            return;
+        }
+        const frameNodeId = firstFrameNodeId || lastFrameNodeId;
+        if (frameNodeId) handleConfigNodeChange(targetNodeId, { firstFrameNodeId: frameNodeId, lastFrameNodeId: frameNodeId, klingActiveTab: "frames" });
+    }, [handleConfigNodeChange]);
 
     const handleFrameSwap = useCallback((targetNodeId: string) => {
         const target = nodesRef.current.find((node) => node.id === targetNodeId);
@@ -3349,6 +3375,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     };
                     if (mode === "image") {
                         metadata.quality = generationConfig.quality;
+                        metadata.imageTier = generationConfig.imageTier;
                         metadata.count = typeof args.count === "number" ? Math.max(1, Math.floor(args.count)) : 1;
                     }
                     if (mode === "video") {
@@ -3819,9 +3846,9 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                                         stackItems={stackItemsByNodeId.get(panelNode.id) || []}
                                         onUploadImage={(file) => void uploadNodeInputImage(panelNode.id, file)}
                                         onUploadFrame={(slot, file) => void uploadNodeInputImage(panelNode.id, file, slot)}
-                                        onSelectFrame={(slot, nodeId) => handleFrameSelection(panelNode.id, slot, nodeId)}
                                         onRemoveFrame={(slot) => handleFrameRemove(panelNode.id, slot)}
                                         onSwapFrames={() => handleFrameSwap(panelNode.id)}
+                                        onUseSameFrame={() => handleFrameUseSame(panelNode.id)}
                                         onRemoveItem={(item) => handleRemoveStackItem(panelNode.id, item)}
                                         onPromptChange={handleNodePromptChange}
                                         onConfigChange={handleConfigNodeChange}
@@ -4330,7 +4357,6 @@ function CanvasTopBar({
     const theme = canvasThemes[colorTheme];
     const titleRef = useRef<HTMLDivElement>(null);
     const accountRef = useRef<HTMLDivElement>(null);
-    const [shortcutsOpen, setShortcutsOpen] = useState(false);
     const [accountOpen, setAccountOpen] = useState(false);
 
     useEffect(() => {
@@ -4345,7 +4371,10 @@ function CanvasTopBar({
     useEffect(() => {
         if (!accountOpen) return;
         const close = (event: PointerEvent) => {
-            if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false);
+            const target = event.target as Node | null;
+            if (accountRef.current?.contains(target)) return;
+            if (target instanceof Element && target.closest("[data-account-menu]")) return;
+            setAccountOpen(false);
         };
         document.addEventListener("pointerdown", close, true);
         return () => document.removeEventListener("pointerdown", close, true);
@@ -4358,11 +4387,13 @@ function CanvasTopBar({
                     <button type="button" onClick={onToggleSidePanel} className="grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label={sidePanelOpen ? "收起左侧面板" : "展开左侧面板"}>
                         {sidePanelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
                     </button>
+                    <button type="button" onClick={onHome} className="grid size-7 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label="返回主页">
+                        <Home className="size-4" />
+                    </button>
                     <Dropdown
                         trigger={["click"]}
                         menu={{
                             items: [
-                                { key: "home", icon: <Home className="size-4" />, label: "主页", onClick: onHome },
                                 { key: "projects", icon: <Images className="size-4" />, label: "我的画布", onClick: onProjects },
                                 { type: "divider" },
                                 { key: "new", icon: <Plus className="size-4" />, label: "新建画布", onClick: onCreateProject },
@@ -4413,11 +4444,7 @@ function CanvasTopBar({
                         accountOpen={accountOpen}
                         onAccountOpenChange={setAccountOpen}
                         accountRef={accountRef}
-                        getPopupContainer={(node) => node.parentElement || document.body}
-                        onOpenShortcuts={() => {
-                            setShortcutsOpen(true);
-                            setAccountOpen(false);
-                        }}
+                        getPopupContainer={() => document.body}
                     />
                     {assistantCollapsed ? (
                         <>
@@ -4435,21 +4462,6 @@ function CanvasTopBar({
                     ) : null}
                 </div>
             </div>
-            <Modal title="快捷键" open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
-                <div className="space-y-2 border-t pt-4 text-sm" style={{ borderColor: theme.node.stroke }}>
-                    <Shortcut keys={["拖动画布"]} value="平移视图" />
-                    <Shortcut keys={["滚轮"]} value="缩放画布" />
-                    <Shortcut keys={["Ctrl / Cmd", "拖动"]} value="框选多个节点" />
-                    <Shortcut keys={["Shift / Ctrl / Cmd", "点击"]} value="追加选择节点" />
-                    <Shortcut keys={["Ctrl / Cmd", "G"]} value="创建组" />
-                    <Shortcut keys={["Ctrl / Cmd", "C / V"]} value="复制 / 粘贴节点，或粘贴剪切板文本/图片" />
-                    <Shortcut keys={["Ctrl / Cmd", "Z"]} value="撤销" />
-                    <Shortcut keys={["Ctrl / Cmd", "Shift", "Z"]} value="重做" />
-                    <Shortcut keys={["Delete / Backspace"]} value="删除选中" />
-                    <Shortcut keys={["Esc"]} value="取消选择并关闭浮层" />
-                    <Shortcut keys={["拖入图片/视频/音频"]} value="上传到画布" />
-                </div>
-            </Modal>
         </>
     );
 }
@@ -4460,27 +4472,6 @@ function MenuLabel({ text, shortcut }: { text: string; shortcut: string }) {
             <span>{text}</span>
             <span className="text-xs opacity-45">{shortcut}</span>
         </span>
-    );
-}
-
-function Shortcut({ keys, value }: { keys: string[]; value: string }) {
-    return (
-        <div className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-6 rounded-lg px-1 py-1.5">
-            <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-                {keys.map((key, index) => (
-                    <span key={`${key}-${index}`} className="flex items-center gap-1.5">
-                        {index ? <span className="text-xs opacity-35">+</span> : null}
-                        <kbd
-                            className="min-w-9 rounded-md border px-2.5 py-1.5 text-center text-xs font-medium leading-none shadow-[inset_0_-1px_0_rgba(0,0,0,.08),0_1px_2px_rgba(0,0,0,.06)]"
-                            style={{ borderColor: "rgba(120,113,108,.28)", background: "linear-gradient(#fff, rgba(245,245,244,.92))", color: "rgb(68,64,60)" }}
-                        >
-                            {key}
-                        </kbd>
-                    </span>
-                ))}
-            </span>
-            <span className="text-right text-sm opacity-55">{value}</span>
-        </div>
     );
 }
 
