@@ -156,12 +156,14 @@ export default function VideoPage() {
     const klingWorkbenchProvider = klingWorkbenchPanelType === "kling-v3" && resolveVideoProvider(klingWorkbenchCap) === "kie" ? "kie" : "apimart";
     const klingWorkbenchModeOptions = resolveVideoModes(klingWorkbenchCap);
     const klingWorkbenchSupportsMultiShot = resolveSupportsMultiShot(klingWorkbenchCap) !== false;
-    // 参考素材数量上限：模型能力配置 0=走前端默认硬编码（图片 9/视频 3/音频 3）；字节限制始终用 SEEDANCE_REFERENCE_LIMITS。
+    // 参考素材数量上限：模型能力配置 0=走前端默认硬编码；视频 -1=不支持视频参考；字节限制始终用 SEEDANCE_REFERENCE_LIMITS。
+    const configuredVideoReferenceLimit = resolveMaxVideoReferences(klingWorkbenchCap);
     const referenceLimits = {
         images: resolveMaxImageReferences(klingWorkbenchCap) || SEEDANCE_REFERENCE_LIMITS.images,
-        videos: resolveMaxVideoReferences(klingWorkbenchCap) || SEEDANCE_REFERENCE_LIMITS.videos,
+        videos: configuredVideoReferenceLimit === -1 ? 0 : configuredVideoReferenceLimit || SEEDANCE_REFERENCE_LIMITS.videos,
         audios: resolveMaxAudioReferences(klingWorkbenchCap) || SEEDANCE_REFERENCE_LIMITS.audios,
     };
+    const videoReferencesEnabled = referenceLimits.videos > 0;
     const pendingLogCount = logs.filter((log) => log.status === "生成中" && log.task && !log.video).length;
     const usesBackendVideoTasks = (value: AiConfig) => value.channelMode === "remote" || (value.channelMode === "local" && Boolean(token));
 
@@ -243,8 +245,9 @@ export default function VideoPage() {
         const referenceImageLimit = isKlingWorkbench ? 2 : referenceLimits.images;
         const unsupported = isKlingWorkbench ? selectedFiles.filter((file) => !file.type.startsWith("image/")) : selectedFiles.filter((file) => !file.type.startsWith("image/") && !file.type.startsWith("video/") && !isSupportedAudioFile(file));
         if (unsupported.length) message.warning(isKlingWorkbench ? "当前 Kling 仅支持参考图" : "已忽略不支持的参考素材，请使用图片、mp4/mov 视频或 mp3/wav 音频");
+        if (!videoReferencesEnabled && selectedFiles.some((file) => file.type.startsWith("video/"))) message.warning("当前模型不支持参考视频");
         const imageFiles = selectedFiles.filter((file) => file.type.startsWith("image/") && file.size <= SEEDANCE_REFERENCE_LIMITS.imageMaxBytes).slice(0, Math.max(0, referenceImageLimit - references.length));
-        const videoFiles = isKlingWorkbench ? [] : selectedFiles.filter((file) => file.type.startsWith("video/") && file.size <= SEEDANCE_REFERENCE_LIMITS.videoMaxBytes).slice(0, referenceLimits.videos - videoReferences.length);
+        const videoFiles = isKlingWorkbench || !videoReferencesEnabled ? [] : selectedFiles.filter((file) => file.type.startsWith("video/") && file.size <= SEEDANCE_REFERENCE_LIMITS.videoMaxBytes).slice(0, Math.max(0, referenceLimits.videos - videoReferences.length));
         const audioFiles = isKlingWorkbench ? [] : selectedFiles.filter((file) => isSupportedAudioFile(file) && file.size <= SEEDANCE_REFERENCE_LIMITS.audioMaxBytes).slice(0, referenceLimits.audios - audioReferences.length);
         if (selectedFiles.some((file) => file.type.startsWith("image/") && file.size > SEEDANCE_REFERENCE_LIMITS.imageMaxBytes)) message.warning("已忽略超过 30MB 的参考图");
         if (selectedFiles.some((file) => file.type.startsWith("video/") && file.size > SEEDANCE_REFERENCE_LIMITS.videoMaxBytes)) message.warning("已忽略超过 50MB 的参考视频");
@@ -355,6 +358,10 @@ export default function VideoPage() {
     };
 
     const addVideoReferencesFromClipboard = async () => {
+        if (!videoReferencesEnabled) {
+            message.warning("当前模型不支持参考视频");
+            return;
+        }
         try {
             const items = await navigator.clipboard.read();
             const blobs = await Promise.all(items.flatMap((item) => item.types.filter((type) => type.startsWith("video/")).map((type) => item.getType(type))));
@@ -662,6 +669,10 @@ export default function VideoPage() {
             }
             if (payload.kind !== "video") {
                 message.warning("请选择视频素材");
+                return;
+            }
+            if (!videoReferencesEnabled) {
+                message.warning("当前模型不支持参考视频");
                 return;
             }
             setVideoReferences((value) => [...value, { id: nanoid(), name: payload.title, type: payload.mimeType || "video/mp4", url: payload.url, storageKey: payload.storageKey, width: payload.width, height: payload.height, bytes: payload.bytes }].slice(0, referenceLimits.videos));
@@ -1227,7 +1238,7 @@ function WorkbenchPanel({
                             <div className="grid gap-2">
                                 {firstFrame || lastFrame ? <FrameReferenceStrip firstFrame={firstFrame} lastFrame={lastFrame} compact showFirst={firstFrameEnabled} showLast={lastFrameEnabled} onUploadFrame={onUploadFrame} onRemoveFrame={onRemoveFrame} /> : null}
                                 {references.length ? <ReferenceImageStrip references={references} compact onRemoveReference={onRemoveReference} onMoveReference={onMoveReference} /> : null}
-                                {videoReferences.length ? <ReferenceVideoStrip references={videoReferences} compact onRemoveReference={onRemoveVideoReference} onMoveReference={onMoveVideoReference} /> : null}
+                                {videoReferencesEnabled && videoReferences.length ? <ReferenceVideoStrip references={videoReferences} compact onRemoveReference={onRemoveVideoReference} onMoveReference={onMoveVideoReference} /> : null}
                                 {audioReferences.length ? <ReferenceAudioStrip references={audioReferences} compact onRemoveReference={onRemoveAudioReference} onMoveReference={onMoveAudioReference} /> : null}
                             </div>
                         ) : null}
@@ -1274,7 +1285,7 @@ function WorkbenchPanel({
                         <ReferenceImageStrip references={references} onRemoveReference={onRemoveReference} onMoveReference={onMoveReference} />
                     </div>
                 </WorkbenchSection>
-                <WorkbenchSection title="参考视频" count={videoReferences.length}>
+                {videoReferencesEnabled ? <WorkbenchSection title="参考视频" count={videoReferences.length}>
                     <div className="space-y-2">
                         <div className="flex flex-wrap gap-1">
                             <Button size="small" icon={<ClipboardPaste className="size-3.5" />} onClick={onPasteVideoReferences}>剪贴板</Button>
@@ -1283,7 +1294,7 @@ function WorkbenchPanel({
                         </div>
                         <ReferenceVideoStrip references={videoReferences} onRemoveReference={onRemoveVideoReference} onMoveReference={onMoveVideoReference} />
                     </div>
-                </WorkbenchSection>
+                </WorkbenchSection> : null}
                 <WorkbenchSection title="参考音频" count={audioReferences.length}>
                     <div className="space-y-2">
                         <div className="flex flex-wrap gap-1">

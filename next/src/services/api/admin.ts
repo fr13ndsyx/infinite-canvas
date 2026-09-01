@@ -260,7 +260,7 @@ export type AdminModelCapability = {
     audioRequiresMode?: string;
     audioMaxReferences?: number;
     maxImageReferences?: number;
-    maxVideoReferences?: number;
+    maxVideoReferences?: number; // 0=默认，-1=不支持视频参考
     maxAudioReferences?: number;
 };
 

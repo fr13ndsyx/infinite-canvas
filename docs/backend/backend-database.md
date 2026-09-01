@@ -309,8 +309,8 @@ description: 当前后端主要数据表与字段说明
 | `videoModes` | object[] | 视频模式选项（Kling `std`/`pro`/`4k`、Grok `fun`/`normal`/`spicy`），空=不支持模式选择；每项含 `value`/`label`/`desc` |
 | `videoRatios` | string[] | 视频比例选项，如 `["16:9","9:16","1:1","adaptive"]`；空=通用面板走默认 sizeOptions |
 | `videoSecondsPresets` | int[] | 秒数预设档位，如 `[5,10]`；空=连续 Slider，有值=按档位显示 OptionPill |
-| `supportsFirstLastFrame` | bool | 是否支持尾帧（兼容字段：勾选=首尾帧都支持，仅首帧用 supportsFirstFrame） |
-| `supportsFirstFrame` | bool | 是否仅支持首帧（部分模型如 minimax-hailuo-2-3、kling-3-0-turbo） |
+| `supportsFirstLastFrame` | bool | 是否支持首尾帧（与 `supportsFirstFrame` 互斥） |
+| `supportsFirstFrame` | bool | 是否仅支持首帧（与 `supportsFirstLastFrame` 互斥；部分模型如 minimax-hailuo-2-3、kling-3-0-turbo） |
 | `supportsMotionControl` | bool | 是否支持运动控制 |
 | `supportsAudioGeneration` | bool | 是否支持音频生成 |
 | `supportsWatermark` | bool | 是否支持水印开关 |
@@ -318,7 +318,7 @@ description: 当前后端主要数据表与字段说明
 | `audioRequiresMode` | string | 音频生成所需模式，如 Kling V26 要求 `pro`；空=不限 |
 | `audioMaxReferences` | int | 音频生成最大参考图数量，如 Kling V26 要求 `1`；空/0=不限 |
 | `maxImageReferences` | int | 参考图数量上限（Seedance 等）；空/0=走前端默认（图片 9） |
-| `maxVideoReferences` | int | 参考视频数量上限（Seedance 等）；空/0=走前端默认（视频 3） |
+| `maxVideoReferences` | int | 参考视频数量上限（Seedance 等）；空/0=走前端默认（视频 3），-1=不支持视频参考 |
 | `maxAudioReferences` | int | 参考音频数量上限（Seedance 等）；空/0=走前端默认（音频 3） |
 
 `videoModes` 每项字段：

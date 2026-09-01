@@ -59,7 +59,7 @@ const videoCap = findModelCapability(config, videoModel);
 ### 4.3 视频比例
 - `videoCap?.videoRatios` 非空时：过滤 `videoRatioOptions`；
 - **注意值域差异**：chips 的 value 是像素尺寸（`"1280x720"`），能力是比例串（`"16:9"`）。过滤时经 `normalizeSeedanceRatio` / `normalizeVideoSizeValue` 归一到比例后比对（`videoSizeRatioLabel` 内已有同样的归一逻辑可参考）；
-- `adaptive`（自适应）始终保留；
+- `adaptive`（智能）始终保留；
 - 落选回落：当前 `videoSize` 不在集合内 → 取集合第一项（或 adaptive）。
 
 ### 4.4 视频分辨率
@@ -93,7 +93,7 @@ const videoCap = findModelCapability(config, videoModel);
 
 1. 后台给默认图片模型配置 `imageTiers: [standard, 2k]`：Agent图片参数弹窗只出现 标准/2K，无 4K；已选 4K 的旧会话打开后自动回落为 2K；
 2. 默认视频模型配置 `videoResolutions: [720p, 1080p]`：视频参数弹窗无 480p；
-3. 配置 `videoRatios: [16:9, 9:16]`：比例仅剩 16:9 / 9:16 / 自适应；
+3. 配置 `videoRatios: [16:9, 9:16]`：比例仅剩 16:9 / 9:16 / 智能；
 4. 删除该模型的能力配置：四组选项恢复全量（现状行为）；
 5. 主页与画布创作Agent行为一致；
 6. 回落发生时 chip 标签文字同步更新，无报错。

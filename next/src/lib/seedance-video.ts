@@ -17,7 +17,7 @@ export const seedanceRatioOptions = [
     { value: "4:3", label: "4:3" },
     { value: "3:4", label: "3:4" },
     { value: "21:9", label: "21:9" },
-    { value: "adaptive", label: "自适应" },
+    { value: "adaptive", label: "智能" },
 ] as const;
 
 export const seedanceDurationOptions = [-1, 4, 5, 6, 8, 10, 12, 15] as const;

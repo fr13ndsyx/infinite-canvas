@@ -40,7 +40,6 @@ const VIDEO_PANEL_TYPE_OPTIONS = [
     { label: "Kling V3 专属面板", value: "kling-v3" },
     { label: "Seedance 请求适配", value: "seedance" },
     { label: "Grok 请求适配", value: "grok" },
-    { label: "运动控制请求适配", value: "motion-control" },
     { label: "Agnes 请求适配", value: "agnes" },
 ];
 const VIDEO_PROVIDER_OPTIONS = [
@@ -55,7 +54,7 @@ const VIDEO_RATIO_OPTIONS = [
     { label: "4:3", value: "4:3" },
     { label: "3:4", value: "3:4" },
     { label: "21:9", value: "21:9" },
-    { label: "adaptive", value: "adaptive" },
+    { label: "智能", value: "adaptive" },
 ];
 
 function getModelCapability(items: AdminModelCapability[], model: string): AdminModelCapability {
@@ -182,7 +181,7 @@ function setModelCapabilitySeconds(form: any, setModelCapabilities: (items: Admi
     setModelCapabilities(next);
 }
 
-function setModelCapabilityValue(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "videoPanelType" | "videoProvider" | "audioRequiresMode", value: string) {
+function setModelCapabilityValue(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "videoPanelType" | "videoProvider", value: string) {
     const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
     const index = current.findIndex((item) => item.model === model);
     const next = [...current];
@@ -195,7 +194,7 @@ function setModelCapabilityValue(form: any, setModelCapabilities: (items: AdminM
     setModelCapabilities(next);
 }
 
-function setModelCapabilityBool(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "supportsFirstLastFrame" | "supportsFirstFrame" | "supportsMotionControl" | "supportsAudioGeneration" | "supportsWatermark" | "supportsMultiShot", value: boolean) {
+function setModelCapabilityBool(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "supportsFirstLastFrame" | "supportsFirstFrame" | "supportsAudioGeneration" | "supportsWatermark", value: boolean) {
     const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
     const index = current.findIndex((item) => item.model === model);
     const next = [...current];
@@ -204,6 +203,19 @@ function setModelCapabilityBool(form: any, setModelCapabilities: (items: AdminMo
     } else {
         next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], [field]: value });
     }
+    form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
+    setModelCapabilities(next);
+}
+
+function setModelFrameCapability(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "supportsFirstLastFrame" | "supportsFirstFrame", value: boolean) {
+    const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
+    const index = current.findIndex((item) => item.model === model);
+    const next = [...current];
+    const patch = field === "supportsFirstLastFrame"
+        ? { supportsFirstLastFrame: value, ...(value ? { supportsFirstFrame: false } : {}) }
+        : { supportsFirstFrame: value, ...(value ? { supportsFirstLastFrame: false } : {}) };
+    if (index >= 0) next[index] = { ...next[index], ...patch };
+    else next.push({ model, imageAspects: [], imageTiers: [], videoResolutions: [], ...patch });
     form.setFieldValue(["public", "modelChannel", "modelCapabilities"], next);
     setModelCapabilities(next);
 }
@@ -221,7 +233,7 @@ function setModelCapabilityModes(form: any, setModelCapabilities: (items: AdminM
     setModelCapabilities(next);
 }
 
-function setModelCapabilityNumber(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "audioMaxReferences" | "maxImageReferences" | "maxVideoReferences" | "maxAudioReferences", value: number | null) {
+function setModelCapabilityNumber(form: any, setModelCapabilities: (items: AdminModelCapability[]) => void, model: string, field: "maxImageReferences" | "maxVideoReferences" | "maxAudioReferences", value: number | null) {
     const current = (form.getFieldValue(["public", "modelChannel", "modelCapabilities"]) || []) as AdminModelCapability[];
     const index = current.findIndex((item) => item.model === model);
     const next = [...current];
@@ -730,7 +742,7 @@ export default function AdminModelPricingPage() {
                                                                         </Space>
                                                                     </div>
                                                                     <div style={{ minWidth: "min(100%, 280px)" }}>
-                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>参考素材数量上限（0=默认）</Typography.Text>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>参考素材数量上限（0=默认，视频 -1=不支持）</Typography.Text>
                                                                         <Space>
                                                                             <InputNumber
                                                                                 size="small"
@@ -743,7 +755,7 @@ export default function AdminModelPricingPage() {
                                                                             />
                                                                             <InputNumber
                                                                                 size="small"
-                                                                                min={0}
+                                                                                min={-1}
                                                                                 max={10}
                                                                                 placeholder="视频"
                                                                                 value={cap.maxVideoReferences || undefined}
@@ -761,30 +773,6 @@ export default function AdminModelPricingPage() {
                                                                             />
                                                                         </Space>
                                                                     </div>
-                                                                    {cap.supportsAudioGeneration ? (
-                                                                        <div style={{ minWidth: "min(100%, 280px)" }}>
-                                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>音频生成限制</Typography.Text>
-                                                                            <Space>
-                                                                                <Select
-                                                                                    size="small"
-                                                                                    style={{ width: 120 }}
-                                                                                    placeholder="需要模式"
-                                                                                    value={cap.audioRequiresMode || ""}
-                                                                                    onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "audioRequiresMode", value)}
-                                                                                    options={[{ label: "不限", value: "" }, { label: "std", value: "std" }, { label: "pro", value: "pro" }, { label: "4k", value: "4k" }]}
-                                                                                />
-                                                                                <InputNumber
-                                                                                    size="small"
-                                                                                    min={0}
-                                                                                    max={10}
-                                                                                    placeholder="最大参考图"
-                                                                                    value={cap.audioMaxReferences || undefined}
-                                                                                    onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "audioMaxReferences", value)}
-                                                                                    style={{ width: 120 }}
-                                                                                />
-                                                                            </Space>
-                                                                        </div>
-                                                                    ) : null}
                                                                 </Flex>
                                                             </CapabilitySection>
                                                             <CapabilitySection title="请求与能力">
@@ -802,7 +790,7 @@ export default function AdminModelPricingPage() {
                                                                             通用模型选“通用”；只有需要专属控件或特殊请求体时才选择其他类型。
                                                                         </Typography.Text>
                                                                     </div>
-                                                                    {(cap.videoPanelType === "kling-v3" || cap.videoPanelType === "motion-control") ? (
+                                                                    {cap.videoPanelType === "kling-v3" ? (
                                                                         <div style={{ minWidth: 140 }}>
                                                                             <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>厂商（区分请求体格式）</Typography.Text>
                                                                             <Select
@@ -817,16 +805,11 @@ export default function AdminModelPricingPage() {
                                                                     <div style={{ minWidth: "min(100%, 360px)" }}>
                                                                         <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 6 }}>能力开关（只勾选上游明确支持的能力）</Typography.Text>
                                                                         <Flex gap={8} wrap>
-                                                                            <Checkbox checked={!!cap.supportsFirstLastFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstLastFrame", e.target.checked)}>首尾帧</Checkbox>
-                                                                            <Checkbox checked={!!cap.supportsFirstFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstFrame", e.target.checked)}>首帧</Checkbox>
-                                                                            <Checkbox checked={!!cap.supportsMotionControl} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMotionControl", e.target.checked)}>运动控制</Checkbox>
-                                                                            <Checkbox checked={!!cap.supportsMultiShot} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMultiShot", e.target.checked)}>多镜头</Checkbox>
+                                                                            <Checkbox checked={!!cap.supportsFirstLastFrame} onChange={(e) => setModelFrameCapability(form, setModelCapabilities, model, "supportsFirstLastFrame", e.target.checked)}>首尾帧</Checkbox>
+                                                                            <Checkbox checked={!!cap.supportsFirstFrame} onChange={(e) => setModelFrameCapability(form, setModelCapabilities, model, "supportsFirstFrame", e.target.checked)}>首帧</Checkbox>
                                                                             <Checkbox checked={!!cap.supportsAudioGeneration} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsAudioGeneration", e.target.checked)}>音频生成</Checkbox>
                                                                             <Checkbox checked={!!cap.supportsWatermark} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsWatermark", e.target.checked)}>水印</Checkbox>
                                                                         </Flex>
-                                                                        <Typography.Text type="secondary" style={{ display: "block", marginTop: 6, fontSize: 11, lineHeight: 1.6 }}>
-                                                                            勾选后前端自动显示对应控件并启用请求字段：运动控制=角色朝向参考；多镜头=分镜开关/镜头提示词；首帧/首尾帧=参考帧入口。无需另写提示词或前端代码。
-                                                                        </Typography.Text>
                                                                     </div>
                                                                 </Flex>
                                                             </CapabilitySection>
