@@ -15,7 +15,10 @@ type MobileNavDrawerProps = {
 
 export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDrawerProps) {
     const publicSettings = useConfigStore((state) => state.publicSettings);
-    const visibleTools = filterNavigationTools(navigationTools, publicSettings?.modules);
+    const isPublicSettingsLoading = useConfigStore((state) => state.isPublicSettingsLoading);
+    const hasLoadedPublicSettings = useConfigStore((state) => state.hasLoadedPublicSettings);
+    const visibleTools = publicSettings ? filterNavigationTools(navigationTools, publicSettings.modules) : navigationTools;
+    const navigationReady = hasLoadedPublicSettings || (!isPublicSettingsLoading && Boolean(publicSettings));
     const rowClassName = (active: boolean) =>
         cn(
             "flex items-center gap-3 rounded-lg px-3 py-3 text-base transition",
@@ -25,7 +28,7 @@ export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDraw
     return (
         <Drawer title="导航" placement="left" size={280} open={open} onClose={onClose} className="md:hidden">
             <div className="space-y-1">
-                {visibleTools.map((tool) => {
+                {navigationReady ? visibleTools.map((tool) => {
                     // link 或 dropdown 单子项 → 渲染为单行 Link
                     if (tool.kind === "link" || tool.children.length === 1) {
                         const target = tool.kind === "link" ? tool : tool.children[0];
@@ -55,7 +58,7 @@ export function MobileNavDrawer({ open, activeToolSlug, onClose }: MobileNavDraw
                             })}
                         </div>
                     );
-                })}
+                }) : null}
             </div>
         </Drawer>
     );

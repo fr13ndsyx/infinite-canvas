@@ -54,13 +54,3 @@ description: 当前项目后续值得处理的事项
 - 基础：算力点体系已完整（Credits + CreditLog + 预扣/返还），支付只需做充值入口对接
 - 待确认：充值算力点 vs 订阅会员（会员专属提示词依赖此决策）；微信商户/支付宝/第三方个人支付（与需求 1 主体资质联动）
 
-### Agnes 模型能力后台配置
-
-- 状态：待实施（渠道已接入可用，按清单逐项配置即可）
-- 参考文档：[agnes-model-capability-config.md](./agnes-model-capability-config.md)（已按 Agnes 官方文档逐字段核对，可同时作为适配层配置化实施的字段参考）
-- 内容：在后台配置 `agnes-image-2.1-flash`（生图）与 `agnes-video-2.5`（生视频）的 capabilities / options / pricing
-- 关键差异（后台配置与前端校验要拦）：
-  - 生图：同步返回；能力仅文生图 + 图生图（`extra_body.image`）+ 多图合成；`size` 用 1K–4K 档位、`ratio` 8 种；无首尾帧/参考/seed；`response_format` 必须嵌套 `extra_body`、不能放顶层
-  - 视频：异步建任务 + 轮询；`mode`（text/keyframe/reference）决定媒体字段联动；`seconds` 必须字符串 4–12；`size` 档位 720P/960P/2K、`aspect_ratio` 6 种且不支持 auto；`n` 恒 1；禁止像素尺寸、width/height/fps/quality 等字段（会 400）
-  - 计费：生图当前免费；视频按档位 + 时长计价（720P ¥0.15/秒、960P ¥0.25/秒、2K ¥0.35/秒），输入视频时长计入总计费，输入图片前 5 张免费、第 6 张起 ¥0.03/张
-

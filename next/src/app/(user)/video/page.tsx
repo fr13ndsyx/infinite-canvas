@@ -22,7 +22,7 @@ import { deleteStoredImages, resolveImageUrl, uploadImage } from "@/services/ima
 import { deleteVideoGenerationLogs, fetchVideoGenerationLogs, saveVideoGenerationLogs } from "@/services/api/generation-logs";
 import { createVideoGenerationTask, deleteVideoGenerationTask, listVideoGenerationTasks, pollVideoGenerationTaskStatus, VIDEO_POLL_INTERVAL_MS, VideoRequestError, type VideoResponse } from "@/services/api/video";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { findModelCapability, normalizeLocalChannels, resolveAudioMaxReferences, resolveAudioRequiresMode, resolveMaxAudioReferences, resolveMaxImageReferences, resolveMaxVideoReferences, resolveSupportsAudioGeneration, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveSupportsWatermark, resolveVideoPanelType, resolveVideoProvider, resolveVideoSecondsRange, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { findModelCapability, normalizeLocalChannels, resolveAudioMaxReferences, resolveAudioRequiresMode, resolveMaxAudioReferences, resolveMaxImageReferences, resolveMaxVideoReferences, resolveSupportsAudioGeneration, resolveSupportsFirstFrame, resolveSupportsLastFrame, resolveSupportsMotionControl, resolveSupportsMultiShot, resolveSupportsWatermark, resolveVideoModes, resolveVideoPanelType, resolveVideoProvider, resolveVideoSecondsRange, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { useModuleGuard } from "@/hooks/use-module-guard";
@@ -154,6 +154,8 @@ export default function VideoPage() {
     const isKlingWorkbench = klingWorkbenchPanelType === "kling-v26" || klingWorkbenchPanelType === "kling-v3";
     const klingWorkbenchVariant = klingWorkbenchPanelType === "kling-v3" ? "v3" : klingWorkbenchPanelType === "kling-v26" ? "v26" : "";
     const klingWorkbenchProvider = klingWorkbenchPanelType === "kling-v3" && resolveVideoProvider(klingWorkbenchCap) === "kie" ? "kie" : "apimart";
+    const klingWorkbenchModeOptions = resolveVideoModes(klingWorkbenchCap);
+    const klingWorkbenchSupportsMultiShot = resolveSupportsMultiShot(klingWorkbenchCap) !== false;
     // 参考素材数量上限：模型能力配置 0=走前端默认硬编码（图片 9/视频 3/音频 3）；字节限制始终用 SEEDANCE_REFERENCE_LIMITS。
     const referenceLimits = {
         images: resolveMaxImageReferences(klingWorkbenchCap) || SEEDANCE_REFERENCE_LIMITS.images,
@@ -885,6 +887,8 @@ export default function VideoPage() {
                         {isKlingWorkbench ? (
                             <KlingV26WorkbenchPanel
                                 isKlingV3={klingWorkbenchVariant === "v3"}
+                                modeOptions={klingWorkbenchModeOptions}
+                                supportsMultiShot={klingWorkbenchSupportsMultiShot}
                                 klingProvider={klingWorkbenchProvider}
                                 prompt={prompt}
                                 references={references}
@@ -1205,7 +1209,7 @@ function WorkbenchPanel({
                                 <ModelPicker config={config} value={model} channelId={config.videoChannelId} onChange={(value, channelId) => { updateConfig("videoModel", value); if (channelId) updateConfig("videoChannelId", channelId); }} capability="video" className="canvas-compact-control !h-11 !rounded-xl" onMissingConfig={() => openConfigDialog(false)} fullWidth />
                             </label>
                             {klingBottom ? (
-                                <KlingV26BottomSettings config={config} updateConfig={updateConfig} generateAudio={generateAudio} isKlingV3={klingBottomVariant === "v3"} secondsRange={secondsRange} />
+                                <KlingV26BottomSettings config={config} updateConfig={updateConfig} generateAudio={generateAudio} isKlingV3={klingBottomVariant === "v3"} modeOptions={resolveVideoModes(cap)} secondsRange={secondsRange} />
                             ) : (
                                 <>
                                     {showBottomResolution ? <QuickSelect label="分辨率" value={normalizeVideoResolutionValue(config.vquality)} options={bottomResolutionOptions} onChange={(value) => updateConfig("vquality", value)} /> : null}
@@ -1497,13 +1501,13 @@ function QuickSlider({ label, value, min, max, step = 1, onChange }: { label: st
     );
 }
 
-function KlingV26BottomSettings({ config, updateConfig, generateAudio, isKlingV3, secondsRange }: { config: AiConfig; updateConfig: UpdateAiConfig; generateAudio: boolean; isKlingV3: boolean; secondsRange: { min: number; max: number } }) {
-    const mode = isKlingV3 && config.videoMode === "4k" ? "4k" : config.videoMode === "pro" ? "pro" : "std";
-    const modeOptions = isKlingV3 ? [{ value: "std", label: "720P" }, { value: "pro", label: "1080P" }, { value: "4k", label: "4K" }] : [{ value: "std", label: "标准(720P 无声)" }, { value: "pro", label: "专业(1080P 音频)" }];
+function KlingV26BottomSettings({ config, updateConfig, generateAudio, isKlingV3, modeOptions, secondsRange }: { config: AiConfig; updateConfig: UpdateAiConfig; generateAudio: boolean; isKlingV3: boolean; modeOptions?: { value: string; label: string }[]; secondsRange: { min: number; max: number } }) {
+    const resolvedModeOptions = modeOptions || [];
+    const mode = resolvedModeOptions.some((item) => item.value === config.videoMode) ? config.videoMode : resolvedModeOptions[0]?.value || "std";
     const seconds = Math.max(secondsRange.min, Math.min(secondsRange.max, Math.floor(Number(config.videoSeconds) || secondsRange.min)));
     return (
         <>
-            <QuickSelect label="模式选择" value={mode} options={modeOptions} onChange={(value) => updateConfig("videoMode", value)} />
+            {resolvedModeOptions.length ? <QuickSelect label="模式选择" value={mode} options={resolvedModeOptions} onChange={(value) => updateConfig("videoMode", value)} /> : null}
             <QuickSelect label="比例" value={klingBottomSizeValue(config.size)} options={[{ value: "16:9", label: "16:9" }, { value: "9:16", label: "9:16" }, { value: "1:1", label: "1:1" }]} onChange={(value) => updateConfig("size", value === "1:1" ? "1024x1024" : value)} />
             <QuickSlider label="秒数" value={seconds} min={secondsRange.min} max={secondsRange.max} onChange={(value) => updateConfig("videoSeconds", String(value))} />
             <QuickSwitch label="生成音频" checked={generateAudio} onChange={(checked) => updateConfig("videoGenerateAudio", String(checked))} />

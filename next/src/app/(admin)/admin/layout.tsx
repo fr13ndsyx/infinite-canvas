@@ -131,7 +131,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         {pageTitle}
                     </Typography.Title>
                     <Flex align="center" gap={4}>
-                        <UserStatusActions showConfig={false} />
+                        <UserStatusActions variant="admin" />
                     </Flex>
                 </Layout.Header>
                 <Layout.Content style={{ minHeight: 0, overflow: "auto" }}>{children}</Layout.Content>

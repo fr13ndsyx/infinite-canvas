@@ -10,7 +10,7 @@
 |---|---|---|
 | `videoPanelType` | ✅ 已接入 | 面板分流（通用/Kling V26/Kling V3/Seedance/Grok/Motion Control/Agnes） |
 | `videoProvider` | ✅ 已接入 | 厂商区分（apimart/kie），影响 Kling V3 / Motion Control 请求体格式 |
-| `videoModes` | ✅ 已接入 | 模式选项（Kling std/pro/4k、Grok fun/normal/spicy），空=走默认硬编码档位 |
+| `videoModes` | ✅ 已接入 | 模式选项（Kling/Grok 等），空=前端不显示模式选择，请求使用协议默认值 |
 | `videoRatios` | ✅ 已接入 | 比例选项，空=走默认 sizeOptions / klingV26RatioOptions / seedanceRatioOptions |
 | `videoSecondsMin`/`Max` | ✅ 已接入 | 秒数范围（Slider），空=默认 4-20 |
 | `videoSecondsPresets` | ✅ 已接入 | 秒数预设档位（Seedance 面板），空=走默认 seedanceDurationOptions |
@@ -89,7 +89,7 @@
 - V3 取值：`std`（720P）/ `pro`（1080P）/ `4k`（4K）
 - 默认：`std`
 - 来源：`video-settings-panel.tsx` L28-36 `klingV26ModeOptions` / `klingV3ModeOptions`
-- 后台控制：✅ 已接入 `ModelCapability.videoModes`（空=走默认 `klingV26ModeOptions`/`klingV3ModeOptions`）
+- 后台控制：✅ 已接入 `ModelCapability.videoModes`（有值才显示模式选择；空=隐藏选择器，请求使用协议默认值）
 
 ### 比例（size）
 
@@ -120,7 +120,7 @@
 
 - 取值：`true` / `false`
 - 默认：`false`
-- 显示条件：`resolveVideoPanelType(cap) === "kling-v3"`（替代 `isKlingV3`）
+- 显示条件：`resolveVideoPanelType(cap) === "kling-v3"` 且勾选 `supportsMultiShot`（替代 `isKlingV3`）
 - 关联字段：
   - `videoShotType`：`customize`（自定义）/ `intelligence`（智能分镜），默认 `intelligence`
   - `videoMultiPrompt`：分镜提示词数组，每项含 `prompt` + `duration`（1-15 秒），默认 1 条空提示词
@@ -138,7 +138,7 @@
 
 - 取值：`image` / `video`
 - 默认：`video`
-- 显示条件：`resolveVideoPanelType(cap) === "motion-control"`（替代 `isAPIMartKlingMotionControlConfig` / `isKIEKlingMotionControlConfig`）
+- 显示条件：`resolveVideoPanelType(cap) === "motion-control"` 且勾选 `supportsMotionControl`（替代 `isAPIMartKlingMotionControlConfig` / `isKIEKlingMotionControlConfig`）
 - 适用模型：`kling-v2-6-motion-control` / `kling-2-6-motion-control` / `kling-3-0-motion-control`
 - 来源：`video/page.tsx` L2801 `characterOrientationOptions`，L1321 `motionControl`
 - 后台控制：✅ 已接入 `ModelCapability.videoPanelType=motion-control`

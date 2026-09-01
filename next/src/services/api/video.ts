@@ -192,17 +192,20 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
     const apimartMotionControl = panelType === "motion-control" && provider !== "kie";
     const kieKlingV3 = panelType === "kling-v3" && provider === "kie";
     const kieMotionControl = panelType === "motion-control" && provider === "kie";
-    const motionControl = apimartMotionControl || kieMotionControl;
+    // 协议类型决定请求结构，能力开关只决定是否启用角色朝向字段。
+    const motionProtocol = apimartMotionControl || kieMotionControl;
+    const motionControl = motionProtocol && cap?.supportsMotionControl !== false;
     const klingV3 = apimartKlingV3 || kieKlingV3;
     const kling = klingV26 || klingV3;
     const body = new FormData();
     body.append("model", model);
     body.append("prompt", prompt);
     if (kling) {
-        body.append("mode", klingV3 ? normalizeKlingV3Mode(config.videoMode) : normalizeKlingV26Mode(config.videoMode));
+        const configuredMode = resolveConfiguredVideoMode(cap, config.videoMode);
+        body.append("mode", configuredMode || (klingV3 ? normalizeKlingV3Mode(config.videoMode) : normalizeKlingV26Mode(config.videoMode)));
         body.append("duration", klingV3 ? normalizeKlingV3Duration(config.videoSeconds) : normalizeKlingV26Duration(config.videoSeconds));
         body.append("aspect_ratio", normalizeKlingV26AspectRatio(config.size));
-        if (klingV3 && boolConfig(config.videoMultiShot, false)) {
+        if (klingV3 && cap?.supportsMultiShot !== false && boolConfig(config.videoMultiShot, false)) {
             body.append("multi_shot", "true");
             if (kieKlingV3) {
                 body.append("multi_prompt", JSON.stringify(normalizeKIEKlingMultiPrompt(config.videoMultiPrompt)));
@@ -219,7 +222,7 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
         if (panelType === "seedance") body.append("size", normalizeSeedanceRatio(config.size));
         else if (size) body.append("size", size);
         body.append("resolution_name", normalizeVideoResolution(config.vquality));
-        if (panelType === "grok") body.append("mode", normalizeGrokVideoMode(config.videoMode));
+        if (panelType === "grok") body.append("mode", resolveConfiguredVideoMode(cap, config.videoMode) || normalizeGrokVideoMode(config.videoMode));
         else body.append("preset", "normal");
     }
     if (motionControl) body.append("character_orientation", normalizeCharacterOrientation(config.videoCharacterOrientation));
@@ -237,6 +240,12 @@ async function createVideoRequestBody(config: AiConfig, model: string, prompt: s
 
 function normalizeCharacterOrientation(value: string | undefined) {
     return value === "image" ? "image" : "video";
+}
+
+function resolveConfiguredVideoMode(cap: ReturnType<typeof findModelCapability>, value: string | undefined) {
+    const options = cap?.videoModes || [];
+    if (!options.length) return "";
+    return options.some((item) => item.value === value) ? String(value || "") : String(options[0]?.value || "");
 }
 
 function normalizeKlingV26Mode(value: string) {

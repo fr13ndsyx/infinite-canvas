@@ -281,25 +281,33 @@ export function AppConfigModal() {
     return (
         <Modal
             title={
-                <div>
-                    <div className="text-lg font-semibold">配置与用户偏好</div>
+                <div className="py-1">
+                    <div className="text-lg font-semibold tracking-tight">配置与用户偏好</div>
                     <div className="mt-1 text-xs font-normal text-stone-500">模型、渠道和画布默认行为</div>
                 </div>
             }
             open={isConfigOpen}
-            width={960}
+            width={1000}
             centered
             onCancel={() => setConfigDialogOpen(false)}
-            styles={{ body: { height: "35vh", overflowY: "auto", paddingRight: 18 } }}
+            styles={{
+                header: { marginBottom: 4, paddingBottom: 14, borderBottom: "1px solid var(--color-border)" },
+                body: { height: "min(68vh, 660px)", overflowY: "auto", padding: "8px 20px 8px 4px" },
+                footer: { marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--color-border)" },
+            }}
             footer={
-                <Button type="primary" loading={savingConfig} onClick={() => void finishConfig()}>
-                    完成
-                </Button>
+                <div className="flex items-center justify-between gap-3">
+                    <div className="hidden text-xs text-stone-500 sm:block">修改会在点击完成后保存</div>
+                    <Button type="primary" loading={savingConfig} onClick={() => void finishConfig()}>
+                        完成并保存
+                    </Button>
+                </div>
             }
         >
-            <div className="pt-1">
+            <div>
                 <Form layout="vertical" requiredMark={false}>
                     <Tabs
+                        className="[&_.ant-tabs-nav]:mb-5 [&_.ant-tabs-tab]:px-1 [&_.ant-tabs-tab]:py-2 [&_.ant-tabs-tab-btn]:text-sm [&_.ant-tabs-ink-bar]:h-0.5"
                         activeKey={activeTab}
                         onChange={(key) => {
                             const next = key as "local" | "remote" | "preferences";
@@ -315,18 +323,18 @@ export function AppConfigModal() {
                             children:
                                 tab.value === "local" ? (
                                     <>
-                                        <div className="mb-5 space-y-3 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
+                                        <div className="mb-5 space-y-4 rounded-2xl border border-stone-200/90 bg-stone-50/60 p-4 dark:border-stone-800 dark:bg-stone-900/45">
                                             <div className="flex items-center justify-between gap-3">
                                                 <div>
                                                     <div className="text-sm font-medium">本地模型渠道</div>
                                                     <div className="mt-1 text-xs text-stone-500">可为生图、视频、文本、音频分别选择不同渠道的模型。</div>
                                                 </div>
-                                                <Button size="small" onClick={addLocalChannel}>
+                                                <Button size="small" type="default" onClick={addLocalChannel}>
                                                     新增渠道
                                                 </Button>
                                             </div>
                                             {normalizeLocalChannels(config).map((channel, index) => (
-                                                <div key={channel.id} className="space-y-2 rounded-md bg-stone-50 p-2 dark:bg-stone-900">
+                                                <div key={channel.id} className="space-y-3 rounded-xl border border-stone-200/80 bg-white/80 p-3 shadow-sm dark:border-stone-800 dark:bg-stone-950/45">
                                                     <div className="grid gap-2 md:grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)_auto]">
                                                         <Input value={channel.name} placeholder="渠道名称" autoComplete="off" onChange={(event) => patchLocalChannel(channel.id, { name: event.target.value })} />
                                                         <Input value={channel.baseUrl} placeholder="Base URL" autoComplete="off" onChange={(event) => patchLocalChannel(channel.id, { baseUrl: event.target.value })} />
@@ -344,7 +352,7 @@ export function AppConfigModal() {
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-800">
+                                        <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-stone-200/90 bg-stone-50/60 px-4 py-3 dark:border-stone-800 dark:bg-stone-900/45">
                                             <div className="min-w-0">
                                                 <div className="text-sm font-medium">模型列表</div>
                                                 <div className="mt-1 text-xs text-stone-500">当前已保存 {config.models.length} 个模型</div>
@@ -360,18 +368,22 @@ export function AppConfigModal() {
                                     </>
                                 ) : tab.value === "remote" ? (
                                     <>
-                                        <div className="mb-5 grid gap-4 md:grid-cols-2">
+                                        <div className="mb-5 grid items-stretch gap-4 md:grid-cols-2">
                                             {modelGroups.map((group) => (
-                                                <Form.Item key={group.modelKey} label={group.defaultLabel} className="mb-0 rounded-lg border border-stone-200 px-4 py-3 dark:border-stone-800">
+                                                <div key={group.modelKey} className="flex min-h-[104px] h-full flex-col rounded-xl border border-stone-200/90 bg-stone-50/65 p-3.5 dark:border-stone-800 dark:bg-stone-900/50">
+                                                    <div className="mb-2 text-sm font-medium leading-5">{group.defaultLabel}</div>
                                                     <ModelPicker config={modelConfig} value={modelConfig[group.modelKey]} channelId={modelConfig[group.channelKey]} onChange={(model, channelId) => { updateConfig(group.modelKey, model); if (channelId) updateConfig(group.channelKey, channelId); }} capability={group.capability} fullWidth />
-                                                </Form.Item>
+                                                </div>
                                             ))}
                                         </div>
                                     </>
                                 ) : (
                                     <>
-                                        <div className="grid gap-4 md:grid-cols-4">
-                                            <Form.Item label="画布默认生图张数" extra="新建画布生图和配置节点默认使用，单个节点仍可单独覆盖。" className="mb-4">
+                                        <div className="mb-5 rounded-2xl border border-stone-200/90 bg-stone-50/60 px-4 py-3 text-xs text-stone-500 dark:border-stone-800 dark:bg-stone-900/45">
+                                            这些偏好会作为新画布和工作台的默认值，具体节点仍可单独覆盖。
+                                        </div>
+                                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                            <Form.Item label="画布默认生图张数" extra="新建画布生图和配置节点默认使用。" className="mb-4">
                                                 <Input
                                                     type="number"
                                                     min={1}

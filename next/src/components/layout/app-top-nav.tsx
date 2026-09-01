@@ -18,10 +18,13 @@ export function AppTopNav() {
     const pathname = usePathname();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const publicSettings = useConfigStore((state) => state.publicSettings);
+    const isPublicSettingsLoading = useConfigStore((state) => state.isPublicSettingsLoading);
+    const hasLoadedPublicSettings = useConfigStore((state) => state.hasLoadedPublicSettings);
     const hideHeader = /^\/canvas\/[^/]+/.test(pathname);
     const slug = pathname.split("/").filter(Boolean)[0];
     const activeToolSlug = navigationSlugs.includes(slug as NavigationSlug) ? (slug as NavigationSlug) : undefined;
-    const visibleTools = filterNavigationTools(navigationTools, publicSettings?.modules);
+    const visibleTools = publicSettings ? filterNavigationTools(navigationTools, publicSettings.modules) : navigationTools;
+    const navigationReady = hasLoadedPublicSettings || (!isPublicSettingsLoading && Boolean(publicSettings));
 
     const linkClassName = (active: boolean) =>
         cn(
@@ -58,8 +61,8 @@ export function AppTopNav() {
                                 <Menu className="size-5" />
                             </button>
 
-                            <nav className="hide-scrollbar ml-8 hidden h-16 min-w-0 items-center gap-7 overflow-x-auto md:flex">
-                                {visibleTools.map((tool) => {
+                            <nav className="hide-scrollbar ml-8 hidden h-16 min-w-0 items-center gap-7 overflow-x-auto md:flex" aria-busy={!navigationReady}>
+                                {navigationReady ? visibleTools.map((tool) => {
                                     if (tool.kind === "link") {
                                         const Icon = tool.icon;
                                         const active = tool.slug === activeToolSlug;
@@ -105,7 +108,7 @@ export function AppTopNav() {
                                             </span>
                                         </Dropdown>
                                     );
-                                })}
+                                }) : null}
                             </nav>
                         </div>
 

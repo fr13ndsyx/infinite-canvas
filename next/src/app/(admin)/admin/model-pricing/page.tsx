@@ -1,7 +1,7 @@
 "use client";
 
 import { DeleteOutlined, PlusOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
-import { App, Button, Card, Checkbox, Col, Flex, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Typography } from "antd";
+import { App, Button, Card, Checkbox, Col, Collapse, Flex, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Typography } from "antd";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -35,17 +35,18 @@ const VIDEO_RESOLUTION_OPTIONS = [
     { label: "4K", value: "4k" },
 ];
 const VIDEO_PANEL_TYPE_OPTIONS = [
-    { label: "通用（默认）", value: "" },
-    { label: "Kling 请求格式", value: "kling-v26" },
-    { label: "Kling V3 请求格式", value: "kling-v3" },
-    { label: "Seedance 请求格式", value: "seedance" },
-    { label: "Grok 请求格式", value: "grok" },
-    { label: "运动控制请求格式", value: "motion-control" },
-    { label: "Agnes 请求格式", value: "agnes" },
+    { label: "通用面板 · 标准请求", value: "" },
+    { label: "Kling V2.6 专属面板", value: "kling-v26" },
+    { label: "Kling V3 专属面板", value: "kling-v3" },
+    { label: "Seedance 请求适配", value: "seedance" },
+    { label: "Grok 请求适配", value: "grok" },
+    { label: "运动控制请求适配", value: "motion-control" },
+    { label: "Agnes 请求适配", value: "agnes" },
 ];
 const VIDEO_PROVIDER_OPTIONS = [
     { label: "不区分（空）", value: "" },
     { label: "apimart", value: "apimart" },
+    { label: "kie", value: "kie" },
 ];
 const VIDEO_RATIO_OPTIONS = [
     { label: "16:9", value: "16:9" },
@@ -122,6 +123,16 @@ function AdapterField({ label, children }: { label: string; children: ReactNode 
     return (
         <div style={{ minWidth: 130 }}>
             <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>{label}</Typography.Text>
+            {children}
+        </div>
+    );
+}
+
+// 右侧配置区分组标题：基础能力 / 参数限制 / 请求与能力 / 高级协议适配
+function CapabilitySection({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <div>
+            <Typography.Text strong style={{ display: "block", fontSize: 13, marginBottom: 8 }}>{title}</Typography.Text>
             {children}
         </div>
     );
@@ -233,6 +244,8 @@ export default function AdminModelPricingPage() {
     const [modelCapabilities, setModelCapabilities] = useState<AdminModelCapability[]>([]);
     const [modelInfos, setModelInfos] = useState<AdminModelInfo[]>([]);
     const [channels, setChannels] = useState<AdminSettings["private"]["channels"]>([]);
+    const [capabilityKind, setCapabilityKind] = useState<"image" | "video">("image");
+    const [selectedCapabilityModel, setSelectedCapabilityModel] = useState("");
     const availableModels = (Form.useWatch(["public", "modelChannel", "availableModels"], form) || []) as string[];
     const allowCustomChannel = Form.useWatch(["public", "modelChannel", "allowCustomChannel"], form);
     const allowUserRemoteChannel = Form.useWatch(["public", "modelChannel", "allowUserRemoteChannel"], form);
@@ -254,6 +267,10 @@ export default function AdminModelPricingPage() {
     const textModelOptions = useMemo(() => availableModels.filter((m) => modelMatchesCapability(m, "text")).map((item) => ({ label: item, value: item })), [availableModels]);
     const imageModelOptions = useMemo(() => availableModels.filter((m) => modelMatchesCapability(m, "image")).map((item) => ({ label: item, value: item })), [availableModels]);
     const videoModelOptions = useMemo(() => availableModels.filter((m) => modelMatchesCapability(m, "video")).map((item) => ({ label: item, value: item })), [availableModels]);
+    const imageCapabilityModels = useMemo(() => availableModels.filter((model) => modelMatchesCapability(model, "image")), [availableModels]);
+    const videoCapabilityModels = useMemo(() => availableModels.filter((model) => modelMatchesCapability(model, "video")), [availableModels]);
+    const capabilityModels = capabilityKind === "image" ? imageCapabilityModels : videoCapabilityModels;
+    const activeCapabilityModel = capabilityModels.includes(selectedCapabilityModel) ? selectedCapabilityModel : capabilityModels[0] || "";
     const audioModelOptions = useMemo(() => availableModels.filter((m) => modelMatchesCapability(m, "audio")).map((item) => ({ label: item, value: item })), [availableModels]);
 
     // 定价表数据：按渠道分组扁平化，渠道列用 rowSpan 合并首行，其余行 rowSpan=0
@@ -389,7 +406,9 @@ export default function AdminModelPricingPage() {
                                     rowKey="key"
                                     dataSource={pricingTableData}
                                     pagination={false}
-                                    size="small"
+                                    size="middle"
+                                    bordered
+                                    scroll={{ x: 920 }}
                                     columns={[
                                         {
                                             title: "渠道",
@@ -472,420 +491,502 @@ export default function AdminModelPricingPage() {
 
                     <Card
                         variant="borderless"
-                        title="图片模型能力"
-                        extra={<Typography.Text type="secondary">勾选每个图片模型支持的选项，未勾选 = 前端不展示；新模型默认全选</Typography.Text>}
+                        title="模型能力配置"
+                        extra={<Button type="primary" size="small" icon={<SaveOutlined />} loading={isSaving} onClick={() => void saveSettings()}>保存</Button>}
                     >
-                        {availableModels.length === 0 ? (
-                            <Typography.Text type="secondary">请先在上方勾选开放模型</Typography.Text>
+                        <div className="mb-4 rounded-lg border border-[var(--ant-color-border-secondary)] bg-[var(--ant-color-fill-quaternary)] px-3 py-2.5">
+                            <Typography.Text strong style={{ fontSize: 12 }}>配置建议</Typography.Text>
+                            <Typography.Text type="secondary" style={{ display: "block", marginTop: 3, fontSize: 12 }}>
+                                图片模型先配置比例/档位；视频模型先配置分辨率/比例/时长，再按厂商文档勾选能力。只有上游接口与通用协议不一致时，再展开“高级协议适配”。勾选能力后前端会自动显示对应控件并约束请求，无需额外修改前端代码。
+                            </Typography.Text>
+                        </div>
+                        {/* 隐藏字段，保持 Form 对 modelCapabilities 的绑定 */}
+                        <Form.Item name={["public", "modelChannel", "modelCapabilities"]} hidden>
+                            <InputNumber />
+                        </Form.Item>
+                        {imageCapabilityModels.length === 0 && videoCapabilityModels.length === 0 ? (
+                            <Typography.Text type="secondary">请先在上方开放图片或视频模型</Typography.Text>
                         ) : (
-                            <Flex vertical gap={12}>
-                                <Form.Item name={["public", "modelChannel", "modelCapabilities"]} hidden>
-                                    <InputNumber />
-                                </Form.Item>
-                                {availableModels
-                                    .filter((model) => modelMatchesCapability(model, "image"))
-                                    .map((model) => {
-                                        const cap = getModelCapability(modelCapabilities, model);
-                                        return (
-                                            <div key={model} style={{ border: "1px solid var(--ant-color-border)", borderRadius: 8, padding: "12px 16px" }}>
-                                                <Typography.Text strong style={{ wordBreak: "break-all" }}>{model}</Typography.Text>
-                                                <Flex gap={32} wrap style={{ marginTop: 8 }}>
-                                                    <div style={{ minWidth: 320 }}>
-                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片比例</Typography.Text>
-                                                        <Checkbox.Group
-                                                            options={IMAGE_ASPECT_OPTIONS}
-                                                            value={cap.imageAspects}
-                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageAspects", values as string[])}
-                                                        />
-                                                    </div>
-                                                    <div style={{ minWidth: 220 }}>
-                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片档位</Typography.Text>
-                                                        <Checkbox.Group
-                                                            options={IMAGE_TIER_OPTIONS}
-                                                            value={cap.imageTiers}
-                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageTiers", values as string[])}
-                                                        />
-                                                    </div>
+                            <div className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)]">
+                                <aside className="min-w-0">
+                                    <div className="px-2 pb-1 text-xs text-[var(--ant-color-text-secondary)]">图片模型 <span className="opacity-60">{imageCapabilityModels.length}</span></div>
+                                    <div style={{ maxHeight: 256, overflowY: "auto" }}>
+                                        {imageCapabilityModels.map((model) => (
+                                            <button
+                                                key={model}
+                                                type="button"
+                                                title={model}
+                                                onClick={() => {
+                                                    setCapabilityKind("image");
+                                                    setSelectedCapabilityModel(model);
+                                                }}
+                                                className={`block w-full truncate rounded-md border px-2 py-1.5 text-left text-sm transition ${model === activeCapabilityModel ? "border-[var(--ant-color-primary-border)] font-medium text-[var(--ant-color-text)]" : "border-transparent text-[var(--ant-color-text)] hover:bg-[var(--ant-color-fill-quaternary)]"}`}
+                                                style={model === activeCapabilityModel ? { background: "color-mix(in srgb, var(--ant-color-primary) 8%, var(--ant-color-bg-container))", boxShadow: "0 2px 8px color-mix(in srgb, var(--ant-color-primary) 18%, transparent)" } : undefined}
+                                            >
+                                                {model}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="mt-3 px-2 pb-1 text-xs text-[var(--ant-color-text-secondary)]">视频模型 <span className="opacity-60">{videoCapabilityModels.length}</span></div>
+                                    <div style={{ maxHeight: 256, overflowY: "auto" }}>
+                                        {videoCapabilityModels.map((model) => (
+                                            <button
+                                                key={model}
+                                                type="button"
+                                                title={model}
+                                                onClick={() => {
+                                                    setCapabilityKind("video");
+                                                    setSelectedCapabilityModel(model);
+                                                }}
+                                                className={`block w-full truncate rounded-md border px-2 py-1.5 text-left text-sm transition ${model === activeCapabilityModel ? "border-[var(--ant-color-primary-border)] font-medium text-[var(--ant-color-text)]" : "border-transparent text-[var(--ant-color-text)] hover:bg-[var(--ant-color-fill-quaternary)]"}`}
+                                                style={model === activeCapabilityModel ? { background: "color-mix(in srgb, var(--ant-color-primary) 8%, var(--ant-color-bg-container))", boxShadow: "0 2px 8px color-mix(in srgb, var(--ant-color-primary) 18%, transparent)" } : undefined}
+                                            >
+                                                {model}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </aside>
+                                <div className="min-w-0" style={{ height: 600, overflowY: "auto", overflowX: "hidden" }}>
+                                    {activeCapabilityModel ? (
+                                        (() => {
+                                            const model = activeCapabilityModel;
+                                            const cap = getModelCapability(modelCapabilities, model);
+                                            const isImage = capabilityKind === "image";
+                                            return (
+                                                <Flex vertical gap={12}>
+                                                    {isImage ? (
+                                                        <>
+                                                            <CapabilitySection title="基础能力">
+                                                                <Flex gap={32} wrap>
+                                                                    <div style={{ minWidth: "min(100%, 320px)" }}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片比例</Typography.Text>
+                                                                        <Checkbox.Group
+                                                                            options={IMAGE_ASPECT_OPTIONS}
+                                                                            value={cap.imageAspects}
+                                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageAspects", values as string[])}
+                                                                        />
+                                                                    </div>
+                                                                    <div style={{ minWidth: "min(100%, 220px)" }}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>图片档位</Typography.Text>
+                                                                        <Checkbox.Group
+                                                                            options={IMAGE_TIER_OPTIONS}
+                                                                            value={cap.imageTiers}
+                                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "imageTiers", values as string[])}
+                                                                        />
+                                                                    </div>
+                                                                </Flex>
+                                                            </CapabilitySection>
+                                                            <Collapse
+                                                                ghost
+                                                                expandIconPosition="end"
+                                                                styles={{ header: { display: "inline-flex", width: "fit-content", padding: "0 0 4px", gap: 6 }, title: { flex: "0 1 auto", fontWeight: 600, fontSize: 13 }, body: { padding: "4px 0 0" } }}
+                                                                items={[{
+                                                                    key: "image-adapter",
+                                                                    label: "高级协议适配",
+                                                                        children: (
+                                                                            <div style={{ paddingTop: 4 }}>
+                                                                                <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
+                                                                                    后端请求归一化规则，全部默认时走 OpenAI images 标准协议；仅聚合渠道等非标准上游需要按模型接口文档配置
+                                                                                </Typography.Text>
+                                                                                <Flex gap={16} wrap>
+                                                                                    <AdapterField label="比例字段名">
+                                                                                        <Input size="small" style={{ width: 110 }} placeholder="size" value={cap.imageAdapter?.aspectField || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { aspectField: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="分辨率参数">
+                                                                                        <AdapterTriState value={cap.imageAdapter?.hasResolution} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasResolution: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="分辨率大小写">
+                                                                                        <Select
+                                                                                            size="small"
+                                                                                            style={{ width: 120 }}
+                                                                                            value={cap.imageAdapter?.resolutionCase || ""}
+                                                                                            onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { resolutionCase: v })}
+                                                                                            options={[
+                                                                                                { label: "默认（大写）", value: "" },
+                                                                                                { label: "大写（2K）", value: "upper" },
+                                                                                                { label: "小写（2k）", value: "lower" },
+                                                                                            ]}
+                                                                                        />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="分辨率下限">
+                                                                                        <Input size="small" style={{ width: 90 }} placeholder="如 2K" value={cap.imageAdapter?.minResolution || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { minResolution: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="分辨率上限">
+                                                                                        <Input size="small" style={{ width: 90 }} placeholder="如 1K" value={cap.imageAdapter?.maxResolution || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { maxResolution: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="数量 n">
+                                                                                        <AdapterTriState value={cap.imageAdapter?.hasCount} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasCount: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="quality">
+                                                                                        <AdapterTriState value={cap.imageAdapter?.hasQuality} defaultLabel="默认（不支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasQuality: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="output_format">
+                                                                                        <AdapterTriState value={cap.imageAdapter?.hasOutput} defaultLabel="默认（不支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasOutput: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考图">
+                                                                                        <AdapterTriState value={cap.imageAdapter?.hasImageRefs} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasImageRefs: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考图字段名">
+                                                                                        <Input size="small" style={{ width: 120 }} placeholder="image_urls" value={cap.imageAdapter?.imageRefField || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { imageRefField: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考图上限">
+                                                                                        <InputNumber size="small" min={0} max={20} style={{ width: 90 }} placeholder="0=不限" value={cap.imageAdapter?.maxImageRefs || undefined} onChange={(value) => setModelCapabilityAdapter(form, setModelCapabilities, model, { maxImageRefs: Number(value) || 0 })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="必须参考图">
+                                                                                        <AdapterTriState value={cap.imageAdapter?.requireRefs} defaultLabel="默认（否）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { requireRefs: v })} />
+                                                                                    </AdapterField>
+                                                                                </Flex>
+                                                                                <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "12px 0 8px" }}>
+                                                                                    档位映射：把前端发来的「比例 + 档位」翻译成上游原生参数。未配置 = 折算成像素 size（OpenAI 标准协议）；如 gpt-image 配 quality（low/medium/high）、Grok 配 resolution（1k/2k）、Seedream 官方配 size（2K/4K）+ 比例写入提示词
+                                                                                </Typography.Text>
+                                                                                <Flex gap={16} wrap>
+                                                                                    <AdapterField label="档位映射字段">
+                                                                                        <Select
+                                                                                            size="small"
+                                                                                            style={{ width: 150 }}
+                                                                                            value={cap.imageAdapter?.tierField || ""}
+                                                                                            onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { tierField: v })}
+                                                                                            options={[
+                                                                                                { label: "默认（折算像素）", value: "" },
+                                                                                                { label: "quality", value: "quality" },
+                                                                                                { label: "resolution", value: "resolution" },
+                                                                                                { label: "size", value: "size" },
+                                                                                            ]}
+                                                                                        />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="standard 档映射">
+                                                                                        <Input size="small" style={{ width: 100 }} placeholder="如 low / 1k / 2K" value={cap.imageAdapter?.tierStandard || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { tierStandard: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="2K 档映射">
+                                                                                        <Input size="small" style={{ width: 100 }} placeholder="如 medium / 2k / 2K" value={cap.imageAdapter?.tier2k || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { tier2k: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="4K 档映射">
+                                                                                        <Input size="small" style={{ width: 100 }} placeholder="如 high / 2k / 4K" value={cap.imageAdapter?.tier4k || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { tier4k: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="比例处理">
+                                                                                        <Select
+                                                                                            size="small"
+                                                                                            style={{ width: 150 }}
+                                                                                            value={cap.imageAdapter?.ratioMode || ""}
+                                                                                            onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { ratioMode: v })}
+                                                                                            options={[
+                                                                                                { label: "默认（折算像素）", value: "" },
+                                                                                                { label: "直传比例字段", value: "field" },
+                                                                                                { label: "写入提示词", value: "prompt" },
+                                                                                            ]}
+                                                                                        />
+                                                                                    </AdapterField>
+                                                                                </Flex>
+                                                                            </div>
+                                                                        ),
+                                                                    }]}
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <CapabilitySection title="基础能力">
+                                                                <Flex gap={32} wrap>
+                                                                    <div style={{ minWidth: "min(100%, 320px)" }}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频分辨率</Typography.Text>
+                                                                        <Checkbox.Group
+                                                                            options={VIDEO_RESOLUTION_OPTIONS}
+                                                                            value={cap.videoResolutions}
+                                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "videoResolutions", values as string[])}
+                                                                        />
+                                                                    </div>
+                                                                    <div style={{ minWidth: "min(100%, 280px)" }}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频比例</Typography.Text>
+                                                                        <Checkbox.Group
+                                                                            options={VIDEO_RATIO_OPTIONS}
+                                                                            value={cap.videoRatios}
+                                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "videoRatios", values as string[])}
+                                                                        />
+                                                                    </div>
+                                                                </Flex>
+                                                            </CapabilitySection>
+                                                            <CapabilitySection title="参数限制">
+                                                                <Flex gap={32} wrap>
+                                                                    <div style={{ minWidth: "min(100%, 220px)" }}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频秒数范围（默认 4-20）</Typography.Text>
+                                                                        <Space>
+                                                                            <InputNumber
+                                                                                size="small"
+                                                                                min={1}
+                                                                                max={60}
+                                                                                value={cap.videoSecondsMin ?? 4}
+                                                                                onChange={(value) => setModelCapabilitySeconds(form, setModelCapabilities, model, "videoSecondsMin", value)}
+                                                                                style={{ width: 80 }}
+                                                                            />
+                                                                            <span style={{ color: "var(--ant-color-text-secondary)" }}>~</span>
+                                                                            <InputNumber
+                                                                                size="small"
+                                                                                min={1}
+                                                                                max={60}
+                                                                                value={cap.videoSecondsMax ?? 20}
+                                                                                onChange={(value) => setModelCapabilitySeconds(form, setModelCapabilities, model, "videoSecondsMax", value)}
+                                                                                style={{ width: 80 }}
+                                                                            />
+                                                                            <span style={{ color: "var(--ant-color-text-secondary)", fontSize: 12 }}>秒</span>
+                                                                        </Space>
+                                                                    </div>
+                                                                    <div style={{ minWidth: "min(100%, 280px)" }}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>参考素材数量上限（0=默认）</Typography.Text>
+                                                                        <Space>
+                                                                            <InputNumber
+                                                                                size="small"
+                                                                                min={0}
+                                                                                max={20}
+                                                                                placeholder="图片"
+                                                                                value={cap.maxImageReferences || undefined}
+                                                                                onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxImageReferences", value)}
+                                                                                style={{ width: 90 }}
+                                                                            />
+                                                                            <InputNumber
+                                                                                size="small"
+                                                                                min={0}
+                                                                                max={10}
+                                                                                placeholder="视频"
+                                                                                value={cap.maxVideoReferences || undefined}
+                                                                                onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxVideoReferences", value)}
+                                                                                style={{ width: 90 }}
+                                                                            />
+                                                                            <InputNumber
+                                                                                size="small"
+                                                                                min={0}
+                                                                                max={10}
+                                                                                placeholder="音频"
+                                                                                value={cap.maxAudioReferences || undefined}
+                                                                                onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxAudioReferences", value)}
+                                                                                style={{ width: 90 }}
+                                                                            />
+                                                                        </Space>
+                                                                    </div>
+                                                                    {cap.supportsAudioGeneration ? (
+                                                                        <div style={{ minWidth: "min(100%, 280px)" }}>
+                                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>音频生成限制</Typography.Text>
+                                                                            <Space>
+                                                                                <Select
+                                                                                    size="small"
+                                                                                    style={{ width: 120 }}
+                                                                                    placeholder="需要模式"
+                                                                                    value={cap.audioRequiresMode || ""}
+                                                                                    onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "audioRequiresMode", value)}
+                                                                                    options={[{ label: "不限", value: "" }, { label: "std", value: "std" }, { label: "pro", value: "pro" }, { label: "4k", value: "4k" }]}
+                                                                                />
+                                                                                <InputNumber
+                                                                                    size="small"
+                                                                                    min={0}
+                                                                                    max={10}
+                                                                                    placeholder="最大参考图"
+                                                                                    value={cap.audioMaxReferences || undefined}
+                                                                                    onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "audioMaxReferences", value)}
+                                                                                    style={{ width: 120 }}
+                                                                                />
+                                                                            </Space>
+                                                                        </div>
+                                                                    ) : null}
+                                                                </Flex>
+                                                            </CapabilitySection>
+                                                            <CapabilitySection title="请求与能力">
+                                                                <Flex gap={32} wrap>
+                                                                    <div style={{ minWidth: 180 }}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>前端面板 / 请求适配</Typography.Text>
+                                                                        <Select
+                                                                            size="small"
+                                                                            style={{ width: 180 }}
+                                                                            value={cap.videoPanelType || ""}
+                                                                            onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "videoPanelType", value)}
+                                                                            options={VIDEO_PANEL_TYPE_OPTIONS}
+                                                                        />
+                                                                        <Typography.Text type="secondary" style={{ display: "block", marginTop: 5, fontSize: 11 }}>
+                                                                            通用模型选“通用”；只有需要专属控件或特殊请求体时才选择其他类型。
+                                                                        </Typography.Text>
+                                                                    </div>
+                                                                    {(cap.videoPanelType === "kling-v3" || cap.videoPanelType === "motion-control") ? (
+                                                                        <div style={{ minWidth: 140 }}>
+                                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>厂商（区分请求体格式）</Typography.Text>
+                                                                            <Select
+                                                                                size="small"
+                                                                                style={{ width: 120 }}
+                                                                                value={cap.videoProvider || ""}
+                                                                                onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "videoProvider", value)}
+                                                                                options={VIDEO_PROVIDER_OPTIONS}
+                                                                            />
+                                                                        </div>
+                                                                    ) : null}
+                                                                    <div style={{ minWidth: "min(100%, 360px)" }}>
+                                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 6 }}>能力开关（只勾选上游明确支持的能力）</Typography.Text>
+                                                                        <Flex gap={8} wrap>
+                                                                            <Checkbox checked={!!cap.supportsFirstLastFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstLastFrame", e.target.checked)}>首尾帧</Checkbox>
+                                                                            <Checkbox checked={!!cap.supportsFirstFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstFrame", e.target.checked)}>首帧</Checkbox>
+                                                                            <Checkbox checked={!!cap.supportsMotionControl} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMotionControl", e.target.checked)}>运动控制</Checkbox>
+                                                                            <Checkbox checked={!!cap.supportsMultiShot} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMultiShot", e.target.checked)}>多镜头</Checkbox>
+                                                                            <Checkbox checked={!!cap.supportsAudioGeneration} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsAudioGeneration", e.target.checked)}>音频生成</Checkbox>
+                                                                            <Checkbox checked={!!cap.supportsWatermark} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsWatermark", e.target.checked)}>水印</Checkbox>
+                                                                        </Flex>
+                                                                        <Typography.Text type="secondary" style={{ display: "block", marginTop: 6, fontSize: 11, lineHeight: 1.6 }}>
+                                                                            勾选后前端自动显示对应控件并启用请求字段：运动控制=角色朝向参考；多镜头=分镜开关/镜头提示词；首帧/首尾帧=参考帧入口。无需另写提示词或前端代码。
+                                                                        </Typography.Text>
+                                                                    </div>
+                                                                </Flex>
+                                                            </CapabilitySection>
+                                                            <Collapse
+                                                                ghost
+                                                                expandIconPosition="end"
+                                                                styles={{ header: { display: "inline-flex", width: "fit-content", padding: "0 0 4px", gap: 6 }, title: { fontWeight: 600, fontSize: 13 }, body: { padding: "4px 0 0" } }}
+                                                                items={[{
+                                                                    key: "video-modes",
+                                                                    label: "模式选项（按需配置）",
+                                                                    children: (
+                                                                        <div>
+                                                                            <Typography.Text type="secondary" style={{ display: "block", marginBottom: 6, fontSize: 11 }}>适用于 Kling/Grok 等有模式参数的模型；值=发送给上游，标签=前端显示。通用模型留空即可。</Typography.Text>
+                                                                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                                                                                {(cap.videoModes || []).map((mode, modeIndex) => (
+                                                                                    <Space key={modeIndex} size={4}>
+                                                                                        <Input size="small" placeholder="值" style={{ width: 70 }} value={mode.value} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, value: e.target.value } : m))} />
+                                                                                        <Input size="small" placeholder="标签" style={{ width: 80 }} value={mode.label} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, label: e.target.value } : m))} />
+                                                                                        <Input size="small" placeholder="说明" style={{ width: 100 }} value={mode.desc || ""} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, desc: e.target.value } : m))} />
+                                                                                        <Button size="small" type="text" icon={<DeleteOutlined />} onClick={() => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).filter((_, i) => i !== modeIndex))} />
+                                                                                    </Space>
+                                                                                ))}
+                                                                                <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={() => setModelCapabilityModes(form, setModelCapabilities, model, [...(cap.videoModes || []), { value: "", label: "" }])}>添加模式</Button>
+                                                                            </Space>
+                                                                        </div>
+                                                                    ),
+                                                                }]}
+                                                            />
+                                                            <Collapse
+                                                                ghost
+                                                                expandIconPosition="end"
+                                                                styles={{ header: { display: "inline-flex", width: "fit-content", padding: "0 0 4px", gap: 6 }, title: { flex: "0 1 auto", fontWeight: 600, fontSize: 13 }, body: { padding: "4px 0 0" } }}
+                                                                items={[{
+                                                                    key: "video-adapter",
+                                                                    label: "高级协议适配",
+                                                                        children: (
+                                                                            <div style={{ paddingTop: 4 }}>
+                                                                                <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
+                                                                                    后端视频请求归一化规则，全部默认时走通用协议（aspect_ratio 比例 + resolution 清晰度 + image_urls 纯 URL 数组参考图）；聚合渠道等非标准上游按模型接口文档配置
+                                                                                </Typography.Text>
+                                                                                <Flex gap={16} wrap>
+                                                                                    <AdapterField label="比例字段名">
+                                                                                        <Select
+                                                                                            size="small"
+                                                                                            style={{ width: 150 }}
+                                                                                            value={cap.videoAdapter?.aspectField || ""}
+                                                                                            onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { aspectField: v })}
+                                                                                            options={[
+                                                                                                { label: "默认（aspect_ratio）", value: "" },
+                                                                                                { label: "size", value: "size" },
+                                                                                                { label: "不支持比例", value: "none" },
+                                                                                            ]}
+                                                                                        />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="分辨率参数">
+                                                                                        <AdapterTriState value={cap.videoAdapter?.hasResolution} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { hasResolution: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="分辨率表达">
+                                                                                        <Select
+                                                                                            size="small"
+                                                                                            style={{ width: 130 }}
+                                                                                            value={cap.videoAdapter?.resolutionCase || ""}
+                                                                                            onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { resolutionCase: v })}
+                                                                                            options={[
+                                                                                                { label: "默认（720p 小写）", value: "" },
+                                                                                                { label: "upper_video", value: "upper_video" },
+                                                                                            ]}
+                                                                                        />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="分辨率上限">
+                                                                                        <Input size="small" style={{ width: 90 }} placeholder="如 720p" value={cap.videoAdapter?.maxResolution || ""} onChange={(e) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { maxResolution: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="分辨率推模式">
+                                                                                        <AdapterTriState value={cap.videoAdapter?.modeFromRes} defaultLabel="默认（否）" onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { modeFromRes: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="quality">
+                                                                                        <AdapterTriState value={cap.videoAdapter?.hasQuality} defaultLabel="默认（不支持）" onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { hasQuality: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="带图丢比例">
+                                                                                        <AdapterTriState value={cap.videoAdapter?.dropAspectWithImage} defaultLabel="默认（否）" onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { dropAspectWithImage: v })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考图字段名">
+                                                                                        <Input size="small" style={{ width: 120 }} placeholder="image_urls" value={cap.videoAdapter?.imageRefField || ""} onChange={(e) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { imageRefField: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考图组装模式">
+                                                                                        <Select
+                                                                                            size="small"
+                                                                                            style={{ width: 170 }}
+                                                                                            value={cap.videoAdapter?.imageRefKind || ""}
+                                                                                            onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { imageRefKind: v })}
+                                                                                            options={[
+                                                                                                { label: "默认（纯 URL 数组）", value: "" },
+                                                                                                { label: "首尾帧双字段（first_last）", value: "first_last" },
+                                                                                                { label: "仅首帧（first_only）", value: "first_only" },
+                                                                                                { label: "多帧序列（array_frames）", value: "array_frames" },
+                                                                                                { label: "图+角色配对（roles）", value: "roles" },
+                                                                                                { label: "单 URL 字段（single）", value: "single" },
+                                                                                                { label: "Seedance 2 数组（seedance2）", value: "seedance2" },
+                                                                                                { label: "Minimax H3（minimax_h3）", value: "minimax_h3" },
+                                                                                                { label: "Skyreels", value: "skyreels" },
+                                                                                                { label: "Happyhorse", value: "happyhorse" },
+                                                                                                { label: "Happyhorse 1.1", value: "happyhorse11" },
+                                                                                                { label: "Pixverse", value: "pixverse" },
+                                                                                            ]}
+                                                                                        />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考图上限">
+                                                                                        <InputNumber size="small" min={0} max={20} style={{ width: 90 }} placeholder="0=不限" value={cap.videoAdapter?.maxImageRefs || undefined} onChange={(value) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { maxImageRefs: Number(value) || 0 })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考视频字段名">
+                                                                                        <Input size="small" style={{ width: 120 }} placeholder="空=不支持" value={cap.videoAdapter?.videoRefField || ""} onChange={(e) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { videoRefField: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考视频组装模式">
+                                                                                        <Select
+                                                                                            size="small"
+                                                                                            style={{ width: 170 }}
+                                                                                            value={cap.videoAdapter?.videoRefKind || ""}
+                                                                                            onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { videoRefKind: v })}
+                                                                                            options={[
+                                                                                                { label: "默认（不支持）", value: "" },
+                                                                                                { label: "纯 URL 数组（array）", value: "array" },
+                                                                                                { label: "单 URL 字段（single）", value: "single" },
+                                                                                                { label: "Kling 视频列表（kling_video_list）", value: "kling_video_list" },
+                                                                                                { label: "Skyreels", value: "skyreels" },
+                                                                                            ]}
+                                                                                        />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考音频字段名">
+                                                                                        <Input size="small" style={{ width: 120 }} placeholder="空=不支持" value={cap.videoAdapter?.audioRefField || ""} onChange={(e) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { audioRefField: e.target.value })} />
+                                                                                    </AdapterField>
+                                                                                    <AdapterField label="参考音频组装模式">
+                                                                                        <Select
+                                                                                            size="small"
+                                                                                            style={{ width: 170 }}
+                                                                                            value={cap.videoAdapter?.audioRefKind || ""}
+                                                                                            onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { audioRefKind: v })}
+                                                                                            options={[
+                                                                                                { label: "默认（不支持）", value: "" },
+                                                                                                { label: "纯 URL 数组（array）", value: "array" },
+                                                                                                { label: "单 URL 字段（single）", value: "single" },
+                                                                                                { label: "Wan 语音（wan_r2v_voice）", value: "wan_r2v_voice" },
+                                                                                                { label: "Skyreels 参考图（skyreels_ref_images）", value: "skyreels_ref_images" },
+                                                                                            ]}
+                                                                                        />
+                                                                                    </AdapterField>
+                                                                                </Flex>
+                                                                            </div>
+                                                                        ),
+                                                                    }]}
+                                                            />
+                                                        </>
+                                                    )}
                                                 </Flex>
-                                                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--ant-color-border)" }}>
-                                                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
-                                                        渠道适配参数（高级）：后端请求归一化规则，全部默认时走 OpenAI images 标准协议；仅聚合渠道等非标准上游需要按模型接口文档配置
-                                                    </Typography.Text>
-                                                    <Flex gap={16} wrap>
-                                                        <AdapterField label="比例字段名">
-                                                            <Input size="small" style={{ width: 110 }} placeholder="size" value={cap.imageAdapter?.aspectField || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { aspectField: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="分辨率参数">
-                                                            <AdapterTriState value={cap.imageAdapter?.hasResolution} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasResolution: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="分辨率大小写">
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 120 }}
-                                                                value={cap.imageAdapter?.resolutionCase || ""}
-                                                                onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { resolutionCase: v })}
-                                                                options={[
-                                                                    { label: "默认（大写）", value: "" },
-                                                                    { label: "大写（2K）", value: "upper" },
-                                                                    { label: "小写（2k）", value: "lower" },
-                                                                ]}
-                                                            />
-                                                        </AdapterField>
-                                                        <AdapterField label="分辨率下限">
-                                                            <Input size="small" style={{ width: 90 }} placeholder="如 2K" value={cap.imageAdapter?.minResolution || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { minResolution: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="分辨率上限">
-                                                            <Input size="small" style={{ width: 90 }} placeholder="如 1K" value={cap.imageAdapter?.maxResolution || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { maxResolution: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="数量 n">
-                                                            <AdapterTriState value={cap.imageAdapter?.hasCount} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasCount: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="quality">
-                                                            <AdapterTriState value={cap.imageAdapter?.hasQuality} defaultLabel="默认（不支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasQuality: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="output_format">
-                                                            <AdapterTriState value={cap.imageAdapter?.hasOutput} defaultLabel="默认（不支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasOutput: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考图">
-                                                            <AdapterTriState value={cap.imageAdapter?.hasImageRefs} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { hasImageRefs: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考图字段名">
-                                                            <Input size="small" style={{ width: 120 }} placeholder="image_urls" value={cap.imageAdapter?.imageRefField || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { imageRefField: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考图上限">
-                                                            <InputNumber size="small" min={0} max={20} style={{ width: 90 }} placeholder="0=不限" value={cap.imageAdapter?.maxImageRefs || undefined} onChange={(value) => setModelCapabilityAdapter(form, setModelCapabilities, model, { maxImageRefs: Number(value) || 0 })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="必须参考图">
-                                                            <AdapterTriState value={cap.imageAdapter?.requireRefs} defaultLabel="默认（否）" onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { requireRefs: v })} />
-                                                        </AdapterField>
-                                                    </Flex>
-                                                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "12px 0 8px" }}>
-                                                        档位映射：把前端发来的「比例 + 档位」翻译成上游原生参数。未配置 = 折算成像素 size（OpenAI 标准协议）；如 gpt-image 配 quality（low/medium/high）、Grok 配 resolution（1k/2k）、Seedream 官方配 size（2K/4K）+ 比例写入提示词
-                                                    </Typography.Text>
-                                                    <Flex gap={16} wrap>
-                                                        <AdapterField label="档位映射字段">
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 150 }}
-                                                                value={cap.imageAdapter?.tierField || ""}
-                                                                onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { tierField: v })}
-                                                                options={[
-                                                                    { label: "默认（折算像素）", value: "" },
-                                                                    { label: "quality", value: "quality" },
-                                                                    { label: "resolution", value: "resolution" },
-                                                                    { label: "size", value: "size" },
-                                                                ]}
-                                                            />
-                                                        </AdapterField>
-                                                        <AdapterField label="standard 档映射">
-                                                            <Input size="small" style={{ width: 100 }} placeholder="如 low / 1k / 2K" value={cap.imageAdapter?.tierStandard || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { tierStandard: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="2K 档映射">
-                                                            <Input size="small" style={{ width: 100 }} placeholder="如 medium / 2k / 2K" value={cap.imageAdapter?.tier2k || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { tier2k: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="4K 档映射">
-                                                            <Input size="small" style={{ width: 100 }} placeholder="如 high / 2k / 4K" value={cap.imageAdapter?.tier4k || ""} onChange={(e) => setModelCapabilityAdapter(form, setModelCapabilities, model, { tier4k: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="比例处理">
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 150 }}
-                                                                value={cap.imageAdapter?.ratioMode || ""}
-                                                                onChange={(v) => setModelCapabilityAdapter(form, setModelCapabilities, model, { ratioMode: v })}
-                                                                options={[
-                                                                    { label: "默认（折算像素）", value: "" },
-                                                                    { label: "直传比例字段", value: "field" },
-                                                                    { label: "写入提示词", value: "prompt" },
-                                                                ]}
-                                                            />
-                                                        </AdapterField>
-                                                    </Flex>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                            </Flex>
-                        )}
-                    </Card>
-
-                    <Card
-                        variant="borderless"
-                        title="视频模型能力"
-                        extra={<Typography.Text type="secondary">勾选每个视频模型支持的选项，未勾选 = 前端不展示；新模型默认全选</Typography.Text>}
-                    >
-                        {availableModels.length === 0 ? (
-                            <Typography.Text type="secondary">请先在上方勾选开放模型</Typography.Text>
-                        ) : (
-                            <Flex vertical gap={12}>
-                                {availableModels
-                                    .filter((model) => modelMatchesCapability(model, "video"))
-                                    .map((model) => {
-                                        const cap = getModelCapability(modelCapabilities, model);
-                                        return (
-                                            <div key={model} style={{ border: "1px solid var(--ant-color-border)", borderRadius: 8, padding: "12px 16px" }}>
-                                                <Typography.Text strong style={{ wordBreak: "break-all" }}>{model}</Typography.Text>
-                                                <Flex gap={32} wrap style={{ marginTop: 8 }}>
-                                                    <div style={{ minWidth: 320 }}>
-                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频分辨率</Typography.Text>
-                                                        <Checkbox.Group
-                                                            options={VIDEO_RESOLUTION_OPTIONS}
-                                                            value={cap.videoResolutions}
-                                                            onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "videoResolutions", values as string[])}
-                                                        />
-                                                    </div>
-                                                    <div style={{ minWidth: 220 }}>
-                                                        <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频秒数范围（默认 4-20）</Typography.Text>
-                                                        <Space>
-                                                            <InputNumber
-                                                                size="small"
-                                                                min={1}
-                                                                max={60}
-                                                                value={cap.videoSecondsMin ?? 4}
-                                                                onChange={(value) => setModelCapabilitySeconds(form, setModelCapabilities, model, "videoSecondsMin", value)}
-                                                                style={{ width: 80 }}
-                                                            />
-                                                            <span style={{ color: "var(--ant-color-text-secondary)" }}>~</span>
-                                                            <InputNumber
-                                                                size="small"
-                                                                min={1}
-                                                                max={60}
-                                                                value={cap.videoSecondsMax ?? 20}
-                                                                onChange={(value) => setModelCapabilitySeconds(form, setModelCapabilities, model, "videoSecondsMax", value)}
-                                                                style={{ width: 80 }}
-                                                            />
-                                                            <span style={{ color: "var(--ant-color-text-secondary)", fontSize: 12 }}>秒</span>
-                                                        </Space>
-                                                    </div>
-                                                </Flex>
-                                                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--ant-color-border)" }}>
-                                                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>视频能力配置（每个视频模型均可自由勾选，前端通用面板按勾选能力动态渲染）</Typography.Text>
-                                                    <Flex gap={32} wrap>
-                                                        <div style={{ minWidth: 180 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>请求体格式（控制后端请求字段映射）</Typography.Text>
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 180 }}
-                                                                value={cap.videoPanelType || ""}
-                                                                onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "videoPanelType", value)}
-                                                                options={VIDEO_PANEL_TYPE_OPTIONS}
-                                                            />
-                                                        </div>
-                                                        {(cap.videoPanelType === "kling-v3" || cap.videoPanelType === "motion-control") ? (
-                                                            <div style={{ minWidth: 140 }}>
-                                                                <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>厂商（区分请求体格式）</Typography.Text>
-                                                                <Select
-                                                                    size="small"
-                                                                    style={{ width: 120 }}
-                                                                    value={cap.videoProvider || ""}
-                                                                    onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "videoProvider", value)}
-                                                                    options={VIDEO_PROVIDER_OPTIONS}
-                                                                />
-                                                            </div>
-                                                        ) : null}
-                                                        <div style={{ minWidth: 280 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>视频比例</Typography.Text>
-                                                            <Checkbox.Group
-                                                                options={VIDEO_RATIO_OPTIONS}
-                                                                value={cap.videoRatios}
-                                                                onChange={(values) => setModelCapabilityField(form, setModelCapabilities, model, "videoRatios", values as string[])}
-                                                            />
-                                                        </div>
-                                                        <div style={{ minWidth: 320 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>视频模式（空=不支持模式选择）</Typography.Text>
-                                                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                                                                {(cap.videoModes || []).map((mode, modeIndex) => (
-                                                                    <Space key={modeIndex} size={4}>
-                                                                        <Input size="small" placeholder="值" style={{ width: 70 }} value={mode.value} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, value: e.target.value } : m))} />
-                                                                        <Input size="small" placeholder="标签" style={{ width: 80 }} value={mode.label} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, label: e.target.value } : m))} />
-                                                                        <Input size="small" placeholder="说明" style={{ width: 100 }} value={mode.desc || ""} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, desc: e.target.value } : m))} />
-                                                                        <Button size="small" type="text" icon={<DeleteOutlined />} onClick={() => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).filter((_, i) => i !== modeIndex))} />
-                                                                    </Space>
-                                                                ))}
-                                                                <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={() => setModelCapabilityModes(form, setModelCapabilities, model, [...(cap.videoModes || []), { value: "", label: "" }])}>添加模式</Button>
-                                                            </Space>
-                                                        </div>
-                                                        <div style={{ minWidth: 280 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>能力开关</Typography.Text>
-                                                            <Space size={[16, 8]} wrap>
-                                                                <Checkbox checked={!!cap.supportsFirstLastFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstLastFrame", e.target.checked)}>首尾帧</Checkbox>
-                                                                <Checkbox checked={!!cap.supportsFirstFrame} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsFirstFrame", e.target.checked)}>首帧</Checkbox>
-                                                                <Checkbox checked={!!cap.supportsMotionControl} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMotionControl", e.target.checked)}>运动控制</Checkbox>
-                                                                <Checkbox checked={!!cap.supportsAudioGeneration} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsAudioGeneration", e.target.checked)}>音频生成</Checkbox>
-                                                                <Checkbox checked={!!cap.supportsWatermark} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsWatermark", e.target.checked)}>水印</Checkbox>
-                                                                <Checkbox checked={!!cap.supportsMultiShot} onChange={(e) => setModelCapabilityBool(form, setModelCapabilities, model, "supportsMultiShot", e.target.checked)}>多镜头</Checkbox>
-                                                            </Space>
-                                                        </div>
-                                                        {cap.supportsAudioGeneration ? (
-                                                            <div style={{ minWidth: 280 }}>
-                                                                <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>音频生成限制</Typography.Text>
-                                                                <Space>
-                                                                    <Select
-                                                                        size="small"
-                                                                        style={{ width: 120 }}
-                                                                        placeholder="需要模式"
-                                                                        value={cap.audioRequiresMode || ""}
-                                                                        onChange={(value) => setModelCapabilityValue(form, setModelCapabilities, model, "audioRequiresMode", value)}
-                                                                        options={[{ label: "不限", value: "" }, { label: "std", value: "std" }, { label: "pro", value: "pro" }, { label: "4k", value: "4k" }]}
-                                                                    />
-                                                                    <InputNumber
-                                                                        size="small"
-                                                                        min={0}
-                                                                        max={10}
-                                                                        placeholder="最大参考图"
-                                                                        value={cap.audioMaxReferences || undefined}
-                                                                        onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "audioMaxReferences", value)}
-                                                                        style={{ width: 120 }}
-                                                                    />
-                                                                </Space>
-                                                            </div>
-                                                        ) : null}
-                                                        <div style={{ minWidth: 280 }}>
-                                                            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>参考素材数量上限（0=默认）</Typography.Text>
-                                                            <Space>
-                                                                <InputNumber
-                                                                    size="small"
-                                                                    min={0}
-                                                                    max={20}
-                                                                    placeholder="图片"
-                                                                    value={cap.maxImageReferences || undefined}
-                                                                    onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxImageReferences", value)}
-                                                                    style={{ width: 90 }}
-                                                                />
-                                                                <InputNumber
-                                                                    size="small"
-                                                                    min={0}
-                                                                    max={10}
-                                                                    placeholder="视频"
-                                                                    value={cap.maxVideoReferences || undefined}
-                                                                    onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxVideoReferences", value)}
-                                                                    style={{ width: 90 }}
-                                                                />
-                                                                <InputNumber
-                                                                    size="small"
-                                                                    min={0}
-                                                                    max={10}
-                                                                    placeholder="音频"
-                                                                    value={cap.maxAudioReferences || undefined}
-                                                                    onChange={(value) => setModelCapabilityNumber(form, setModelCapabilities, model, "maxAudioReferences", value)}
-                                                                    style={{ width: 90 }}
-                                                                />
-                                                            </Space>
-                                                        </div>
-                                                    </Flex>
-                                                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", margin: "12px 0 8px" }}>
-                                                        视频渠道适配参数（高级）：后端视频请求归一化规则，全部默认时走通用协议（aspect_ratio 比例 + resolution 清晰度 + image_urls 纯 URL 数组参考图）；聚合渠道等非标准上游按模型接口文档配置
-                                                    </Typography.Text>
-                                                    <Flex gap={16} wrap>
-                                                        <AdapterField label="比例字段名">
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 150 }}
-                                                                value={cap.videoAdapter?.aspectField || ""}
-                                                                onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { aspectField: v })}
-                                                                options={[
-                                                                    { label: "默认（aspect_ratio）", value: "" },
-                                                                    { label: "size", value: "size" },
-                                                                    { label: "不支持比例", value: "none" },
-                                                                ]}
-                                                            />
-                                                        </AdapterField>
-                                                        <AdapterField label="分辨率参数">
-                                                            <AdapterTriState value={cap.videoAdapter?.hasResolution} defaultLabel="默认（支持）" onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { hasResolution: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="分辨率表达">
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 130 }}
-                                                                value={cap.videoAdapter?.resolutionCase || ""}
-                                                                onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { resolutionCase: v })}
-                                                                options={[
-                                                                    { label: "默认（720p 小写）", value: "" },
-                                                                    { label: "upper_video", value: "upper_video" },
-                                                                ]}
-                                                            />
-                                                        </AdapterField>
-                                                        <AdapterField label="分辨率上限">
-                                                            <Input size="small" style={{ width: 90 }} placeholder="如 720p" value={cap.videoAdapter?.maxResolution || ""} onChange={(e) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { maxResolution: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="分辨率推模式">
-                                                            <AdapterTriState value={cap.videoAdapter?.modeFromRes} defaultLabel="默认（否）" onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { modeFromRes: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="quality">
-                                                            <AdapterTriState value={cap.videoAdapter?.hasQuality} defaultLabel="默认（不支持）" onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { hasQuality: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="带图丢比例">
-                                                            <AdapterTriState value={cap.videoAdapter?.dropAspectWithImage} defaultLabel="默认（否）" onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { dropAspectWithImage: v })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考图字段名">
-                                                            <Input size="small" style={{ width: 120 }} placeholder="image_urls" value={cap.videoAdapter?.imageRefField || ""} onChange={(e) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { imageRefField: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考图组装模式">
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 170 }}
-                                                                value={cap.videoAdapter?.imageRefKind || ""}
-                                                                onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { imageRefKind: v })}
-                                                                options={[
-                                                                    { label: "默认（纯 URL 数组）", value: "" },
-                                                                    { label: "首尾帧双字段（first_last）", value: "first_last" },
-                                                                    { label: "仅首帧（first_only）", value: "first_only" },
-                                                                    { label: "多帧序列（array_frames）", value: "array_frames" },
-                                                                    { label: "图+角色配对（roles）", value: "roles" },
-                                                                    { label: "单 URL 字段（single）", value: "single" },
-                                                                    { label: "Seedance 2 数组（seedance2）", value: "seedance2" },
-                                                                    { label: "Minimax H3（minimax_h3）", value: "minimax_h3" },
-                                                                    { label: "Skyreels", value: "skyreels" },
-                                                                    { label: "Happyhorse", value: "happyhorse" },
-                                                                    { label: "Happyhorse 1.1", value: "happyhorse11" },
-                                                                    { label: "Pixverse", value: "pixverse" },
-                                                                ]}
-                                                            />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考图上限">
-                                                            <InputNumber size="small" min={0} max={20} style={{ width: 90 }} placeholder="0=不限" value={cap.videoAdapter?.maxImageRefs || undefined} onChange={(value) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { maxImageRefs: Number(value) || 0 })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考视频字段名">
-                                                            <Input size="small" style={{ width: 120 }} placeholder="空=不支持" value={cap.videoAdapter?.videoRefField || ""} onChange={(e) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { videoRefField: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考视频组装模式">
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 170 }}
-                                                                value={cap.videoAdapter?.videoRefKind || ""}
-                                                                onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { videoRefKind: v })}
-                                                                options={[
-                                                                    { label: "默认（不支持）", value: "" },
-                                                                    { label: "纯 URL 数组（array）", value: "array" },
-                                                                    { label: "单 URL 字段（single）", value: "single" },
-                                                                    { label: "Kling 视频列表（kling_video_list）", value: "kling_video_list" },
-                                                                    { label: "Skyreels", value: "skyreels" },
-                                                                ]}
-                                                            />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考音频字段名">
-                                                            <Input size="small" style={{ width: 120 }} placeholder="空=不支持" value={cap.videoAdapter?.audioRefField || ""} onChange={(e) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { audioRefField: e.target.value })} />
-                                                        </AdapterField>
-                                                        <AdapterField label="参考音频组装模式">
-                                                            <Select
-                                                                size="small"
-                                                                style={{ width: 170 }}
-                                                                value={cap.videoAdapter?.audioRefKind || ""}
-                                                                onChange={(v) => setModelCapabilityVideoAdapter(form, setModelCapabilities, model, { audioRefKind: v })}
-                                                                options={[
-                                                                    { label: "默认（不支持）", value: "" },
-                                                                    { label: "纯 URL 数组（array）", value: "array" },
-                                                                    { label: "单 URL 字段（single）", value: "single" },
-                                                                    { label: "Wan 语音（wan_r2v_voice）", value: "wan_r2v_voice" },
-                                                                    { label: "Skyreels 参考图（skyreels_ref_images）", value: "skyreels_ref_images" },
-                                                                ]}
-                                                            />
-                                                        </AdapterField>
-                                                    </Flex>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                            </Flex>
+                                            );
+                                        })()
+                                    ) : (
+                                        <Typography.Text type="secondary">请先在左侧选择模型</Typography.Text>
+                                    )}
+                                </div>
+                            </div>
                         )}
                     </Card>
 

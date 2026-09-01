@@ -233,8 +233,7 @@ function HomeCanvasQuickAccess({ projects, onCreate, onOpen }: { projects: Canva
         <section className="mt-5" aria-label="画布快捷入口">
             <div className="mb-2.5 flex items-center justify-between px-1">
                 <div>
-                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-400 dark:text-stone-500">Canvas workspace</p>
-                    <h2 className="mt-1 text-sm font-medium text-stone-800 dark:text-stone-200">继续你的创作</h2>
+                    <h2 className="text-sm font-medium text-stone-800 dark:text-stone-200">继续你的创作</h2>
                 </div>
                 {projects.length ? <a href="/canvas" className="text-xs text-stone-500 transition hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">查看全部</a> : null}
             </div>
