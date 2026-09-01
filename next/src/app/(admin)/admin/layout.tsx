@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
+import { AppUpdateNotice } from "@/components/layout/app-update-notice";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
 import { adminLayoutStyle } from "@/lib/app-theme";
 import { useUserStore } from "@/stores/use-user-store";
@@ -131,6 +132,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         {pageTitle}
                     </Typography.Title>
                     <Flex align="center" gap={4}>
+                        <AppUpdateNotice />
                         <UserStatusActions variant="admin" />
                     </Flex>
                 </Layout.Header>

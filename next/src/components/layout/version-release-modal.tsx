@@ -5,7 +5,7 @@ import { Modal, Tag, Timeline } from "antd";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { APP_VERSION } from "@/constant/env";
 
-function getTagColor(type: string) {
+export function getTagColor(type: string) {
     if (type === "新增") return "green";
     if (type === "修复") return "red";
     if (type === "调整") return "blue";
@@ -17,7 +17,7 @@ function getReleaseTitle(version: string) {
     return version === "Unreleased" ? "未发布" : version;
 }
 
-function renderReleaseContent(content: string) {
+export function renderReleaseContent(content: string) {
     return content.split(/(`[^`]+`)/g).map((part, index) => {
         if (part.startsWith("`") && part.endsWith("`")) {
             return (

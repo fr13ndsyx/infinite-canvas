@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useState } from "react";
 import { Dropdown } from "antd";
+import { ChevronDown } from "lucide-react";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import Link from "next/link";
 
@@ -84,7 +85,7 @@ export function UserStatusActions({ variant = "default", accountOpen, onAccountO
                     >
                         <button type="button" className={`${triggerClassName} gap-1.5`} style={iconStyle} aria-label="账户菜单">
                             <span>{userName}</span>
-                            <span className="text-xs opacity-60" aria-hidden="true">⌄</span>
+                            <ChevronDown className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
                         </button>
                     </Dropdown>
                 </div>

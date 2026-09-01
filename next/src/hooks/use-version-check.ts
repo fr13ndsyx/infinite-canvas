@@ -1,16 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { App } from "antd";
 import { APP_VERSION } from "@/constant/env";
-import { parseChangelog, type ReleaseInfo } from "@/lib/release";
+import type { ReleaseInfo } from "@/lib/release";
 
-const latestVersionUrl = "https://raw.githubusercontent.com/tigerowo/infinite-canvas/main/VERSION";
-const latestChangelogUrl = "https://raw.githubusercontent.com/tigerowo/infinite-canvas/main/CHANGELOG.md";
+const APP_VERSION_URL = "/api/app-version";
+const POLL_INTERVAL = 10 * 60 * 1000;
+const DISMISS_KEY = "infinite-canvas:dismissed-version";
 
-function readLocalReleases(): ReleaseInfo[] {
+function readDismissedVersion() {
     try {
-        return JSON.parse(process.env.NEXT_PUBLIC_APP_RELEASES || "[]");
+        return sessionStorage.getItem(DISMISS_KEY) || "";
     } catch {
-        return [];
+        return "";
+    }
+}
+
+function writeDismissedVersion(version: string) {
+    try {
+        sessionStorage.setItem(DISMISS_KEY, version);
+    } catch {
+        // 忽略：sessionStorage 不可用（如隐私模式）时仅在当前状态内生效
     }
 }
 
@@ -29,66 +38,79 @@ function isNewerVersion(latestVersion: string, currentVersion: string) {
 export function useVersionCheck() {
     const currentVersion = APP_VERSION;
     const { message } = App.useApp();
-    const localReleases = useMemo(readLocalReleases, []);
     const [latestVersion, setLatestVersion] = useState(currentVersion);
-    const [releases, setReleases] = useState<ReleaseInfo[]>(localReleases);
+    const [releases, setReleases] = useState<ReleaseInfo[]>([]);
+    const [dismissedVersion, setDismissedVersion] = useState("");
     const [checking, setChecking] = useState(false);
     const [open, setOpen] = useState(false);
     const hasNewVersion = isNewerVersion(latestVersion, currentVersion);
-
-    const checkLatestVersion = useCallback(async () => {
-        try {
-            const response = await fetch(latestVersionUrl);
-            if (!response.ok) return false;
-            const version = await response.text();
-            setLatestVersion(version.trim() || currentVersion);
-            return true;
-        } catch {
-            return false;
-        }
-    }, [currentVersion]);
+    const latestRelease = releases.find((release) => release.version === latestVersion) || releases[0];
+    const updateVisible = hasNewVersion && dismissedVersion !== latestVersion;
 
     const checkLatestRelease = useCallback(
         async (showMessage = false) => {
             setChecking(true);
             try {
-                const [versionResponse, changelogResponse] = await Promise.all([fetch(latestVersionUrl), fetch(latestChangelogUrl)]);
-                if (!versionResponse.ok) throw new Error("版本读取失败");
-                if (!changelogResponse.ok) throw new Error("更新日志读取失败");
-                const [version, changelog] = await Promise.all([versionResponse.text(), changelogResponse.text()]);
-                setLatestVersion(version.trim() || currentVersion);
-                if (changelog.trim()) setReleases(parseChangelog(changelog));
+                const response = await fetch(`${APP_VERSION_URL}?t=${Date.now()}`);
+                if (!response.ok) throw new Error("版本读取失败");
+                const data = await response.json();
+                setLatestVersion(data.version || currentVersion);
+                if (Array.isArray(data.releases)) setReleases(data.releases);
                 if (showMessage) message.success("已获取最新版本信息");
                 return true;
             } catch {
-                setLatestVersion(currentVersion);
-                setReleases(localReleases);
                 if (showMessage) message.error("获取最新版本信息失败");
                 return false;
             } finally {
                 setChecking(false);
             }
         },
-        [currentVersion, localReleases, message],
+        [currentVersion, message],
     );
 
     useEffect(() => {
-        void checkLatestVersion();
-    }, [checkLatestVersion]);
+        setDismissedVersion(readDismissedVersion());
+    }, []);
+
+    useEffect(() => {
+        void checkLatestRelease();
+        const timer = window.setInterval(() => void checkLatestRelease(), POLL_INTERVAL);
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") void checkLatestRelease();
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () => {
+            window.clearInterval(timer);
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
+    }, [checkLatestRelease]);
 
     const openReleaseModal = useCallback(() => {
         setOpen(true);
         void checkLatestRelease();
     }, [checkLatestRelease]);
 
+    const applyUpdate = useCallback(() => {
+        window.location.reload();
+    }, []);
+
+    const dismissUpdate = useCallback(() => {
+        setDismissedVersion(latestVersion);
+        writeDismissedVersion(latestVersion);
+    }, [latestVersion]);
+
     return {
         open,
         setOpen,
         openReleaseModal,
         latestVersion,
+        latestRelease,
         releases,
         checking,
         hasNewVersion,
+        updateVisible,
         checkLatestRelease,
+        applyUpdate,
+        dismissUpdate,
     };
 }
