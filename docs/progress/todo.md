@@ -9,21 +9,6 @@ description: 当前项目后续值得处理的事项
 
 ## 待办
 
-### 版本管理与前端更新提示
-
-- 状态：方案已确认，待实施
-- 方案文档：[app-version-update-notice.md](./app-version-update-notice.md)
-- 目标：发版并重新部署后，网页端自动检测新版本 → 非阻塞提示（新版本号 + 更新要点）→ 用户确认后 reload 加载新资源
-- 背景：版本基础设施多半还在（`next.config.ts` 已注入 `NEXT_PUBLIC_APP_VERSION`，`version-release-modal.tsx` / `use-version-check.ts` 完整可用），缺的是数据源改造、UI 挂载、主动提示与重启三层
-- 改动范围：
-  - 新增：`next/src/app/api/app-version/route.ts`（站内版本接口；须 `dynamic = "force-dynamic"` + `Cache-Control: no-store`，否则构建期被静态化导致检测失效）、`next/src/components/layout/app-update-notice.tsx`（右下角更新提示卡片）
-  - 改造：`use-version-check.ts`（数据源由 GitHub raw 改为站内接口，加 10 分钟轮询 + 切回前台检查 + `applyUpdate`/`dismissUpdate`）、`app-top-nav.tsx`（挂回 `VersionReleaseModal`，恢复顶栏版本号入口）、`(user)/layout.tsx` 与 `(admin)/admin/layout.tsx`（挂载 `AppUpdateNotice`）
-  - 文档：`AGENTS.md` 发版流程补充「发版后必须重新构建部署，网页端才能感知新版本」
-- 前提与限制：
-  - 感知的是已部署版本而非仓库版本，`render.yaml` 为 `autoDeployTrigger: off`，push 后须手动触发部署网页端才会提示
-  - 不引入 Service Worker，用户不点「立即更新」就一直运行旧代码，无后台静默更新与离线可用
-  - 不强制刷新，画布存在未保存状态，「稍后」在本次标签页会话内不再打扰同一版本
-
 ### 首页布局优化
 
 - 状态：待启动

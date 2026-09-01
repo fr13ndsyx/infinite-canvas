@@ -4,6 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { AppTopNav } from "@/components/layout/app-top-nav";
+import { AppUpdateNotice } from "@/components/layout/app-update-notice";
 import { fetchUserConfig } from "@/services/api/user-config";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -52,6 +53,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     return (
         <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
             <AppTopNav />
+            <AppUpdateNotice />
             <div className="min-h-0 flex-1 overflow-hidden">{isProtectedPage && (!isReady || !user) ? null : children}</div>
         </div>
     );

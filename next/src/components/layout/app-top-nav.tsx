@@ -10,6 +10,7 @@ import { filterNavigationTools, navigationSlugs, navigationTools, type Navigatio
 import { AppConfigModal } from "@/components/layout/app-config-modal";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
+import { VersionReleaseModal } from "@/components/layout/version-release-modal";
 import { useConfigStore } from "@/stores/use-config-store";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -113,6 +114,7 @@ export function AppTopNav() {
                         </div>
 
                         <div className="my-auto flex h-9 min-w-0 items-center justify-end gap-2 justify-self-end whitespace-nowrap">
+                            <VersionReleaseModal />
                             <UserStatusActions />
                         </div>
                     </div>
