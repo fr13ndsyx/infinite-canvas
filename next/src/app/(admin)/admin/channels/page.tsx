@@ -281,16 +281,30 @@ export default function AdminChannelsPage() {
                                 新增渠道
                             </Button>
                         </Space>
-                    </Flex>
-                </Card>
-                <Card variant="borderless">
+                        </Flex>
+                    </Card>
+                <Card variant="borderless" title="渠道列表" extra={<Typography.Text type="secondary">按权重参与模型路由</Typography.Text>}>
                     <Form form={form} layout="vertical" initialValues={emptySettings} requiredMark={false} autoComplete="off">
                         <Table
                             rowKey="_rowKey"
                             pagination={false}
+                            size="middle"
+                            bordered
+                            scroll={{ x: 980 }}
+                            locale={{ emptyText: "暂无渠道，请点击右上角“新增渠道”开始配置" }}
                             dataSource={channelTableData}
                             columns={[
-                                { title: "渠道", dataIndex: "name", render: (value) => value || "未命名渠道" },
+                                {
+                                    title: "渠道",
+                                    dataIndex: "name",
+                                    width: 220,
+                                    render: (value, item) => (
+                                        <Space direction="vertical" size={0}>
+                                            <Typography.Text strong>{value || "未命名渠道"}</Typography.Text>
+                                            <Typography.Text type="secondary" ellipsis style={{ maxWidth: 190, fontSize: 12 }}>{item.baseUrl || "未配置接口地址"}</Typography.Text>
+                                        </Space>
+                                    ),
+                                },
                                 { title: "协议", dataIndex: "protocol", width: 96, render: (value) => <Tag>{value || "openai"}</Tag> },
                                 { title: "状态", dataIndex: "enabled", width: 96, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "已启用" : "已停用"}</Tag> },
                                 {
@@ -321,6 +335,8 @@ export default function AdminChannelsPage() {
                                                 danger
                                                 size="small"
                                                 icon={<DeleteOutlined />}
+                                                aria-label={`删除${item.name || "未命名渠道"}`}
+                                                title="删除渠道"
                                                 onClick={() => {
                                                     const nextChannels = [...channels];
                                                     nextChannels.splice(item._index, 1);
@@ -337,7 +353,7 @@ export default function AdminChannelsPage() {
                 <Drawer
                     title={editingChannelIndex === null ? "新增渠道" : "编辑渠道"}
                     open={isChannelDrawerOpen}
-                    size={560}
+                    size={640}
                     onClose={closeChannelDrawer}
                     extra={
                         <Space>
@@ -347,19 +363,25 @@ export default function AdminChannelsPage() {
                             </Button>
                         </Space>
                     }
+                    styles={{ body: { padding: 20, background: "var(--ant-color-fill-quaternary)" } }}
                     destroyOnHidden
                 >
                     {/* 隐藏假字段，骗浏览器不要自动填充账号密码 */}
                     <input type="text" name="fake-username" autoComplete="username" style={{ display: "none" }} aria-hidden />
                     <input type="password" name="fake-password" autoComplete="current-password" style={{ display: "none" }} aria-hidden />
                     <Form form={channelForm} layout="vertical" requiredMark={false} initialValues={emptyChannel} autoComplete="off">
-                        <Row gutter={16}>
-                            <Col span={12}>
+                        <div className="rounded-xl border border-[var(--ant-color-border-secondary)] bg-[var(--ant-color-bg-container)] p-4">
+                        <Typography.Text strong>基础信息</Typography.Text>
+                        <Typography.Paragraph type="secondary" style={{ margin: "4px 0 16px", fontSize: 12 }}>
+                            配置上游协议、请求地址与路由参数
+                        </Typography.Paragraph>
+                        <Row gutter={[16, 4]}>
+                            <Col xs={24} md={12}>
                                 <Form.Item name="name" label="渠道" rules={[{ required: true, message: "请输入渠道名" }]}>
                                     <Input autoComplete="off" />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
+                            <Col xs={24} md={12}>
                                 <Form.Item name="protocol" label="协议">
                                     <Select
                                         options={[
@@ -368,42 +390,42 @@ export default function AdminChannelsPage() {
                                     />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
-                                <Form.Item name="apiMode" label="生图接口" extra="Images 走 /images/generations；Responses 走 /responses（如 gpt-5 系）">
+                            <Col xs={24} md={12}>
+                                <Form.Item name="apiMode" label="生图接口模式" extra="决定图片生成请求发送到哪个上游端点；通常 gpt-5 系模型选择 Responses">
                                     <Select
                                         options={[
-                                            { label: "Images API", value: "images" },
-                                            { label: "Responses API", value: "responses" },
+                                            { label: "Images API（/images/generations）", value: "images" },
+                                            { label: "Responses API（/responses）", value: "responses" },
                                         ]}
                                     />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
+                            <Col xs={24} md={12}>
                                 <Form.Item name="weight" label="权重">
                                     <InputNumber min={1} step={1} className="!w-full" />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
+                            <Col xs={24} md={12}>
                                 <Form.Item name="timeout" label="请求超时（秒）" extra="用于后台代理请求、模型列表读取和模型测试">
                                     <InputNumber min={1} step={30} className="!w-full" />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
+                            <Col xs={24} md={12}>
                                 <Form.Item name="enabled" label="启用" valuePropName="checked">
                                     <Switch />
                                 </Form.Item>
                             </Col>
-                            <Col span={24}>
+                            <Col xs={24}>
                                 <Form.Item name="baseUrl" label="接口地址" rules={[{ required: true, message: "请输入接口地址" }]}>
                                     <Input autoComplete="off" placeholder="https://api.openai.com" />
                                 </Form.Item>
                             </Col>
-                            <Col span={24}>
+                            <Col xs={24}>
                                 <Form.Item name="apiKey" label="API Key" rules={editingChannelIndex === null ? [{ required: true, message: "请输入 API Key" }] : []}>
                                     <Input.Password autoComplete="new-password" placeholder={editingChannelIndex === null ? "sk-..." : "留空则沿用已保存的 API Key"} />
                                 </Form.Item>
                             </Col>
-                            <Col span={24}>
+                            <Col xs={24}>
                                 <Form.Item label="可用模型">
                                     <Space.Compact style={{ width: "100%" }}>
                                         <Form.Item name="models" noStyle>
@@ -413,12 +435,13 @@ export default function AdminChannelsPage() {
                                     </Space.Compact>
                                 </Form.Item>
                             </Col>
-                            <Col span={24}>
+                            <Col xs={24}>
                                 <Form.Item name="remark" label="备注">
                                     <Input.TextArea rows={3} />
                                 </Form.Item>
                             </Col>
                         </Row>
+                        </div>
                     </Form>
                 </Drawer>
                 <Modal
@@ -431,7 +454,8 @@ export default function AdminChannelsPage() {
                         </Space>
                     }
                     open={isModelSelectorOpen}
-                    width={960}
+                    width="min(960px, calc(100vw - 32px))"
+                    styles={{ body: { padding: 20 } }}
                     onCancel={closeChannelModelSelector}
                     footer={
                         <Space>
@@ -477,11 +501,13 @@ export default function AdminChannelsPage() {
                         </Flex>
                         <div style={{ maxHeight: 420, overflowY: "auto", borderTop: "1px solid var(--ant-color-border-secondary)", paddingTop: 12 }}>
                             {activeModelSelectModels.length ? (
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", columnGap: 24, rowGap: 12 }}>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", columnGap: 24, rowGap: 8 }}>
                                     {activeModelSelectModels.map((model) => (
-                                        <Checkbox key={model} checked={modelSelectSelected.includes(model)} onChange={(event) => toggleSelectedModel(model, event.target.checked)}>
-                                            <Typography.Text style={{ wordBreak: "break-all" }}>{model}</Typography.Text>
-                                        </Checkbox>
+                                        <div key={model} className="rounded-lg border border-[var(--ant-color-border-secondary)] px-3 py-2 transition hover:border-[var(--ant-color-primary)] hover:bg-[var(--ant-color-primary-bg)]">
+                                            <Checkbox checked={modelSelectSelected.includes(model)} onChange={(event) => toggleSelectedModel(model, event.target.checked)}>
+                                                <Typography.Text style={{ wordBreak: "break-all" }}>{model}</Typography.Text>
+                                            </Checkbox>
+                                        </div>
                                     ))}
                                 </div>
                             ) : (
@@ -499,7 +525,7 @@ export default function AdminChannelsPage() {
                         </Space>
                     }
                     open={testChannelIndex !== null}
-                    width={920}
+                    width="min(920px, calc(100vw - 32px))"
                     onCancel={closeTestDialog}
                     footer={
                         <Space>

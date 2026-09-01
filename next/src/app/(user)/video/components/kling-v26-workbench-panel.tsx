@@ -5,6 +5,7 @@ import { type ReactNode } from "react";
 import { ModelPicker } from "@/components/model-picker";
 import { boolConfig } from "@/lib/seedance-video";
 import { resolveVideoSecondsRange, type AiConfig, type VideoMultiPromptItem } from "@/stores/use-config-store";
+import type { AdminVideoModeOption } from "@/services/api/admin";
 import type { ReferenceImage } from "@/types/image";
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
@@ -53,6 +54,8 @@ const TEXT = {
 
 export function KlingV26WorkbenchPanel({
     isKlingV3,
+    modeOptions,
+    supportsMultiShot = true,
     klingProvider = "apimart",
     prompt,
     references,
@@ -77,6 +80,8 @@ export function KlingV26WorkbenchPanel({
     onGenerate,
 }: {
     isKlingV3: boolean;
+    modeOptions?: AdminVideoModeOption[];
+    supportsMultiShot?: boolean;
     klingProvider?: "apimart" | "kie";
     prompt: string;
     references: ReferenceImage[];
@@ -101,13 +106,14 @@ export function KlingV26WorkbenchPanel({
     onGenerate: () => void;
 }) {
     const { message } = App.useApp();
-    const mode = isKlingV3 && config.videoMode === "4k" ? "4k" : config.videoMode === "pro" ? "pro" : "std";
+    const resolvedModeOptions = modeOptions || [];
+    const mode = resolvedModeOptions.some((item) => item.value === config.videoMode) ? config.videoMode : resolvedModeOptions[0]?.value || "std";
     const secondsRange = resolveVideoSecondsRange(config.modelCapabilities?.find((item) => item.model === config.videoModel));
     const seconds = Math.max(secondsRange.min, Math.min(secondsRange.max, Math.floor(Number(config.videoSeconds) || secondsRange.min)));
     const ratio = klingRatioValue(config.size);
     const generateAudio = boolConfig(config.videoGenerateAudio, false);
     const audioDisabled = !isKlingV3 && (mode !== "pro" || references.length > 1);
-    const multiShot = isKlingV3 && boolConfig(config.videoMultiShot, false);
+    const multiShot = isKlingV3 && supportsMultiShot && boolConfig(config.videoMultiShot, false);
     const isKIEKlingV3 = isKlingV3 && klingProvider === "kie";
     const shotType = config.videoShotType === "customize" ? "customize" : "intelligence";
     const multiPrompts = normalizeMultiPrompts(config.videoMultiPrompt);
@@ -161,7 +167,7 @@ export function KlingV26WorkbenchPanel({
                 <KlingHeader />
             </div>
             <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3">
-                {isKlingV3 ? (
+                {isKlingV3 && supportsMultiShot ? (
                     <KlingSection title={TEXT.multiShotTitle}>
                         <div className="grid gap-2 rounded-xl border border-stone-200 p-2.5 dark:border-stone-800">
                             <div className="flex h-8 items-center justify-between gap-3">
@@ -219,9 +225,11 @@ export function KlingV26WorkbenchPanel({
                 <KlingSection title={TEXT.model}>
                     <ModelPicker config={config} value={model} channelId={config.videoChannelId} onChange={(value, channelId) => { updateConfig("videoModel", value); if (channelId) updateConfig("videoChannelId", channelId); }} capability="video" fullWidth onMissingConfig={() => openConfigDialog(false)} />
                 </KlingSection>
-                <KlingSection title={TEXT.mode}>
-                    <OptionGrid columns={isKlingV3 ? 3 : 2} options={isKlingV3 ? [{ value: "std", label: "720P" }, { value: "pro", label: "1080P" }, { value: "4k", label: "4K" }] : [{ value: "std", label: TEXT.std }, { value: "pro", label: TEXT.pro }]} value={mode} onChange={setMode} />
-                </KlingSection>
+                {resolvedModeOptions.length ? (
+                    <KlingSection title={TEXT.mode}>
+                        <OptionGrid columns={resolvedModeOptions.length >= 3 ? 3 : 2} options={resolvedModeOptions} value={mode} onChange={setMode} />
+                    </KlingSection>
+                ) : null}
                 <KlingSection title={TEXT.size}>
                     <OptionGrid columns={3} options={[{ value: "16:9", label: "16:9" }, { value: "9:16", label: "9:16" }, { value: "1:1", label: "1:1" }]} value={ratio} onChange={(value) => updateConfig("size", value === "1:1" ? "1024x1024" : value)} />
                 </KlingSection>
@@ -276,12 +284,13 @@ function KlingSection({ title, count, extra, children }: { title: string; count?
     );
 }
 
-function OptionGrid({ options, value, onChange, columns = 2 }: { options: { value: string; label: string }[]; value: string; onChange: (value: string) => void; columns?: 2 | 3 }) {
+function OptionGrid({ options, value, onChange, columns = 2 }: { options: { value: string; label: string; desc?: string }[]; value: string; onChange: (value: string) => void; columns?: 2 | 3 }) {
     return (
         <div className={columns === 3 ? "grid grid-cols-3 gap-2.5" : "grid grid-cols-2 gap-2.5"}>
             {options.map((item) => (
                 <button key={item.value} type="button" className={optionClass(value === item.value)} onClick={() => onChange(item.value)}>
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.desc ? <span className="text-[10px] font-normal opacity-60">{item.desc}</span> : null}
                 </button>
             ))}
         </div>
@@ -290,7 +299,7 @@ function OptionGrid({ options, value, onChange, columns = 2 }: { options: { valu
 
 function optionClass(active: boolean) {
     return [
-        "h-9 rounded-md border bg-transparent px-2 text-sm font-medium transition hover:opacity-80",
+        "min-h-9 rounded-md border bg-transparent px-2 py-1 text-sm font-medium leading-4 transition hover:opacity-80",
         active ? "border-stone-950 text-stone-950 dark:border-stone-100 dark:text-stone-100" : "border-stone-200 text-stone-700 dark:border-stone-800 dark:text-stone-200",
     ].join(" ");
 }

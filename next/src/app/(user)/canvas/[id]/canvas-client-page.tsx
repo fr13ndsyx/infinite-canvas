@@ -2783,12 +2783,14 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     const targetIds = count > 1 ? childIds : [rootId];
                     const targetTaskIds = Object.fromEntries(targetIds.map((id) => [id, `client_image_task_${id}`]));
                     const primaryTargetId = targetIds[0];
+                    const nextImageTitle = getNextNodeTitle(CanvasNodeType.Image, nodesRef.current);
+                    const nextImageTitleNumber = parseInt(nextImageTitle.replace(/\D+/g, ""), 10) || 1;
                     pendingChildIds = isEmptyImageNode ? childIds : [rootId, ...childIds];
                     const rootNode: CanvasNodeData = {
                         id: rootId,
                         type: CanvasNodeType.Image,
-                        // 空图片节点复用时保留原命名（如"图片1"），非空节点生成新节点才用提示词命名
-                        title: isEmptyImageNode ? sourceNode?.title || "Generated Image" : effectivePrompt.slice(0, 32) || "Generated Image",
+                        // 空图片节点复用时保留原命名；新图片统一遵循“图片N”自动命名规则
+                        title: isEmptyImageNode ? sourceNode?.title || `${NODE_TITLE_PREFIX[CanvasNodeType.Image]}${nextImageTitleNumber}` : `${NODE_TITLE_PREFIX[CanvasNodeType.Image]}${nextImageTitleNumber}`,
                         position: {
                             x: isEmptyImageNode ? parentPosition.x : parentPosition.x + parentConfig.width + gap,
                             y: parentPosition.y + parentConfig.height / 2 - imageSize.height / 2,
@@ -2814,7 +2816,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     const childNodes: CanvasNodeData[] = childIds.map((id, index) => ({
                         id,
                         type: CanvasNodeType.Image,
-                        title: effectivePrompt.slice(0, 32) || "Generated Image",
+                        title: `${NODE_TITLE_PREFIX[CanvasNodeType.Image]}${nextImageTitleNumber + index + 1}`,
                         position: {
                             x: rootNode.position.x + rootNode.width + 120 + (index % 2) * (imageSize.width + 36),
                             y: rootNode.position.y + Math.floor(index / 2) * (imageSize.height + rowGap),

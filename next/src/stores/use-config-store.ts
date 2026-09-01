@@ -145,6 +145,7 @@ type ConfigStore = {
     config: AiConfig;
     publicSettings: AdminPublicSettings | null;
     isPublicSettingsLoading: boolean;
+    hasLoadedPublicSettings: boolean;
     isConfigOpen: boolean;
     shouldPromptContinue: boolean;
     updateConfig: <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
@@ -503,6 +504,7 @@ export const useConfigStore = create<ConfigStore>()(
             config: defaultConfig,
             publicSettings: null,
             isPublicSettingsLoading: false,
+            hasLoadedPublicSettings: false,
             isConfigOpen: false,
             shouldPromptContinue: false,
             updateConfig: (key, value) =>
@@ -518,7 +520,7 @@ export const useConfigStore = create<ConfigStore>()(
                 try {
                     set({ publicSettings: await apiGet<AdminPublicSettings>("/api/settings") });
                 } finally {
-                    set({ isPublicSettingsLoading: false });
+                    set({ isPublicSettingsLoading: false, hasLoadedPublicSettings: true });
                 }
             },
             isAiConfigReady: (config, model) => isAiConfigReady(config, model),
