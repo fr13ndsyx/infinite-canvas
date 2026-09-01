@@ -12,7 +12,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasCameraControl } from "./canvas-camera-control";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
-import { CanvasVideoSettingsPopover, type CanvasVideoFrameOption, type CanvasVideoResourceOption } from "./canvas-video-settings-popover";
+import { CanvasVideoSettingsPopover, type CanvasVideoFrameOption } from "./canvas-video-settings-popover";
 import { CanvasVideoSizePopover } from "./canvas-video-size-popover";
 import type { CanvasGenerationMode, CanvasNodeData, CanvasNodeMetadata } from "../types";
 
@@ -21,13 +21,12 @@ type CanvasConfigNodePanelProps = {
     isRunning: boolean;
     inputSummary: { textCount: number; imageCount: number; videoCount: number; audioCount: number };
     videoFrameOptions?: CanvasVideoFrameOption[];
-    videoResourceOptions?: CanvasVideoResourceOption[];
     onConfigChange: (nodeId: string, patch: Partial<CanvasNodeMetadata>) => void;
     onGenerate: (nodeId: string) => void;
     onComposerToggle: () => void;
 };
 
-export function CanvasConfigNodePanel({ node, isRunning, inputSummary, videoFrameOptions = [], videoResourceOptions = [], onConfigChange, onGenerate, onComposerToggle }: CanvasConfigNodePanelProps) {
+export function CanvasConfigNodePanel({ node, isRunning, inputSummary, videoFrameOptions = [], onConfigChange, onGenerate, onComposerToggle }: CanvasConfigNodePanelProps) {
     const globalConfig = useEffectiveConfig();
     const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
@@ -109,7 +108,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, videoFram
                     <ModelPicker className="canvas-compact-control !h-8 !rounded-md !px-1.5 !min-w-0 !text-[10.8px]" config={config} value={config.model} channelId={modelChannelId(config, mode)} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability={mode} onMissingConfig={() => openConfigDialog(true)} fullWidth nameMaxWidth={mode === "video" ? 50 : undefined} />
                     {mode === "video" ? (
                         <>
-                            <CanvasVideoSettingsPopover config={config} placement="topRight" frameOptions={videoFrameOptions} resourceOptions={videoResourceOptions} metadata={node.metadata} firstFrameNodeId={node.metadata?.firstFrameNodeId} lastFrameNodeId={node.metadata?.lastFrameNodeId} onFrameChange={(patch) => onConfigChange(node.id, patch)} onMetadataChange={(patch) => onConfigChange(node.id, patch)} onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
+                            <CanvasVideoSettingsPopover config={config} placement="topRight" frameOptions={videoFrameOptions} metadata={node.metadata} firstFrameNodeId={node.metadata?.firstFrameNodeId} lastFrameNodeId={node.metadata?.lastFrameNodeId} onFrameChange={(patch) => onConfigChange(node.id, patch)} onMetadataChange={(patch) => onConfigChange(node.id, patch)} onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
                             <CanvasVideoSizePopover config={config} buttonClassName="canvas-compact-control !h-8 !justify-start !rounded-md !px-1.5 !text-[10.8px]" onConfigChange={(key, value) => onConfigChange(node.id, videoConfigPatch(key, value))} />
                         </>
                     ) : mode === "image" ? (
@@ -204,10 +203,7 @@ function modePatch(config: AiConfig, mode: CanvasGenerationMode): Partial<Canvas
 function videoConfigPatch(key: keyof AiConfig, value: string) {
     if (key === "videoSeconds") return { seconds: value };
     if (key === "videoMode") return { mode: value };
-    if (key === "videoMultiShot") return { multiShot: value };
-    if (key === "videoShotType") return { shotType: value };
     if (key === "videoGenerateAudio") return { generateAudio: value };
-    if (key === "videoCharacterOrientation") return { characterOrientation: value };
     if (key === "videoWatermark") return { watermark: value };
     return { [key]: value };
 }

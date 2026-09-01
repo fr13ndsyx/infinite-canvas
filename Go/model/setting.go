@@ -83,7 +83,7 @@ type ModelCapability struct {
 	AudioRequiresMode  string `json:"audioRequiresMode,omitempty"`
 	AudioMaxReferences int    `json:"audioMaxReferences,omitempty"`
 
-	// 参考素材数量上限（Seedance 等）。0=走前端默认硬编码（图片 9/视频 3/音频 3）。
+	// 参考素材数量上限（Seedance 等）。0=走前端默认硬编码；MaxVideoReferences=-1 表示不支持视频参考。
 	MaxImageReferences int `json:"maxImageReferences,omitempty"`
 	MaxVideoReferences int `json:"maxVideoReferences,omitempty"`
 	MaxAudioReferences int `json:"maxAudioReferences,omitempty"`

@@ -73,7 +73,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
         return array.findIndex((t) => t.label === item.label) === index;
     });
     if (!ratioButtons.some((item) => item.value === "auto" || item.value === "adaptive")) {
-        ratioButtons.unshift({ value: "adaptive", label: "自适应", width: 0, height: 0, ratio: true });
+        ratioButtons.unshift({ value: "adaptive", label: "智能", width: 0, height: 0, ratio: true });
     }
     const selectedSize = ratios.length > 0
         ? ((config.size === "auto" || config.size === "adaptive") ? (ratioButtons.find((item) => item.value === "auto" || item.value === "adaptive")?.value || "") : (ratios.includes(normalizeSeedanceRatio(config.size)) ? normalizeSeedanceRatio(config.size) : (ratios[0] || "")))
@@ -183,11 +183,17 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                 </div>
                             ) : null}
                             {watermarkEnabled ? (
-                                <CanvasSection title="输出" theme={theme}>
-                                    <div className="rounded-xl border p-2.5" style={{ borderColor: theme.node.stroke }}>
-                                        <SwitchRow label="添加水印" checked={watermark} theme={theme} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} />
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[10.8px] font-medium" style={{ color: theme.node.titleText }}>添加水印</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center justify-center" style={{ width: CANVAS_SLIDER_WIDTH }}>
+                                            <span onMouseDown={(event) => event.stopPropagation()}>
+                                                <Switch size="small" checked={watermark} onChange={(checked) => onConfigChange("videoWatermark", String(checked))} />
+                                            </span>
+                                        </div>
+                                        <span className="min-w-[2.5rem]" aria-hidden />
                                     </div>
-                                </CanvasSection>
+                                </div>
                             ) : null}
                         </>
                     ) : null}
@@ -241,7 +247,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                 onClick={() => onConfigChange("size", item.value)}
                             >
                                 <RatioIcon isSmart={item.value === "auto" || item.value === "adaptive"} label={item.label} color={theme.node.text} />
-                                <span>{item.value === "auto" || item.value === "adaptive" ? item.value : item.label}</span>
+                                <span>{item.value === "auto" || item.value === "adaptive" ? "智能" : item.label}</span>
                             </button>
                         ))}
                     </div>
@@ -272,7 +278,7 @@ export function videoResolutionLabel(value: string) {
 }
 
 export function videoSizeRatioLabel(value: string) {
-    if (value === "adaptive" || value === "auto") return "自适应";
+    if (value === "adaptive" || value === "auto") return "智能";
     const ratio = normalizeSeedanceRatio(value);
     if (ratio && ratio !== value) return seedanceRatioOptions.find((item) => item.value === ratio)?.label || ratio;
     const size = normalizeVideoSizeValue(value);

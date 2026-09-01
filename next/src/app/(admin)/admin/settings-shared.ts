@@ -100,7 +100,7 @@ export function normalizeModelCapabilities(items: Partial<AdminModelCapability>[
         videoProvider: item.videoProvider || "",
         videoModes: (item.videoModes || []).filter((mode) => mode.value || mode.label).map((mode) => ({ value: mode.value || "", label: mode.label || "", desc: mode.desc || "" })),
         supportsFirstLastFrame: item.supportsFirstLastFrame === true,
-        supportsFirstFrame: item.supportsFirstFrame === true,
+        supportsFirstFrame: item.supportsFirstLastFrame === true ? false : item.supportsFirstFrame === true,
         supportsMotionControl: item.supportsMotionControl === true,
         supportsAudioGeneration: item.supportsAudioGeneration === true,
         supportsWatermark: item.supportsWatermark === true,

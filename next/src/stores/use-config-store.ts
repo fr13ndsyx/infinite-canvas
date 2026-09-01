@@ -295,12 +295,12 @@ export function resolveAudioMaxReferences(cap: AdminModelCapability | undefined)
     return cap?.audioMaxReferences || 0;
 }
 
-// 参考素材数量上限（Seedance 等）。0=走前端默认硬编码（图片 9/视频 3/音频 3）。
+// 参考素材数量上限（Seedance 等）。0=走前端默认硬编码；视频为 -1 时表示不支持视频参考。
 export function resolveMaxImageReferences(cap: AdminModelCapability | undefined): number {
     return cap?.maxImageReferences || 0;
 }
 export function resolveMaxVideoReferences(cap: AdminModelCapability | undefined): number {
-    return cap?.maxVideoReferences || 0;
+    return cap?.maxVideoReferences === -1 ? -1 : cap?.maxVideoReferences || 0;
 }
 export function resolveMaxAudioReferences(cap: AdminModelCapability | undefined): number {
     return cap?.maxAudioReferences || 0;

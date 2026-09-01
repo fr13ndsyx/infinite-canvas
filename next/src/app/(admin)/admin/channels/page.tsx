@@ -1,7 +1,7 @@
 "use client";
 
 import { DeleteOutlined, LoadingOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { App, Button, Card, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Table, Tabs, Tag, Typography } from "antd";
+import { App, Button, Card, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Tabs, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchAdminSettings, fetchChannelModels, saveAdminSettings, testChannelModel, type AdminModelChannel, type AdminSettings } from "@/services/api/admin";
@@ -34,7 +34,7 @@ type ModelSelectTabKey = "new" | "current";
 
 export default function AdminChannelsPage() {
     const token = useUserStore((state) => state.token);
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const [form] = Form.useForm<AdminSettings>();
     const [channels, setChannels] = useState<AdminModelChannel[]>([]);
     const [channelForm] = Form.useForm<AdminModelChannel>();
@@ -235,6 +235,21 @@ export default function AdminChannelsPage() {
     const testChannel = testChannelIndex === null ? null : normalizeChannel(channels[testChannelIndex]);
     const testModels = (testChannel?.models || []).filter((model) => model.toLowerCase().includes(testKeyword.trim().toLowerCase()));
 
+    const confirmDeleteChannel = (index: number, name: string) => {
+        modal.confirm({
+            title: "确认删除渠道？",
+            content: `删除“${name || "未命名渠道"}”后将从模型路由中移除，且无法恢复。`,
+            okText: "确认删除",
+            cancelText: "取消",
+            okType: "danger",
+            onOk: () => {
+                const nextChannels = [...channels];
+                nextChannels.splice(index, 1);
+                return persistChannels(nextChannels);
+            },
+        });
+    };
+
     async function persistChannels(nextChannels: AdminModelChannel[]) {
         if (!token) return;
         setIsSaving(true);
@@ -337,11 +352,7 @@ export default function AdminChannelsPage() {
                                                 icon={<DeleteOutlined />}
                                                 aria-label={`删除${item.name || "未命名渠道"}`}
                                                 title="删除渠道"
-                                                onClick={() => {
-                                                    const nextChannels = [...channels];
-                                                    nextChannels.splice(item._index, 1);
-                                                    void persistChannels(nextChannels);
-                                                }}
+                                                onClick={() => confirmDeleteChannel(item._index, item.name)}
                                             />
                                         </Space>
                                     ),

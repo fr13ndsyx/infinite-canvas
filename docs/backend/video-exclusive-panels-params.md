@@ -14,16 +14,16 @@
 | `videoRatios` | ✅ 已接入 | 比例选项，空=走默认 sizeOptions / klingV26RatioOptions / seedanceRatioOptions |
 | `videoSecondsMin`/`Max` | ✅ 已接入 | 秒数范围（Slider），空=默认 4-20 |
 | `videoSecondsPresets` | ✅ 已接入 | 秒数预设档位（Seedance 面板），空=走默认 seedanceDurationOptions |
-| `supportsFirstLastFrame` | ✅ 已接入 | 尾帧显隐（兼容字段：勾选=首尾帧都支持） |
-| `supportsFirstFrame` | ✅ 已接入 | 首帧显隐（仅首帧模型勾选；未配置时若 supportsFirstLastFrame=true 视为同时支持首帧） |
-| `supportsMotionControl` | ✅ 已接入 | 运动控制 |
+| `supportsFirstLastFrame` | ✅ 已接入 | 首尾帧显隐（与 `supportsFirstFrame` 互斥） |
+| `supportsFirstFrame` | ✅ 已接入 | 首帧显隐（仅首帧模型；与 `supportsFirstLastFrame` 互斥） |
+| `supportsMotionControl` | ✅ 已接入 | 运动控制（画布节点与管理后台入口已移除，字段保留兼容） |
 | `supportsAudioGeneration` | ✅ 已接入 | 音频生成开关 |
 | `supportsWatermark` | ✅ 已接入 | 水印开关（Seedance） |
-| `supportsMultiShot` | ✅ 已接入 | 多镜头分镜（Kling V3） |
-| `audioRequiresMode` | ✅ 已接入 | 音频生成所需模式（Kling V26 pro） |
-| `audioMaxReferences` | ✅ 已接入 | 音频生成最大参考图数量 |
+| `supportsMultiShot` | ✅ 已接入 | 多镜头分镜（Kling V3；画布节点与管理后台入口已移除，字段保留兼容） |
+| `audioRequiresMode` | ✅ 已接入 | 音频生成所需模式（Kling V26 pro；管理后台不再提供该限制配置） |
+| `audioMaxReferences` | ✅ 已接入 | 音频生成最大参考图数量（管理后台不再提供该限制配置） |
 | Seedance 分辨率 | ✅ 已接入 | UI 早已读 `videoResolutions`，本轮清理 `seedanceResolutionOptions` 等死代码 |
-| Seedance 参考素材限制 | ✅ 已接入 | 数量上限读 `maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`，0=走默认；字节限制保持硬编码 |
+| Seedance 参考素材限制 | ✅ 已接入 | 数量上限读 `maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`，0=走默认，`maxVideoReferences=-1`=不支持视频参考；字节限制保持硬编码 |
 
 ## 现状概览
 
@@ -114,9 +114,11 @@
 - V26 限制：仅 `pro` 模式且参考图 ≤1 张可用，否则开关禁用
 - V3 限制：无限制
 - 来源：`kling-v26-workbench-panel.tsx` L130 `audioDisabled`
-- 后台控制：✅ 已接入 `ModelCapability.supportsAudioGeneration` + `audioRequiresMode`（如 `pro`）+ `audioMaxReferences`（如 `1`）
+- 后台控制：✅ 已接入 `ModelCapability.supportsAudioGeneration`；`audioRequiresMode` / `audioMaxReferences` 字段保留兼容，管理后台不再提供限制配置
 
 ### 多镜头分镜（videoMultiShot）— 仅 V3
+
+> 画布视频节点和管理后台已移除该能力入口；底层字段与请求适配暂保留，供独立视频页及后续技能模块使用。
 
 - 取值：`true` / `false`
 - 默认：`false`
@@ -135,6 +137,8 @@
 - 后台控制：✅ 已接入 `ModelCapability.supportsFirstFrame`（仅首帧）+ `ModelCapability.supportsFirstLastFrame`（尾帧，兼容字段：勾选=首尾帧都支持）
 
 ### 角色朝向参考（videoCharacterOrientation）— 仅 Motion Control
+
+> 画布视频节点和管理后台已移除该能力入口；底层字段与请求适配暂保留，后续由技能模块承接。
 
 - 取值：`image` / `video`
 - 默认：`video`
@@ -193,7 +197,7 @@
 - 视频：最多 3 个，单个 ≤50MB，时长 2-15 秒，宽高 300-6000px，宽高比 0.4-2.5，像素总量 640×640 ~ 2206×946
 - 音频：最多 3 个，单个 ≤15MB
 - 总时长：参考视频合计 ≤15 秒
-- 来源：`seedance-video.ts` `SEEDANCE_REFERENCE_LIMITS`（字节限制，保持硬编码）；数量上限改读 `ModelCapability.maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`，0=走默认（图片 9/视频 3/音频 3）；`video/page.tsx` 主组件 `referenceLimits` 对象统一解析
+- 来源：`seedance-video.ts` `SEEDANCE_REFERENCE_LIMITS`（字节限制，保持硬编码）；数量上限改读 `ModelCapability.maxImageReferences`/`maxVideoReferences`/`maxAudioReferences`，0=走默认（图片 9/视频 3/音频 3），`maxVideoReferences=-1`=不支持视频参考；`video/page.tsx` 主组件 `referenceLimits` 对象统一解析
 - 后台控制：✅ 数量上限已接入 `ModelCapability`（0=走前端默认）；字节限制保持硬编码不动
 
 ## 后端统一控制字段（已实施）

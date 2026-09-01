@@ -47,7 +47,6 @@ import { InfiniteCanvas } from "../components/infinite-canvas";
 import { Minimap } from "../components/canvas-mini-map";
 import { CanvasNode } from "../components/canvas-node";
 import { CanvasNodePromptPanel, type CanvasNodeGenerationMode, type CanvasVideoFrameOption } from "../components/canvas-node-prompt-panel";
-import type { CanvasVideoResourceOption } from "../components/canvas-video-settings-popover";
 import { CanvasToolbar } from "../components/canvas-toolbar";
 import { AssetPickerModal, type AssetPickerTab } from "../components/asset-picker-modal";
 import { CanvasZoomControls } from "../components/canvas-zoom-controls";
@@ -923,28 +922,6 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                 if (connection.toNodeId !== node.id) return [];
                 const imageNode = nodeById.get(connection.fromNodeId);
                 return isCanvasImageNodeType(imageNode?.type) && imageNode?.metadata?.content ? [{ nodeId: imageNode.id, label: imageNode.title || "图片节点", previewUrl: imageNode.metadata.content }] : [];
-            });
-            map.set(node.id, options);
-        });
-        return map;
-    }, [connections, nodeById, nodes]);
-    const videoResourceOptionsByNodeId = useMemo(() => {
-        const map = new Map<string, CanvasVideoResourceOption[]>();
-        nodes.forEach((node) => {
-            if (node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Config) return;
-            const options: CanvasVideoResourceOption[] = connections.flatMap<CanvasVideoResourceOption>((connection) => {
-                if (connection.toNodeId !== node.id) return [];
-                const source = nodeById.get(connection.fromNodeId);
-                if (!source) return [];
-                const label = source.title || source.id;
-                if (source.type === CanvasNodeType.Text) {
-                    const text = source.metadata?.content || source.metadata?.prompt || "";
-                    return text.trim() ? [{ nodeId: source.id, kind: "text" as const, label, text }] : [];
-                }
-                if (isCanvasImageNodeType(source.type) && source.metadata?.content) return [{ nodeId: source.id, kind: "image" as const, label, previewUrl: source.metadata.content }];
-                if (source.type === CanvasNodeType.Video && source.metadata?.content) return [{ nodeId: source.id, kind: "video" as const, label, previewUrl: source.metadata.content }];
-                if (source.type === CanvasNodeType.Audio && source.metadata?.content) return [{ nodeId: source.id, kind: "audio" as const, label }];
-                return [];
             });
             map.set(node.id, options);
         });
@@ -3851,7 +3828,6 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                                         isRunning={runningNodeId === panelNode.id}
                                         mentionReferences={mentionReferencesByNodeId.get(panelNode.id) || []}
                                         videoFrameOptions={videoFrameOptionsByNodeId.get(panelNode.id) || []}
-                                        videoResourceOptions={videoResourceOptionsByNodeId.get(panelNode.id) || []}
                                         stackItems={stackItemsByNodeId.get(panelNode.id) || []}
                                         onUploadImage={(file) => void uploadNodeInputImage(panelNode.id, file)}
                                         onUploadFrame={(slot, file) => void uploadNodeInputImage(panelNode.id, file, slot)}
@@ -3878,7 +3854,6 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                                         isRunning={runningNodeId === contentNode.id}
                                         inputSummary={getInputSummary(configInputsById.get(contentNode.id) || [])}
                                         videoFrameOptions={videoFrameOptionsByNodeId.get(contentNode.id) || []}
-                                        videoResourceOptions={videoResourceOptionsByNodeId.get(contentNode.id) || []}
                                         onConfigChange={handleConfigNodeChange}
                                         onComposerToggle={() => setDialogNodeId((current) => (current === contentNode.id ? null : contentNode.id))}
                                         onGenerate={(nodeId) => {
