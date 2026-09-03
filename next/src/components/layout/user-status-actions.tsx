@@ -9,6 +9,7 @@ import Link from "next/link";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useConfigStore } from "@/stores/use-config-store";
+import { usePasswordDialogStore } from "@/stores/use-password-dialog-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 
@@ -26,12 +27,13 @@ export function UserStatusActions({ variant = "default", accountOpen, onAccountO
     const user = useUserStore((state) => state.user);
     const logout = useUserStore((state) => state.clearSession);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+    const openPasswordDialog = usePasswordDialogStore((state) => state.openPasswordDialog);
     const canvasTheme = canvasThemes[theme];
     const userName = user?.displayName || user?.username || "";
     const credits = user?.credits ?? 0;
     const [internalAccountOpen, setInternalAccountOpen] = useState(false);
     const isCanvas = variant === "canvas";
-    const themeButtonClass = "inline-flex size-7 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 dark:text-stone-300 dark:hover:text-white [&_svg]:size-4";
+    const themeButtonClass = "inline-flex size-7 shrink-0 items-center justify-center text-muted-foreground transition hover:text-foreground [&_svg]:size-4";
     const iconStyle: CSSProperties | undefined = isCanvas ? { color: canvasTheme.node.text } : undefined;
     const resolvedAccountOpen = accountOpen ?? internalAccountOpen;
     const handleAccountOpenChange = (open: boolean) => {
@@ -40,14 +42,14 @@ export function UserStatusActions({ variant = "default", accountOpen, onAccountO
     };
     const triggerClassName = isCanvas
         ? "flex h-8 shrink-0 items-center rounded-md px-2 text-sm font-medium transition hover:bg-white/10"
-        : "flex h-8 shrink-0 items-center rounded-md px-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white";
+        : "flex h-8 shrink-0 items-center rounded-md px-2 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground";
 
     return (
         <div className="inline-flex shrink-0 items-center gap-1">
             <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={themeButtonClass} style={iconStyle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} />
             {!user ? (
                 <>
-                    <Link href="/login" className="px-1.5 text-sm font-medium text-stone-600 underline-offset-4 transition hover:text-stone-950 hover:underline dark:text-stone-300 dark:hover:text-stone-100" style={iconStyle}>
+                    <Link href="/login" className="px-1.5 text-sm font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline" style={iconStyle}>
                         登录
                     </Link>
                 </>
@@ -62,8 +64,9 @@ export function UserStatusActions({ variant = "default", accountOpen, onAccountO
                         align={{ offset: [0, 14], overflow: { adjustX: 1, adjustY: 1 } }}
                         getPopupContainer={getPopupContainer}
                         dropdownRender={() => (
-                            <div data-account-menu className="min-w-[304px] overflow-hidden rounded-2xl border border-stone-200/80 bg-white/95 p-2 text-sm shadow-2xl shadow-stone-950/10 backdrop-blur-xl dark:border-stone-700/60 dark:bg-neutral-950/95 dark:shadow-black/30">
-                                <AccountRow>个人中心</AccountRow>
+                            <div data-account-menu className="min-w-[304px] overflow-hidden rounded-2xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-2xl shadow-black/10 backdrop-blur-xl dark:shadow-black/30 [&_.account-menu-divider]:bg-border">
+                                <Link href="/account" onClick={() => handleAccountOpenChange(false)} className={accountActionClass}>个人中心</Link>
+                                <AccountDivider />
                                 <AccountAction onClick={() => { handleAccountOpenChange(false); openConfigDialog(false); }}>
                                     <span>配置与偏好</span>
                                 </AccountAction>
@@ -72,12 +75,14 @@ export function UserStatusActions({ variant = "default", accountOpen, onAccountO
                                     <span>算力余额</span>
                                     <span className="font-medium tabular-nums">{credits.toLocaleString()}</span>
                                 </AccountRow>
+                                <AccountDivider />
                                 {user?.role === "admin" ? (
                                     <>
-                                        <AccountDivider />
                                         <Link href="/admin" onClick={() => handleAccountOpenChange(false)} className={accountActionClass}>管理后台</Link>
+                                        <AccountDivider />
                                     </>
                                 ) : null}
+                                <AccountAction onClick={() => { handleAccountOpenChange(false); openPasswordDialog(); }}>修改密码</AccountAction>
                                 <AccountDivider />
                                 <AccountAction onClick={() => { handleAccountOpenChange(false); logout(); }}>退出登录</AccountAction>
                             </div>
@@ -94,7 +99,7 @@ export function UserStatusActions({ variant = "default", accountOpen, onAccountO
     );
 }
 
-const accountRowClass = "flex min-h-10 items-center gap-3 rounded-lg px-3 text-stone-600 transition hover:bg-stone-100/80 hover:shadow-sm dark:text-stone-300 dark:hover:bg-white/[0.08]";
+const accountRowClass = "flex min-h-10 items-center gap-3 rounded-lg px-3 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground hover:shadow-sm";
 const accountActionClass = `${accountRowClass} w-full text-left`;
 
 function AccountRow({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -106,5 +111,5 @@ function AccountAction({ children, onClick }: { children: ReactNode; onClick?: (
 }
 
 function AccountDivider() {
-    return <div className="my-1 h-px bg-stone-200/70 dark:bg-stone-800/70" />;
+    return <div className="account-menu-divider my-1 h-px" />;
 }

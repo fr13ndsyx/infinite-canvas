@@ -12,6 +12,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
 import { CanvasCameraControl } from "./canvas-camera-control";
 import { CanvasPromptLibrary } from "./canvas-prompt-library";
+import { CanvasNodeSkills } from "./canvas-node-skills";
 import { CanvasAudioSettingsPopover, type CanvasAudioSettingKey } from "./canvas-audio-settings-popover";
 import { CanvasPromptChipInput } from "./canvas-prompt-chip-input";
 import { CanvasNodeImageUpload, type CanvasFrameSlot, type CanvasNodeStackItem } from "./canvas-node-image-upload";
@@ -20,6 +21,7 @@ import { CanvasVideoSizePopover } from "./canvas-video-size-popover";
 import { CanvasNodeType, type CanvasGenerationMode, type CanvasNodeData } from "../types";
 import { PANORAMA_IMAGE_SIZE, isCanvasImageNodeType, isPanoramaNodeType } from "../utils/canvas-panorama";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
+import type { Skill } from "@/services/api/skills";
 
 export type { CanvasVideoFrameOption };
 
@@ -65,12 +67,16 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     // 全景图回显源提示词；文本节点回显节点提示词；图片/视频/音频节点只回显 inputPrompt（用户输入原词），
     // 不回显 metadata.prompt（含上游文本拼接的生成记录，回显会导致再次生成时上游内容重复）
     const sourcePrompt = isPanorama ? node.metadata?.panoramaSourcePrompt || "" : node.type === CanvasNodeType.Text ? node.metadata?.prompt || "" : node.metadata?.inputPrompt || "";
-    const [prompt, setPrompt] = useState(sourcePrompt);
+    const persistedSkill = node.metadata?.skillId && node.metadata.skillName && node.metadata.skillPrompt ? { id: node.metadata.skillId, name: node.metadata.skillName, prompt: node.metadata.skillPrompt } : null;
+    const visibleSourcePrompt = stripSkillPrompt(sourcePrompt, persistedSkill?.prompt);
+    const [prompt, setPrompt] = useState(visibleSourcePrompt);
+    const [selectedSkill, setSelectedSkill] = useState<Pick<Skill, "id" | "name" | "prompt"> | null>(persistedSkill);
     const credits = requestCreditCost({ channelMode: config.channelMode, modelCosts, model: config.model, count: 1 });
 
     useEffect(() => {
-        setPrompt(sourcePrompt);
-    }, [node.id, sourcePrompt]);
+        setPrompt(visibleSourcePrompt);
+        setSelectedSkill(persistedSkill);
+    }, [node.id, persistedSkill?.id, persistedSkill?.name, persistedSkill?.prompt, visibleSourcePrompt]);
 
     const frameSyncRef = useRef<{ nodeId: string; active: boolean; initialized: boolean; connectedImageIds: string[] }>({ nodeId: "", active: false, initialized: false, connectedImageIds: [] });
 
@@ -117,15 +123,28 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
 
     const updatePrompt = (value: string) => {
         setPrompt(value);
-        onPromptChange(node.id, value);
+        onPromptChange(node.id, composeSkillPrompt(value, selectedSkill));
+    };
+
+    const selectSkill = (skill: Skill) => {
+        const nextSkill = { id: skill.id, name: skill.name, prompt: skill.prompt };
+        setSelectedSkill(nextSkill);
+        onConfigChange(node.id, { skillId: skill.id, skillName: skill.name, skillPrompt: skill.prompt });
+        onPromptChange(node.id, composeSkillPrompt(prompt, nextSkill));
+    };
+
+    const removeSkill = () => {
+        setSelectedSkill(null);
+        onConfigChange(node.id, { skillId: undefined, skillName: undefined, skillPrompt: undefined });
+        onPromptChange(node.id, prompt);
     };
 
     // 连接了带内容的文本节点时（生成时会自动拼为上游提示词），允许不输入文字直接生成
     const hasUpstreamText = mode !== "text" && !node.metadata?.excludeUpstreamText && mentionReferences.some((reference) => reference.kind === "text" && reference.nodeId !== node.id && Boolean(reference.text?.trim()));
-    const canSubmit = Boolean(prompt.trim()) || hasUpstreamText || (isPanorama && (hasImageContent || mentionReferences.length > 0));
+    const canSubmit = Boolean(prompt.trim()) || Boolean(selectedSkill) || hasUpstreamText || (isPanorama && (hasImageContent || mentionReferences.length > 0));
 
     const submit = () => {
-        const text = prompt.trim();
+        const text = composeSkillPrompt(prompt, selectedSkill).trim();
         if (!canSubmit || isRunning) return;
         onGenerate(node.id, mode, text);
         // 保留输入内容便于查看与失败后修改（图片/视频/音频节点不再回显 metadata.prompt）
@@ -145,6 +164,8 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             <CanvasPromptChipInput
                 value={prompt}
                 references={mentionReferences}
+                skill={selectedSkill}
+                onRemoveSkill={removeSkill}
                 onChange={updatePrompt}
                 onSubmit={submit}
                 className="thin-scrollbar h-40 w-full resize-none rounded-xl px-3 py-2 text-sm leading-5 outline-none"
@@ -156,6 +177,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
             <div className="canvas-composer-bar mt-2 flex min-w-0 items-center gap-1 text-[10.8px]" style={{ fontFamily: '"PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}>
                 <div className="hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                     <CanvasPromptLibrary onSelect={updatePrompt} />
+                    {mode !== "audio" ? <CanvasNodeSkills nodeType={mode} onSelect={selectSkill} /> : null}
                     {mode === "image" ? (
                         <>
                             <ModelPicker className="!min-w-0 !text-[10.8px]" config={config} value={config.model} channelId={config.imageChannelId} onChange={(model, channelId) => onConfigChange(node.id, { model, channelId })} capability="image" onMissingConfig={() => openConfigDialog(true)} showToggleIndicator />
@@ -252,6 +274,17 @@ function promptPlaceholder(mode: CanvasNodeGenerationMode, hasImageContent: bool
     if (mode === "audio") return "描述要生成的音频内容";
     if (mode === "image") return hasImageContent ? "请输入你想要把这张图修改成什么" : "描述要生成的图片内容";
     return hasTextContent ? "请输入你想要将本段文本修改成什么" : "请输入你想要生成的文本内容或在上方输入你的提示词";
+}
+
+function composeSkillPrompt(prompt: string, skill?: Pick<Skill, "prompt"> | null) {
+    return [skill?.prompt.trim(), prompt.trim()].filter(Boolean).join("\n\n");
+}
+
+function stripSkillPrompt(prompt: string, skillPrompt?: string) {
+    const skill = skillPrompt?.trim();
+    if (!skill) return prompt;
+    const value = prompt.trimStart();
+    return value.startsWith(skill) ? value.slice(skill.length).replace(/^\s+/, "") : prompt;
 }
 
 function videoConfigPatch(key: keyof AiConfig, value: string) {

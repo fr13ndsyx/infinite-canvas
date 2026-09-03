@@ -8,6 +8,7 @@ import { App, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 
 import { ClientRootInit } from "@/components/layout/client-root-init";
+import { ChangePasswordModal } from "@/components/layout/change-password-modal";
 import { getAntThemeConfig } from "@/lib/app-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 
@@ -37,6 +38,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
                     <QueryClientProvider client={queryClient}>
                         <ClientRootInit>{children}</ClientRootInit>
                     </QueryClientProvider>
+                    <ChangePasswordModal />
                 </App>
             </ProConfigProvider>
         </ConfigProvider>

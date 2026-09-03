@@ -129,7 +129,7 @@ export function AppConfigModal() {
         }
     }, [isConfigOpen, user, publicSettings?.modelChannel?.allowGuestConfig, setConfigDialogOpen, clearPromptContinue, message]);
 
-    // 弹窗打开时根据当前渠道模式重置默认 Tab（仅 isConfigOpen 由 false→true 时触发，避免与用户手动切换冲突）
+    // 弹窗打开时根据当前渠道模式重置默认 Tab。
     useEffect(() => {
         if (isConfigOpen) {
             setActiveTab(effectiveMode === "remote" ? "remote" : "local");

@@ -55,6 +55,35 @@ type AuthUser struct {
 	UpdatedAt   string   `json:"updatedAt"`
 }
 
+// UserProfile 当前登录用户的扩展资料，不暴露密码。
+type UserProfile struct {
+	ID          string     `json:"id"`
+	Username    string     `json:"username"`
+	Email       string     `json:"email"`
+	DisplayName string     `json:"displayName"`
+	AvatarURL   string     `json:"avatarUrl"`
+	Role        UserRole   `json:"role"`
+	Credits     int        `json:"credits"`
+	AffCode     string     `json:"affCode"`
+	AffCount    int        `json:"affCount"`
+	InviterID   string     `json:"inviterId"`
+	GithubID    string     `json:"githubId"`
+	WechatID    string     `json:"wechatId"`
+	Status      UserStatus `json:"status"`
+	LastLoginAt string     `json:"lastLoginAt"`
+	CreatedAt   string     `json:"createdAt"`
+	UpdatedAt   string     `json:"updatedAt"`
+}
+
+func Profile(user User) UserProfile {
+	return UserProfile{
+		ID: user.ID, Username: user.Username, Email: user.Email, DisplayName: user.DisplayName,
+		AvatarURL: user.AvatarURL, Role: user.Role, Credits: user.Credits, AffCode: user.AffCode,
+		AffCount: user.AffCount, InviterID: user.InviterID, GithubID: user.GithubID, WechatID: user.WechatID,
+		Status: user.Status, LastLoginAt: user.LastLoginAt, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt,
+	}
+}
+
 // AuthSession 登录会话信息。
 type AuthSession struct {
 	Token string   `json:"token"`

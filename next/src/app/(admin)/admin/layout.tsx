@@ -1,6 +1,6 @@
 "use client";
 
-import { ApiOutlined, AuditOutlined, CloudOutlined, DollarOutlined, FileTextOutlined, HomeOutlined, LogoutOutlined, PictureOutlined, SettingOutlined, TransactionOutlined, UserOutlined } from "@ant-design/icons";
+import { ApiOutlined, AuditOutlined, CloudOutlined, DollarOutlined, FileTextOutlined, HomeOutlined, LogoutOutlined, PictureOutlined, SettingOutlined, ThunderboltOutlined, TransactionOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Flex, Layout, Menu, Typography, theme } from "antd";
 import type { MenuProps } from "antd";
 import Link from "next/link";
@@ -27,6 +27,7 @@ const adminMenus: MenuItem[] = [
     ]},
     { type: "group", label: "内容库", children: [
         { key: "/admin/prompts", icon: <FileTextOutlined />, label: "提示词管理" },
+        { key: "/admin/skills", icon: <ThunderboltOutlined />, label: "技能管理" },
         { key: "/admin/assets", icon: <PictureOutlined />, label: "素材库" },
     ]},
     { type: "group", label: "系统", children: [
@@ -50,6 +51,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         { prefix: "/admin/channels", key: "/admin/channels", title: "模型管理" },
         { prefix: "/admin/model-pricing", key: "/admin/model-pricing", title: "开放与定价" },
         { prefix: "/admin/prompts", key: "/admin/prompts", title: "提示词管理" },
+        { prefix: "/admin/skills", key: "/admin/skills", title: "技能管理" },
         { prefix: "/admin/assets", key: "/admin/assets", title: "素材库管理" },
         { prefix: "/admin/storage", key: "/admin/storage", title: "存储设置" },
         { prefix: "/admin/preferences", key: "/admin/preferences", title: "系统偏好" },

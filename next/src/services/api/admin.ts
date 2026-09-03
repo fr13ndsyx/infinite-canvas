@@ -1,5 +1,6 @@
 import { apiDelete, apiGet, apiPost, apiPostForm, compactApiParams } from "@/services/api/request";
 import type { Prompt, PromptListResponse } from "@/services/api/prompts";
+import type { Skill } from "@/services/api/skills";
 
 export type AdminUser = {
     id: string;
@@ -145,6 +146,22 @@ export async function saveAdminAsset(token: string, asset: Partial<AdminAsset>) 
 
 export async function deleteAdminAsset(token: string, id: string) {
     return apiDelete<boolean>(`/api/admin/assets/${encodeURIComponent(id)}`, token);
+}
+
+export type AdminSkillQuery = {
+    nodeType?: string;
+};
+
+export async function fetchAdminSkills(token: string, query: AdminSkillQuery = {}) {
+    return apiGet<Skill[]>("/api/admin/skills", compactApiParams(query), token);
+}
+
+export async function saveAdminSkill(token: string, skill: Partial<Skill>) {
+    return apiPost<Skill>("/api/admin/skills", skill, token);
+}
+
+export async function deleteAdminSkill(token: string, id: string) {
+    return apiDelete<boolean>(`/api/admin/skills/${encodeURIComponent(id)}`, token);
 }
 
 export type AdminModelChannel = {

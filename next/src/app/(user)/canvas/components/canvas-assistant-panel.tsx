@@ -421,7 +421,7 @@ export function CanvasAssistantPanel({
                         <AssistantMessages messages={messages} onRetry={retryMessage} />
                     ) : (
                         <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-                            <div className="grid size-12 place-items-center rounded-2xl" style={{ background: theme.node.fill }}>
+                            <div className="grid size-12 place-items-center rounded-2xl" style={{ background: theme.toolbar.panel }}>
                                 <Sparkles className="size-5" />
                             </div>
                             <div className="mt-4 text-base font-medium">从一个想法开始</div>
@@ -433,7 +433,7 @@ export function CanvasAssistantPanel({
                 {view === "chat" ? (
                     <>
                         {pendingDelete ? (
-                            <div className="mx-2 mb-2 overflow-hidden rounded-xl border" style={{ background: theme.node.fill, borderColor: theme.node.stroke }}>
+                        <div className="mx-2 mb-2 overflow-hidden rounded-xl border" style={{ background: theme.toolbar.panel, borderColor: theme.node.stroke }}>
                                 <div className="min-w-0 px-3 py-2.5">
                                     <div className="truncate text-sm font-medium">删除「{pendingDelete.title}」？</div>
                                     <div className="mt-0.5 text-xs opacity-55">相关连线和任务记录将按现有逻辑清理</div>
@@ -552,8 +552,8 @@ function AssistantMessages({ messages, onRetry }: { messages: CanvasAssistantMes
                                     message.role === "user"
                                         ? { background: theme.toolbar.activeBg, color: theme.toolbar.activeText }
                                         : message.status === "error"
-                                            ? { background: theme.node.fill, color: theme.node.text }
-                                            : { background: theme.node.fill, color: theme.node.text }
+                                            ? { background: theme.toolbar.panel, color: theme.node.text }
+                                            : { background: theme.toolbar.panel, color: theme.node.text }
                                 }
                             >
                                 {message.role === "assistant" ? (
@@ -597,7 +597,7 @@ function AssistantHistory({
     return (
         <div className="space-y-1">
             {sessions.map((session) => (
-                <div key={session.id} className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition" style={session.id === activeSession?.id ? { background: theme.node.fill } : undefined}>
+                <div key={session.id} className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition" style={session.id === activeSession?.id ? { background: theme.toolbar.activeBg } : undefined}>
                     <input type="checkbox" className="size-4" style={{ accentColor: theme.node.text }} checked={checkedIds.includes(session.id)} onChange={(event) => onToggleChecked(session.id, event.target.checked)} />
                     <button type="button" className="min-w-0 flex-1 text-left text-sm" onClick={() => onOpen(session.id)}>
                         <span className="block truncate">{session.title}</span>

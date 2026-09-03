@@ -94,7 +94,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                     <>
                         {tierOptions.length >= 1 ? (
                             <CanvasSection title="选择分辨率" theme={theme}>
-                                <div className="flex min-h-[44px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
+                                <div className="flex min-h-[44px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg, boxShadow: theme.toolbar.panel === "#1f1f1f" ? "0 4px 16px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.06)" : "0 2px 8px rgba(0,0,0,0.12)" }}>
                                     {tierOptions.map((item) => {
                                         const active = (panorama ? panoramaTier : effectiveTier) === item.value;
                                         return (
@@ -102,7 +102,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                                                 key={item.value}
                                                 type="button"
                                                 className="flex-1 rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
-                                                style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                                style={{ background: active ? theme.toolbar.activeBg : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                                 onMouseDown={(event) => event.stopPropagation()}
                                                 onClick={() => changeTier(item.value as "standard" | "2k" | "4k")}
                                             >
@@ -115,7 +115,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                         ) : null}
                         {showSize ? (
                             <CanvasSection title="选择比例" theme={theme}>
-                                <div className="grid grid-cols-4 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
+                                <div className="grid gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg, boxShadow: theme.toolbar.panel === "#1f1f1f" ? "0 4px 16px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.06)" : "0 2px 8px rgba(0,0,0,0.12)", gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))" }}>
                                     {visibleAspects.map((item) => {
                                         const isSmart = item.value === "auto";
                                         const active = selectedAspect?.value === item.value;
@@ -124,7 +124,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, capabilities
                                                 key={item.value}
                                                 type="button"
                                                 className="flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md py-1 text-[9px] leading-3 transition hover:opacity-80"
-                                                style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                                style={{ background: active ? theme.toolbar.activeBg : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                                 onMouseDown={(event) => event.stopPropagation()}
                                                 onClick={() => selectAspect(item.value)}
                                             >

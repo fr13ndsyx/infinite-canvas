@@ -148,6 +148,27 @@ func ListCreditLogs(q model.Query) ([]model.CreditLog, int64, error) {
 	return logs, total, err
 }
 
+// ListCreditLogsByUser 查询指定用户的算力点流水。
+func ListCreditLogsByUser(userID string, q model.Query) ([]model.CreditLog, int64, error) {
+	db, err := DB()
+	if err != nil {
+		return nil, 0, err
+	}
+	q.Normalize()
+	tx := db.Model(&model.CreditLog{}).Where("user_id = ?", strings.TrimSpace(userID))
+	if keyword := strings.TrimSpace(q.Keyword); keyword != "" {
+		like := "%" + keyword + "%"
+		tx = tx.Where("type LIKE ? OR remark LIKE ? OR related_id LIKE ?", like, like, like)
+	}
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var logs []model.CreditLog
+	err = tx.Order("created_at desc").Offset(q.Offset()).Limit(q.PageSize).Find(&logs).Error
+	return logs, total, err
+}
+
 func DeleteCreditLog(id string) error {
 	db, err := DB()
 	if err != nil {

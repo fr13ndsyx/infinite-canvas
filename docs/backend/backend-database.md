@@ -22,6 +22,7 @@ description: 当前后端主要数据表与字段说明
 - `users`
 - `credit_logs`
 - `prompts`
+- `skills`
 - `assets`
 - `settings`
 - `creative_workflows`
@@ -81,6 +82,25 @@ description: 当前后端主要数据表与字段说明
 | `updated_at` | string | 更新时间 |
 
 存量数据在启动迁移时自动填充 `category = image`，并删除已废弃的 `prompt_sources` 表。
+
+### skills
+
+技能表。管理后台预置的 AI 能力包，绑定画布节点类型，用户点击技能后将其 prompt 模板注入节点输入框（可见可改）。普通用户不能自建技能。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 主键 |
+| `node_type` | string | 绑定节点类型：`text`（文本）、`image`（图片）、`video`（视频），带索引 |
+| `name` | string | 技能名称，如「运镜 - 轨道右移」 |
+| `description` | string | 一句话说明 |
+| `prompt` | text | 预置 prompt 模板，点击技能后注入节点输入框 |
+| `cover_url` | string | 封面/示意图，可选 |
+| `sort_order` | number | 排序，小的靠前 |
+| `enabled` | bool | 是否上架，未上架技能不对用户展示 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
+
+公开接口 `GET /api/skills?nodeType=` 只返回已上架技能；管理后台 `/api/admin/skills` CRUD 返回全部。首次启动时表为空会自动写入首批预置技能（文本：翻译/扩写；图片：16 宫格连贯分镜/电影级光影矫正；视频：运镜-轨道右移/环绕拍摄）。
 
 ### assets
 

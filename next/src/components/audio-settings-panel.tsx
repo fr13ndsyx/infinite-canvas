@@ -36,7 +36,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                     key={item.value}
                                     type="button"
                                     className="min-h-[36px] cursor-pointer rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
-                                    style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                    style={{ background: active ? theme.toolbar.activeBg : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                     onMouseDown={(event) => event.stopPropagation()}
                                     onClick={() => onConfigChange("audioVoice", item.value)}
                                 >
@@ -55,7 +55,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                     key={item.value}
                                     type="button"
                                     className="min-h-[36px] cursor-pointer rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
-                                    style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                    style={{ background: active ? theme.toolbar.activeBg : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                     onMouseDown={(event) => event.stopPropagation()}
                                     onClick={() => onConfigChange("audioFormat", item.value)}
                                 >
@@ -74,7 +74,7 @@ export function AudioSettingsPanel({ config, onConfigChange, theme, showTitle = 
                                     key={value}
                                     type="button"
                                     className="flex-1 rounded-md py-1 text-center text-[10.8px] transition hover:opacity-80"
-                                    style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                    style={{ background: active ? theme.toolbar.activeBg : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                     onMouseDown={(event) => event.stopPropagation()}
                                     onClick={() => onConfigChange("audioSpeed", value)}
                                 >

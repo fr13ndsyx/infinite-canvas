@@ -8,6 +8,7 @@ import { FileText, Image as ImageIcon, Music2, Video } from "lucide-react";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { CanvasResourceReference } from "../utils/canvas-resource-references";
+import type { Skill } from "@/services/api/skills";
 
 type CanvasPromptChipInputProps = {
     value: string;
@@ -18,6 +19,8 @@ type CanvasPromptChipInputProps = {
     style?: CSSProperties;
     placeholder?: string;
     placeholderIndent?: number;
+    skill?: Pick<Skill, "id" | "name" | "prompt"> | null;
+    onRemoveSkill?: () => void;
 };
 
 type MentionState = {
@@ -29,11 +32,12 @@ type PromptToken =
     | { type: "text"; value: string }
     | { type: "reference"; label: string };
 
-export function CanvasPromptChipInput({ value, references, onChange, onSubmit, className, style, placeholder, placeholderIndent = 0 }: CanvasPromptChipInputProps) {
+export function CanvasPromptChipInput({ value, references, onChange, onSubmit, className, style, placeholder, placeholderIndent = 0, skill, onRemoveSkill }: CanvasPromptChipInputProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const editorRef = useRef<HTMLDivElement>(null);
     const composingRef = useRef(false);
     const lastEmittedRef = useRef(value);
+    const lastRenderedSkillRef = useRef(skill?.id || "");
     const [composing, setComposing] = useState(false);
     const [mention, setMention] = useState<MentionState | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
@@ -52,8 +56,12 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
     useEffect(() => {
         const editor = editorRef.current;
         if (!editor) return;
-        if (document.activeElement === editor && value === lastEmittedRef.current) return;
+        if (document.activeElement === editor && value === lastEmittedRef.current && (skill?.id || "") === lastRenderedSkillRef.current) return;
         editor.textContent = "";
+        if (skill) {
+            editor.append(createSkillChip(skill, theme, onRemoveSkill));
+            if (!tokens.length) editor.append(document.createTextNode(""));
+        }
         tokens.forEach((token) => {
             if (token.type === "text") {
                 editor.append(document.createTextNode(token.value));
@@ -64,7 +72,16 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
             else editor.append(document.createTextNode(token.label));
         });
         lastEmittedRef.current = value;
-    }, [referenceByLabel, theme, tokens, value]);
+        lastRenderedSkillRef.current = skill?.id || "";
+        if (skill && !value.trim() && document.activeElement === editor) requestAnimationFrame(() => placeCaretAfterSkill(editor));
+    }, [onRemoveSkill, referenceByLabel, skill, theme, tokens, value]);
+
+    useEffect(() => {
+        const editor = editorRef.current;
+        if (!editor || !skill || value.trim() || document.activeElement !== editor) return;
+        const frame = requestAnimationFrame(() => placeCaretAfterSkill(editor));
+        return () => cancelAnimationFrame(frame);
+    }, [skill?.id, value]);
 
     const emitChange = (nextValue: string) => {
         lastEmittedRef.current = nextValue;
@@ -93,7 +110,9 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
     const syncFromEditor = () => {
         const editor = editorRef.current;
         if (!editor) return;
-        emitChange(serializePromptEditor(editor));
+        const nextValue = serializePromptEditor(editor);
+        if (skill && !nextValue.trim()) placeCaretAfterSkill(editor);
+        emitChange(nextValue);
         syncMention();
     };
 
@@ -124,11 +143,12 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
 
     // 拼音组词期间 value 尚未更新，用 composing 状态让 placeholder 立即消失
     const showPlaceholder = !value.trim() && !composing;
+    const placeholderTop = skill ? 34 : 8;
 
     return (
         <div className="relative w-full">
             {showPlaceholder && placeholder ? (
-                <div className="pointer-events-none absolute top-2 text-sm leading-5" style={{ left: 12 + placeholderIndent, color: theme.node.placeholder }}>
+                <div className="pointer-events-none absolute text-sm leading-5" style={{ left: 12 + placeholderIndent, top: placeholderTop, color: theme.node.placeholder }}>
                     {placeholder}
                 </div>
             ) : null}
@@ -176,6 +196,9 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
                     setComposing(false);
                     syncFromEditor();
                 }}
+                onFocus={() => {
+                    if (skill && !value.trim()) requestAnimationFrame(() => { if (editorRef.current) placeCaretAfterSkill(editorRef.current); });
+                }}
                 onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
                     event.stopPropagation();
 
@@ -209,9 +232,10 @@ export function CanvasPromptChipInput({ value, references, onChange, onSubmit, c
                         }
                     }
 
-                    if ((event.key === "Backspace" || event.key === "Delete") && deleteAdjacentReference(event.key)) {
+                    const deletedToken = event.key === "Backspace" || event.key === "Delete" ? deleteAdjacentToken(event.key, onRemoveSkill) : false;
+                    if (deletedToken) {
                         event.preventDefault();
-                        requestAnimationFrame(syncFromEditor);
+                        if (deletedToken === "reference") requestAnimationFrame(syncFromEditor);
                         return;
                     }
 
@@ -396,6 +420,34 @@ function createReferenceChip(
     return wrapper;
 }
 
+function createSkillChip(skill: Pick<Skill, "id" | "name" | "prompt">, theme: (typeof canvasThemes)[keyof typeof canvasThemes], onRemove?: () => void) {
+    const wrapper = document.createElement("span");
+    wrapper.contentEditable = "false";
+    wrapper.dataset.skillChip = skill.id;
+    wrapper.className = "mx-px inline-flex h-6 max-w-48 items-center gap-1 rounded-md border px-1.5 align-middle text-xs leading-none";
+    wrapper.style.background = theme.toolbar.activeBg;
+    wrapper.style.borderColor = theme.node.stroke;
+    wrapper.style.color = theme.node.text;
+    const icon = document.createElement("span");
+    icon.innerHTML = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" class=\"size-3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"m12 3 1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z\"/><path d=\"m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z\"/></svg>";
+    icon.className = "inline-flex shrink-0";
+    const label = document.createElement("span");
+    label.className = "max-w-36 truncate";
+    label.textContent = skill.name;
+    wrapper.append(icon, label);
+    if (onRemove) {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "ml-0.5 inline-flex shrink-0 rounded p-0.5 opacity-60 hover:opacity-100";
+        remove.setAttribute("aria-label", `删除技能 ${skill.name}`);
+        remove.innerHTML = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" class=\"size-3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M18 6 6 18M6 6l12 12\"/></svg>";
+        remove.addEventListener("mousedown", (event) => event.preventDefault());
+        remove.addEventListener("click", (event) => { event.preventDefault(); event.stopPropagation(); onRemove(); });
+        wrapper.appendChild(remove);
+    }
+    return wrapper;
+}
+
 function serializePromptEditor(editor: HTMLElement) {
     return serializePromptNodes(editor.childNodes).replace(/\uFEFF/g, "");
 }
@@ -413,6 +465,7 @@ function serializePromptNodes(nodes: NodeListOf<ChildNode>) {
             result += referenceLabel;
             return;
         }
+        if (node.dataset.skillChip) return;
         if (node.tagName === "BR") {
             result += "\n";
             return;
@@ -437,12 +490,17 @@ function removeActiveMention() {
     range.deleteContents();
 }
 
-function deleteAdjacentReference(key: string) {
+function deleteAdjacentToken(key: string, onRemoveSkill?: () => void): false | "reference" | "skill" {
     const selection = window.getSelection();
     if (!selection?.rangeCount || !selection.isCollapsed) return false;
     const range = selection.getRangeAt(0);
     const target = adjacentReferenceNode(range, key);
     if (!target) return false;
+    if (target.dataset.skillChip) {
+        target.remove();
+        onRemoveSkill?.();
+        return "skill";
+    }
     target.parentNode?.normalize();
     const previousSibling = target.previousSibling;
     const nextSibling = target.nextSibling;
@@ -454,7 +512,7 @@ function deleteAdjacentReference(key: string) {
     range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
-    return true;
+    return "reference";
 }
 
 function adjacentReferenceNode(range: Range, key: string) {
@@ -475,7 +533,7 @@ function findReferenceSibling(node: Node, previous: boolean, includeSelf = false
     while (current && current.nodeType === Node.TEXT_NODE && !(current.textContent || "").trim()) {
         current = previous ? current.previousSibling : current.nextSibling;
     }
-    return current instanceof HTMLElement && current.dataset.refLabel ? current : null;
+    return current instanceof HTMLElement && (current.dataset.refLabel || current.dataset.skillChip) ? current : null;
 }
 
 function textBeforeCaret() {
@@ -508,6 +566,22 @@ function placeCaretAtEnd(element: HTMLElement) {
     const range = document.createRange();
     range.selectNodeContents(element);
     range.collapse(false);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+}
+
+function placeCaretAfterSkill(editor: HTMLElement) {
+    const skill = editor.querySelector<HTMLElement>("[data-skill-chip]");
+    if (!skill) return;
+    let anchor = skill.nextSibling;
+    if (!(anchor instanceof Text)) {
+        anchor = document.createTextNode("");
+        skill.after(anchor);
+    }
+    const range = document.createRange();
+    range.setStart(anchor, 0);
+    range.collapse(true);
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);

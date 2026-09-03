@@ -53,7 +53,7 @@ export function CanvasNodeImageUpload({ items, onUpload, onRemove, variant = "st
         <div
             data-canvas-no-zoom
             className="absolute"
-            style={{ left: offset.left, top: offset.top, width: expanded ? (count + 1) * BOX_WIDTH : BOX_WIDTH, height: BOX_HEIGHT, transform: expanded ? "rotate(0deg)" : "rotate(-6deg)", transition: "width 200ms ease-out, transform 200ms ease-out", zIndex: 80 }}
+            style={{ left: offset.left, top: offset.top, width: expanded ? (count + 1) * BOX_WIDTH : BOX_WIDTH, height: BOX_HEIGHT, transform: expanded || boxHovered ? "rotate(0deg)" : "rotate(-6deg)", transition: "width 200ms ease-out, transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1)", zIndex: 80 }}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => {
                 setHovered(false);
@@ -122,11 +122,11 @@ export function CanvasNodeImageUpload({ items, onUpload, onRemove, variant = "st
                     zIndex: count + 1,
                     opacity: count === 0 || expanded ? 1 : 0,
                     pointerEvents: count === 0 || expanded ? "auto" : "none",
-                    borderColor: boxHovered ? theme.node.activeStroke : theme.node.stroke,
-                    background: boxHovered ? theme.toolbar.activeBg : "transparent",
-                    color: boxHovered ? theme.toolbar.activeText : theme.node.muted,
-                    transform: boxHovered ? "scale(1.1)" : "none",
-                    transition: "left 200ms ease-out, opacity 200ms ease-out, transform 200ms ease-out, background 200ms ease-out",
+                    borderColor: boxHovered ? theme.node.uploadActiveStroke : theme.node.uploadStroke,
+                    background: "transparent",
+                    color: boxHovered ? theme.node.text : theme.node.muted,
+                    transform: boxHovered ? "scale(1.08)" : "none",
+                    transition: "left 200ms ease-out, opacity 200ms ease-out, transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1), border-color 160ms ease-out, color 160ms ease-out",
                 }}
                 onMouseEnter={() => setBoxHovered(true)}
                 onMouseLeave={() => setBoxHovered(false)}
@@ -180,7 +180,7 @@ function VideoFrameUpload({ firstFrame, lastFrame, showFirstFrame, showLastFrame
                 const active = hoveredSlot === slot;
                 return <div key={slot} className="absolute top-0 rounded-md" style={{ left: index * (BOX_WIDTH + frameGap), width: BOX_WIDTH, height: BOX_HEIGHT, zIndex: active ? 6 : 2, transform: stackTransform(index, true, active), boxShadow: active ? "0 6px 16px rgba(0,0,0,0.3)" : "none", transition: "transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms ease-out" }} onMouseEnter={() => setHoveredSlot(slot)} onMouseLeave={() => setHoveredSlot(null)}>
                     {active ? <span className="pointer-events-none absolute -top-7 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-md border px-2 py-1 text-[10px] shadow-lg" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}>{label}</span> : null}
-                    <button type="button" className={["relative grid h-full w-full place-items-center overflow-hidden rounded-md", item?.url ? "" : "border", item && !item.uploaded ? "cursor-default" : ""].join(" ")} style={{ borderColor: item?.url ? "transparent" : theme.node.stroke, background: item?.url ? theme.node.fill : "transparent", color: theme.node.muted }} onClick={() => { if (!item || item.uploaded) inputRef.current?.click(); }} aria-label={item && !item.uploaded ? `${label}图片` : `${label}上传`}>
+                    <button type="button" className={["relative grid h-full w-full place-items-center overflow-hidden rounded-md border", item && !item.uploaded ? "cursor-default" : ""].join(" ")} style={{ borderColor: active ? theme.node.uploadActiveStroke : theme.node.uploadStroke, background: item?.url ? theme.node.fill : "transparent", color: theme.node.muted, transition: "border-color 160ms ease-out" }} onClick={() => { if (!item || item.uploaded) inputRef.current?.click(); }} aria-label={item && !item.uploaded ? `${label}图片` : `${label}上传`}>
                         {item?.url ? <img src={item.url} alt="" draggable={false} className="h-full w-full object-cover" /> : <span className="flex flex-col items-center gap-1"><Plus className="size-4" /><span className="text-[9px]">上传{label}</span></span>}
                         {item?.url ? <span className="pointer-events-none absolute bottom-0.5 left-0.5 right-0.5 truncate rounded text-center text-[8px] leading-3" style={{ background: "rgba(0,0,0,0.45)", color: "#ffffff" }}>{item.label}</span> : null}
                     </button>

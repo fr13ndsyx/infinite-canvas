@@ -13,6 +13,22 @@
 - `NODE_OPTIONS` 被全局注入 genie-safe-delete shim，会导致 Next dev 崩溃 → 启动前端须 `NODE_OPTIONS=""`
 - Next 对 `.next/` 新文件在后台/提权执行时必现 EPERM → `next build` 须前台 PowerShell 执行；`next start` 可后台
 
+## feat/version-update-notice 合并（2026-09-02，v1.0.0 发版）
+
+- 分支：feat/version-update-notice → main（PR #9 合并，commit f6358ef / main 94fccef）；发版 VERSION v0.5.0 → v1.0.0
+- 改动范围：版本管理与前端更新提示（构建期注入版本号 + 运行期站内接口比对 + 右下角非阻塞更新卡片）+ 顶栏版本入口恢复 + 账户名符号居中修复
+- 关键变更：
+  - 版本更新提示机制：`next.config.ts` 构建期把 `VERSION` 注入环境变量 `NEXT_PUBLIC_APP_VERSION` / `NEXT_PUBLIC_APP_RELEASES`；新增站内接口 `next/src/app/api/app-version/route.ts`（`force-dynamic` + `Cache-Control: no-store`，返回当前版本 + 最近 8 条 release notes）做运行期比对，不再依赖 GitHub raw（避免网络不可达/缓存问题）
+  - `next/src/hooks/use-version-check.ts` 重写：数据源改为 `/api/app-version?t=${Date.now()}`；页面挂载 + 10 分钟轮询（POLL_INTERVAL）+ `visibilitychange` 切前台检查；`applyUpdate`（reload）、`dismissUpdate`（sessionStorage，key `infinite-canvas:dismissed-version`）
+  - 新增 `next/src/components/layout/app-update-notice.tsx`：右下角非阻塞提示卡片（`fixed bottom-6 right-6 z-50 w-80`，stone 配色 + dark 变体，前 5 条更新要点 + 保存提醒 + 「立即更新」/「稍后」）；挂载于 `next/src/app/(user)/layout.tsx` 与 `next/src/app/(admin)/admin/layout.tsx`
+  - `version-release-modal.tsx` 仅导出 `getTagColor` / `renderReleaseContent` 供提示卡片复用；`app-top-nav.tsx` 的 `UserStatusActions` 左侧重新插入 `<VersionReleaseModal />` 恢复顶栏版本入口
+  - 修复账户名后符号不居中：`user-status-actions.tsx` 文本字符 `⌄`（基线不居中）替换为 `<ChevronDown className="size-3.5 shrink-0 opacity-60" />`
+  - `AGENTS.md` 发版流程补充：发版后必须重新构建部署，`/api/app-version` 才会返回新版本号；`CHANGELOG.md` Unreleased 归入 `## v1.0.0 - 2026-09-02`
+- 涉及文件：`next.config.ts`；`next/src/app/api/app-version/route.ts`(新)；`next/src/hooks/use-version-check.ts`；`next/src/components/layout/{app-update-notice.tsx(新),version-release-modal.tsx,app-top-nav.tsx,user-status-actions.tsx}`；`next/src/app/(user)/layout.tsx`、`next/src/app/(admin)/admin/layout.tsx`；`VERSION`、`CHANGELOG.md`、`AGENTS.md`、`docs/progress/{todo.md,pending-test.md}`
+- 待验证：见 `docs/progress/pending-test.md`「版本管理与前端更新提示」章节（线上需 Render 手动 Deploy 后，`/api/app-version` 返回新版本号才会触发提示卡片）
+- 待办（已写入 todo.md）：无新增
+- 环境备注：本地 worktree 预览曾用 `start-preview-3001.bat`（:3001），已停止；Next dev 清理 `.next/trace` 会触发 safe-delete 批量阈值，须单进程 `CODEBUDDY_SAFE_DELETE_ENABLED=0` 启动
+
 ## prompt-v2 合并（2026-08-26）
 
 - 分支：prompt-v2 → main（PR 合并，commit 2f0131e / main 1a4da0f）

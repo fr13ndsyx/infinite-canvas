@@ -11,6 +11,7 @@ type UserStore = {
     isReady: boolean;
     isLoading: boolean;
     setSession: (token: string, user: AuthUser) => void;
+    updateUser: (patch: Partial<AuthUser>) => void;
     clearSession: () => void;
     hydrateUser: () => Promise<void>;
     login: (payload: AuthPayload) => Promise<AuthUser>;
@@ -25,6 +26,7 @@ export const useUserStore = create<UserStore>()(
             isReady: false,
             isLoading: false,
             setSession: (token, user) => set({ token, user, isReady: true }),
+            updateUser: (patch) => set((state) => ({ user: state.user ? { ...state.user, ...patch } : state.user })),
             clearSession: () => set({ token: "", user: null, isReady: true }),
             hydrateUser: async () => {
                 const token = get().token;
