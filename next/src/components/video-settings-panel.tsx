@@ -96,7 +96,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                     {showTitle && showOtherSections ? <div className="text-lg font-semibold">视频设置</div> : null}
                     {showOtherSections && !visualOnly && modes.length > 0 ? (
                         <CanvasSection title="视频生成方式" theme={theme}>
-                            <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg }}>
+                            <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg, boxShadow: theme.toolbar.panel === "#1f1f1f" ? "0 4px 16px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.06)" : "0 2px 8px rgba(0,0,0,0.12)" }}>
                                 {modes.map((item) => (
                                     <button
                                         key={item.value}
@@ -114,7 +114,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                     ) : null}
                     {showRatioResolution ? (
                     <CanvasSection title="选择分辨率" theme={theme}>
-                        <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg }}>
+                        <div className="flex min-h-[52px] w-full items-stretch gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg, boxShadow: theme.toolbar.panel === "#1f1f1f" ? "0 4px 16px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.06)" : "0 2px 8px rgba(0,0,0,0.12)" }}>
                             {resolutionOptionsForRender.map((item) => {
                                 const active = resolution === item.value;
                                 return (
@@ -136,7 +136,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                     ) : null}
                     {showRatioResolution ? (
                     <CanvasSection title="选择比例" theme={theme}>
-                        <div className="grid grid-cols-4 gap-0.5 rounded-lg p-1" style={{ background: theme.node.subtleFill }}>
+                        <div className="grid gap-0.5 rounded-lg p-1" style={{ background: theme.node.segmentBg, boxShadow: theme.toolbar.panel === "#1f1f1f" ? "0 4px 16px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(255,255,255,0.06)" : "0 2px 8px rgba(0,0,0,0.12)", gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))" }}>
                             {ratioButtons.map((item) => {
                                 const isSmart = item.value === "auto" || item.value === "adaptive";
                                 const active = selectedSize === item.value;
@@ -146,7 +146,7 @@ export function VideoSettingsPanel({ config, modelName, onConfigChange, theme, c
                                         key={item.value}
                                         type="button"
                                         className="flex min-h-[52px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md py-1 text-[9px] leading-3 transition hover:opacity-80"
-                                        style={{ background: active ? theme.node.panel : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                        style={{ background: active ? theme.toolbar.activeBg : "transparent", color: theme.node.text, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                         onMouseDown={(event) => event.stopPropagation()}
                                         onClick={() => onConfigChange("size", item.value)}
                                     >

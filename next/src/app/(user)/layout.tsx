@@ -8,7 +8,7 @@ import { AppUpdateNotice } from "@/components/layout/app-update-notice";
 import { fetchUserConfig } from "@/services/api/user-config";
 import { useUserStore } from "@/stores/use-user-store";
 
-const protectedPrefixes = ["/asset-library"];
+const protectedPrefixes = ["/asset-library", "/account"];
 
 export default function UserLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname();

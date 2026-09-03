@@ -36,6 +36,9 @@ export type CanvasNodeMetadata = {
     content?: string;
     groupId?: string;
     composerContent?: string;
+    skillId?: string;
+    skillName?: string;
+    skillPrompt?: string;
     prompt?: string;
     inputPrompt?: string;
     excludeUpstreamText?: boolean;

@@ -54,6 +54,10 @@ func New() *gin.Engine {
 		handler.GetCanvasAudioTask(c.Writer, c.Request, c.Param("id"))
 	})
 	v1.POST("/ai-logs", gin.WrapF(handler.ClientAICallLog))
+	v1.GET("/profile", gin.WrapF(handler.UserProfile))
+	v1.POST("/profile", gin.WrapF(handler.SaveUserProfile))
+	v1.POST("/auth/change-password", gin.WrapF(handler.ChangePassword))
+	v1.GET("/credit-logs", gin.WrapF(handler.UserCreditLogs))
 	v1.POST("/videos", gin.WrapF(handler.AIVideos))
 	v1.GET("/video-tasks", gin.WrapF(handler.UserVideoTasks))
 	v1.DELETE("/video-tasks/:id", func(c *gin.Context) {
@@ -102,6 +106,7 @@ func New() *gin.Engine {
 	v1.POST("/user-data/assets", gin.WrapF(handler.SaveUserAssetData))
 	api.GET("/proxy-image", gin.WrapF(handler.ProxyImage))
 	api.GET("/prompts", middleware.OptionalAuth, gin.WrapF(handler.Prompts))
+	api.GET("/skills", gin.WrapF(handler.Skills))
 	api.GET("/assets", middleware.OptionalAuth, gin.WrapF(handler.Assets))
 	api.POST("/admin/login", gin.WrapF(handler.AdminLogin))
 
@@ -132,6 +137,11 @@ func New() *gin.Engine {
 	admin.POST("/prompts/batch-delete", gin.WrapF(handler.AdminDeletePrompts))
 	admin.DELETE("/prompts/:id", func(c *gin.Context) {
 		handler.AdminDeletePrompt(c.Writer, c.Request, c.Param("id"))
+	})
+	admin.GET("/skills", gin.WrapF(handler.AdminSkills))
+	admin.POST("/skills", gin.WrapF(handler.AdminSaveSkill))
+	admin.DELETE("/skills/:id", func(c *gin.Context) {
+		handler.AdminDeleteSkill(c.Writer, c.Request, c.Param("id"))
 	})
 	admin.GET("/assets", gin.WrapF(handler.AdminAssets))
 	admin.POST("/assets", gin.WrapF(handler.AdminSaveAsset))

@@ -347,7 +347,7 @@ function ComposerMediaPopover({ popoverRef, rect, groups, theme }: { popoverRef:
             {groups.map((group) => (
                 <div key={group.title} className="mb-1.5 last:mb-0">
                     <div className="px-1 py-1 text-[10px]" style={{ color: theme.node.muted }}>{group.title}</div>
-                    <div className="grid min-w-0 gap-1 rounded-lg p-1" style={{ background: theme.node.fill, gridTemplateColumns: `repeat(${Math.min(Math.max(group.options.length, 1), 3)}, minmax(0, 1fr))` }}>
+                    <div className="grid min-w-0 gap-1 rounded-lg p-1" style={{ background: theme.toolbar.panel, gridTemplateColumns: `repeat(${Math.min(Math.max(group.options.length, 1), 3)}, minmax(0, 1fr))` }}>
                         {group.options.map((option) => {
                             const active = option.value === group.value;
                             return (
@@ -355,7 +355,7 @@ function ComposerMediaPopover({ popoverRef, rect, groups, theme }: { popoverRef:
                                     key={option.value}
                                     type="button"
                                     className="flex min-h-8 min-w-0 items-center justify-center rounded-md px-1.5 py-1.5 text-xs transition hover:opacity-80"
-                                    style={{ background: active ? theme.node.panel : "transparent", color: active ? theme.node.titleText : theme.node.muted, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
+                                    style={{ background: active ? theme.toolbar.activeBg : "transparent", color: active ? theme.node.titleText : theme.node.muted, boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}
                                     onClick={() => group.onSelect(option.value)}
                                 >
                                     {option.label}
