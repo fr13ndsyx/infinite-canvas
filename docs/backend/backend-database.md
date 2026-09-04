@@ -56,11 +56,10 @@ description: 当前后端主要数据表与字段说明
 | `aff_count` | number | 已邀请用户数量，冗余统计字段 |
 | `inviter_id` | string | 邀请人用户 ID |
 | `github_id` | string | GitHub 用户 ID |
-| `linux_do_id` | string | Linux.do 用户 ID |
 | `wechat_id` | string | 微信用户 ID |
 | `status` | string | 用户状态：`active`、`ban` |
 | `last_login_at` | string | 最近登录时间 |
-| `extra` | json | 扩展信息，第三方资料按平台命名空间保存，如 `linuxDo` |
+| `extra` | json | 扩展信息，第三方资料按平台命名空间保存 |
 | `created_at` | string | 创建时间 |
 | `updated_at` | string | 更新时间 |
 
@@ -351,18 +350,12 @@ description: 当前后端主要数据表与字段说明
 
 管理员未配置的模型走默认值策略：生图=全比例+仅标准档，视频=480p/720p/1080p、秒数 4-20、面板=通用。能力开关未配置（`undefined`）时前端走默认硬编码兜底，有值则按配置控制 UI 显隐与请求体字段。前端工作台按当前所选模型的能力动态渲染比例、档位、模式、面板，切换模型时若当前选项不在新模型支持范围内则自动回退。
 
-`auth.linuxDo` 当前字段：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `enabled` | bool | 是否开启 Linux.do 登录 |
-
 `private.value` 当前字段：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `channels` | object[] | 模型渠道配置列表 |
-| `auth` | object | 私有登录配置 |
+| `auth` | object | 私有登录配置，当前为空，预留扩展 |
 
 `channels` 每项字段：
 
@@ -377,13 +370,6 @@ description: 当前后端主要数据表与字段说明
 | `enabled` | bool | 是否启用 |
 | `remark` | string | 备注 |
 
-`auth.linuxDo` 当前字段：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `clientId` | string | Linux.do OAuth App Client ID |
-| `clientSecret` | string | Linux.do OAuth App Client Secret，后台返回时隐藏 |
-
 后端请求模型时，先按模型名筛选启用且包含该模型的渠道，再按 `weight` 加权随机选择一个渠道。
 
 ### credit_logs
@@ -397,7 +383,7 @@ description: 当前后端主要数据表与字段说明
 | `type` | string | 类型：`admin_adjust`、`ai_consume`、`ai_refund` |
 | `amount` | number | 本次变动数量，增加为正，扣减为负 |
 | `balance` | number | 变动后的用户算力点余额 |
-| `related_id` | string | 关联业务 ID，可为空 |
+| `related_id` | string | 关联业务 ID：`ai_consume` 与对应 `ai_refund` 使用同一个生成任务 ID（前端传入或后端生成，视频任务同时作为 `ClientTaskID` 存入 `video_tasks`）；`admin_adjust` 使用独立的 `credit-adjust` 操作 ID，与账号 ID 无关 |
 | `remark` | string | 备注 |
 | `extra` | json | 扩展信息 |
 | `created_at` | string | 创建时间 |

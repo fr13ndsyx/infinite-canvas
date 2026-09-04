@@ -6,9 +6,9 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/google/uuid"
 	"infinite-canvas/model"
 	"infinite-canvas/repository"
-	"github.com/google/uuid"
 )
 
 type CreativeWorkflowPayload struct {
@@ -34,6 +34,7 @@ type WorkflowAgentDraftRequest struct {
 	BaseURL     string   `json:"baseUrl"`
 	APIKey      string   `json:"apiKey"`
 	References  []string `json:"references"`
+	RelatedID   string   `json:"relatedId"`
 }
 
 type WorkflowAgentDraftResponse struct {

@@ -228,6 +228,7 @@ func AdjustUserCredits(id string, credits int) (model.User, error) {
 			Type:      model.CreditLogTypeAdminAdjust,
 			Amount:    credits - oldCredits,
 			Balance:   credits,
+			RelatedID: newID("credit-adjust"),
 			Remark:    "后台手动调整",
 			CreatedAt: now(),
 		})
@@ -236,7 +237,7 @@ func AdjustUserCredits(id string, credits int) (model.User, error) {
 	return user, err
 }
 
-func ConsumeUserCredits(userID string, modelName string, credits int, path string) error {
+func ConsumeUserCredits(userID string, modelName string, credits int, path string, relatedID string) error {
 	if credits <= 0 {
 		return nil
 	}
@@ -254,6 +255,7 @@ func ConsumeUserCredits(userID string, modelName string, credits int, path strin
 		Type:      model.CreditLogTypeAIConsume,
 		Amount:    -credits,
 		Balance:   user.Credits,
+		RelatedID: strings.TrimSpace(relatedID),
 		Remark:    "调用模型 " + modelName,
 		Extra:     string(extra),
 		CreatedAt: now(),
@@ -261,7 +263,7 @@ func ConsumeUserCredits(userID string, modelName string, credits int, path strin
 	return err
 }
 
-func RefundUserCredits(userID string, modelName string, credits int, path string) error {
+func RefundUserCredits(userID string, modelName string, credits int, path string, relatedID string) error {
 	if credits <= 0 {
 		return nil
 	}
@@ -279,6 +281,7 @@ func RefundUserCredits(userID string, modelName string, credits int, path string
 		Type:      model.CreditLogTypeAIRefund,
 		Amount:    credits,
 		Balance:   user.Credits,
+		RelatedID: strings.TrimSpace(relatedID),
 		Remark:    "模型调用失败返还 " + modelName,
 		Extra:     string(extra),
 		CreatedAt: now(),
@@ -298,6 +301,9 @@ func SaveCreditLog(log model.CreditLog) (model.CreditLog, error) {
 	if log.ID == "" {
 		log.ID = newID("credit")
 		log.CreatedAt = now()
+	}
+	if log.Type == model.CreditLogTypeAdminAdjust && strings.TrimSpace(log.RelatedID) == "" {
+		log.RelatedID = newID("credit-adjust")
 	}
 	return repository.SaveCreditLog(log)
 }
@@ -351,6 +357,10 @@ func now() string {
 
 func newID(prefix string) string {
 	return prefix + "-" + uuid.NewString()
+}
+
+func NewCreditRelatedID() string {
+	return newID("generation")
 }
 
 func newAffCode() string {

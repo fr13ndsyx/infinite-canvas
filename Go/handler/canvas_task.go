@@ -254,7 +254,7 @@ func runCanvasImageTask(task model.CanvasImageTask, user model.AuthUser, body []
 	task.StartedAt = current
 	task, _ = service.SaveCanvasImageTask(task)
 
-	payload, status, _, err := executeCanvasAIRequest(user, task.Endpoint, body, contentType, channelID, userChannelID)
+	payload, status, _, err := executeCanvasAIRequest(user, task.Endpoint, body, contentType, channelID, userChannelID, task.ID)
 	if err != nil {
 		saveFailedCanvasImageTask(task, err.Error(), err.Error())
 		return
@@ -295,7 +295,7 @@ func runCanvasAudioTask(task model.CanvasAudioTask, user model.AuthUser, body []
 	task.StartedAt = current
 	task, _ = service.SaveCanvasAudioTask(task)
 
-	payload, status, responseContentType, err := executeCanvasAIRequest(user, task.Endpoint, body, contentType, channelID, userChannelID)
+	payload, status, responseContentType, err := executeCanvasAIRequest(user, task.Endpoint, body, contentType, channelID, userChannelID, task.ID)
 	if err != nil {
 		saveFailedCanvasAudioTask(task, err.Error(), err.Error())
 		return
@@ -338,11 +338,14 @@ func runCanvasAudioTask(task model.CanvasAudioTask, user model.AuthUser, body []
 	_, _ = service.SaveCanvasAudioTask(task)
 }
 
-func executeCanvasAIRequest(user model.AuthUser, endpoint string, body []byte, contentType string, channelID string, userChannelID string) ([]byte, int, string, error) {
+func executeCanvasAIRequest(user model.AuthUser, endpoint string, body []byte, contentType string, channelID string, userChannelID string, relatedID string) ([]byte, int, string, error) {
 	request := httptest.NewRequest(http.MethodPost, "http://canvas.local/api/v1"+endpoint, bytes.NewReader(body))
 	request = request.WithContext(service.WithUser(context.Background(), user))
 	if contentType != "" {
 		request.Header.Set("Content-Type", contentType)
+	}
+	if strings.TrimSpace(relatedID) != "" {
+		request.Header.Set("X-Credit-Related-ID", relatedID)
 	}
 	if strings.TrimSpace(userChannelID) != "" {
 		request.Header.Set(userModelChannelHeader, userChannelID)
@@ -629,8 +632,6 @@ func taskTime() string {
 	return time.Now().UTC().Format(time.RFC3339Nano)
 }
 
-
-
 func readCanvasTaskSources(r *http.Request) []string {
 	values := r.URL.Query()["source"]
 	result := make([]string, 0, len(values))
@@ -643,5 +644,3 @@ func readCanvasTaskSources(r *http.Request) []string {
 	}
 	return result
 }
-
-

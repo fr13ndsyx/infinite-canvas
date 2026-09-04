@@ -38,10 +38,14 @@ export default function AdminCreditLogsPage() {
 
     const columns: ProColumns<AdminCreditLog>[] = [
         {
-            title: "用户 ID",
+            title: "用户",
             dataIndex: "userId",
-            width: 220,
-            render: (_, item) => <Typography.Text copyable>{item.userId}</Typography.Text>,
+            width: 300,
+            render: (_, item) => (
+                <Typography.Text copyable={{ text: item.userId }} ellipsis={{ tooltip: `${item.userDisplayName || "-"}（${item.userId}）` }} style={{ maxWidth: "100%" }}>
+                    {item.userDisplayName || "-"}（{item.userId}）
+                </Typography.Text>
+            ),
         },
         {
             title: "类型",
@@ -92,7 +96,7 @@ export default function AdminCreditLogsPage() {
 
     return (
         <main style={{ padding: 24 }}>
-            <Space direction="vertical" size={16} style={{ width: "100%" }}>
+            <Space orientation="vertical" size={16} style={{ width: "100%" }}>
                 <Card variant="borderless">
                     <Form layout="vertical">
                         <Row gutter={16} align="bottom">

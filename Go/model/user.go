@@ -113,15 +113,16 @@ const (
 
 // CreditLog 用户算力点变更流水。
 type CreditLog struct {
-	ID        string        `json:"id" gorm:"primaryKey"`
-	UserID    string        `json:"userId" gorm:"index"`
-	Type      CreditLogType `json:"type"`
-	Amount    int           `json:"amount"`
-	Balance   int           `json:"balance"`
-	RelatedID string        `json:"relatedId"`
-	Remark    string        `json:"remark"`
-	Extra     string        `json:"extra" gorm:"type:text"`
-	CreatedAt string        `json:"createdAt"`
+	ID              string        `json:"id" gorm:"primaryKey"`
+	UserID          string        `json:"userId" gorm:"index"`
+	UserDisplayName string        `json:"userDisplayName" gorm:"->;-:migration"`
+	Type            CreditLogType `json:"type"`
+	Amount          int           `json:"amount"`
+	Balance         int           `json:"balance"`
+	RelatedID       string        `json:"relatedId"`
+	Remark          string        `json:"remark"`
+	Extra           string        `json:"extra" gorm:"type:text"`
+	CreatedAt       string        `json:"createdAt"`
 }
 
 type CreditLogList struct {

@@ -138,6 +138,7 @@ func proxyAIRequest(w http.ResponseWriter, r *http.Request, path string) {
 		credits *= readAIRequestCount(body, contentType)
 	}
 	upstreamPath := resolveAIProxyPath(channel, modelName, path)
+	relatedID := firstNonEmpty(r.Header.Get("X-Credit-Related-ID"), service.NewCreditRelatedID())
 	if path == "/images/generations" {
 		body, contentType, err = normalizeImageTierBody(body, contentType, modelName)
 		if err != nil {
@@ -172,7 +173,7 @@ func proxyAIRequest(w http.ResponseWriter, r *http.Request, path string) {
 		request.Header.Set("Content-Type", contentType)
 	}
 	if credits > 0 {
-		if err := service.ConsumeUserCredits(user.ID, modelName, credits, upstreamPath); err != nil {
+		if err := service.ConsumeUserCredits(user.ID, modelName, credits, upstreamPath, relatedID); err != nil {
 			FailError(w, err)
 			return
 		}
@@ -189,7 +190,7 @@ func proxyAIRequest(w http.ResponseWriter, r *http.Request, path string) {
 		RequestBody:     summarizeAIRequest(body, contentType),
 	}, func() {
 		if credits > 0 {
-			if err := service.RefundUserCredits(user.ID, modelName, credits, upstreamPath); err != nil {
+			if err := service.RefundUserCredits(user.ID, modelName, credits, upstreamPath, relatedID); err != nil {
 				log.Printf("AI proxy refund credits failed: user=%s model=%s credits=%d err=%v", user.ID, modelName, credits, err)
 			}
 		}
