@@ -429,7 +429,7 @@ export default function AdminModelPricingPage() {
                                             onCell: (row) => ({ rowSpan: row.channelRowSpan }),
                                             render: (_, row) =>
                                                 row.channelRowSpan > 0 ? (
-                                                    <Space direction="vertical" size={0}>
+                                                    <Space orientation="vertical" size={0}>
                                                         <Checkbox
                                                             checked={row.groupModels.every((m) => availableSet.has(m))}
                                                             indeterminate={row.groupModels.some((m) => availableSet.has(m)) && !row.groupModels.every((m) => availableSet.has(m))}
@@ -823,7 +823,7 @@ export default function AdminModelPricingPage() {
                                                                     children: (
                                                                         <div>
                                                                             <Typography.Text type="secondary" style={{ display: "block", marginBottom: 6, fontSize: 11 }}>适用于 Kling/Grok 等有模式参数的模型；值=发送给上游，标签=前端显示。通用模型留空即可。</Typography.Text>
-                                                                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                                                                            <Space orientation="vertical" size={4} style={{ width: "100%" }}>
                                                                                 {(cap.videoModes || []).map((mode, modeIndex) => (
                                                                                     <Space key={modeIndex} size={4}>
                                                                                         <Input size="small" placeholder="值" style={{ width: 70 }} value={mode.value} onChange={(e) => setModelCapabilityModes(form, setModelCapabilities, model, (cap.videoModes || []).map((m, i) => i === modeIndex ? { ...m, value: e.target.value } : m))} />

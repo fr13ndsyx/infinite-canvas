@@ -1,7 +1,7 @@
 "use client";
 
 import { DeleteOutlined, LoadingOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { App, Button, Card, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Tabs, Tag, Typography } from "antd";
+import { App, Button, Card, Checkbox, Col, Drawer, Flex, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Table, Tabs, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchAdminSettings, fetchChannelModels, saveAdminSettings, testChannelModel, type AdminModelChannel, type AdminSettings } from "@/services/api/admin";
@@ -314,7 +314,7 @@ export default function AdminChannelsPage() {
                                     dataIndex: "name",
                                     width: 220,
                                     render: (value, item) => (
-                                        <Space direction="vertical" size={0}>
+                                        <Space orientation="vertical" size={0}>
                                             <Typography.Text strong>{value || "未命名渠道"}</Typography.Text>
                                             <Typography.Text type="secondary" ellipsis style={{ maxWidth: 190, fontSize: 12 }}>{item.baseUrl || "未配置接口地址"}</Typography.Text>
                                         </Space>

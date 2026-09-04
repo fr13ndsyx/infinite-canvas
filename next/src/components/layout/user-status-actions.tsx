@@ -63,7 +63,7 @@ export function UserStatusActions({ variant = "default", accountOpen, onAccountO
                         placement={variant === "admin" ? "bottomRight" : "bottom"}
                         align={{ offset: [0, 14], overflow: { adjustX: 1, adjustY: 1 } }}
                         getPopupContainer={getPopupContainer}
-                        dropdownRender={() => (
+                        popupRender={() => (
                             <div data-account-menu className="min-w-[304px] overflow-hidden rounded-2xl border border-border bg-popover p-2 text-sm text-popover-foreground shadow-2xl shadow-black/10 backdrop-blur-xl dark:shadow-black/30 [&_.account-menu-divider]:bg-border">
                                 <Link href="/account" onClick={() => handleAccountOpenChange(false)} className={accountActionClass}>个人中心</Link>
                                 <AccountDivider />
